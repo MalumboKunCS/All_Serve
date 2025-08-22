@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1067837770200",
+    "project_id": "all-serve",
+    "storage_bucket": "all-serve.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1067837770200:android:458fc866cc0602dfe40aad",
+        "android_client_info": {
+          "package_name": "com.maluDev.all_server"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1LzDsU_v77H1GuuXKjYrkS1ZoFXhbZU8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
