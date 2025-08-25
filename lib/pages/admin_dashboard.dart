@@ -328,7 +328,8 @@ class _AdminDashboardState extends State<AdminDashboard>
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: _getStatusColor(provider.status).withOpacity(0.2),
+                  backgroundColor: _getStatusColor(provider.status)
+                      .withValues(alpha: 0.2),
                   child: Icon(
                     _getStatusIcon(provider.status),
                     color: _getStatusColor(provider.status),
@@ -554,14 +555,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                 provider.id,
                 notesController.text.trim(),
               );
-              Navigator.pop(context);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Provider approved successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Provider approved successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -612,14 +615,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                 provider.id,
                 reasonController.text.trim(),
               );
-              Navigator.pop(context);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Provider rejected'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Provider rejected'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -681,14 +686,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                 titleController.text.trim(),
                 messageController.text.trim(),
               );
-              Navigator.pop(context);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Announcement sent to all providers!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Announcement sent to all providers!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Send'),
@@ -752,14 +759,16 @@ class _AdminDashboardState extends State<AdminDashboard>
                 provider.id,
                 reasonController.text.trim(),
               );
-              Navigator.pop(context);
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Provider suspended'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Provider suspended'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -780,8 +789,6 @@ class _AdminDashboardState extends State<AdminDashboard>
         return Colors.red;
       case ProviderStatus.rejected:
         return Colors.red.shade800;
-      default:
-        return Colors.grey;
     }
   }
 
@@ -795,8 +802,6 @@ class _AdminDashboardState extends State<AdminDashboard>
         return Icons.block;
       case ProviderStatus.rejected:
         return Icons.cancel;
-      default:
-        return Icons.help;
     }
   }
 
@@ -810,8 +815,6 @@ class _AdminDashboardState extends State<AdminDashboard>
         return 'Suspended';
       case ProviderStatus.rejected:
         return 'Rejected';
-      default:
-        return 'Unknown';
     }
   }
 
@@ -819,6 +822,7 @@ class _AdminDashboardState extends State<AdminDashboard>
     return '${date.day}/${date.month}/${date.year}';
   }
 }
+
 
 
 

@@ -28,7 +28,8 @@ class _CategoriesPageState extends State<CategoriesPage> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading categories: $e');
+      // ignore: avoid_print
+      debugPrint('Error loading categories: $e');
       setState(() {
         isLoading = false;
       });
@@ -143,7 +144,8 @@ class _CategoryProvidersPageState extends State<CategoryProvidersPage> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading providers: $e');
+      // ignore: avoid_print
+      debugPrint('Error loading providers: $e');
       setState(() {
         isLoading = false;
       });

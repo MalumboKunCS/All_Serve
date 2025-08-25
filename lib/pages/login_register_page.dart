@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:all_server/auth.dart';
 import 'package:all_server/pages/profile_setup_page.dart';
-import 'package:all_server/services/profile_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,7 +16,6 @@ class _LoginPageState extends State<LoginPage> {
 
   final TextEditingController _controllerEmail    = TextEditingController(); 
   final TextEditingController _controllerPassword = TextEditingController();
-  final ProfileService _profileService = ProfileService();
 
   @override
   void dispose() {

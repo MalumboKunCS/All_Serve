@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:all_server/models/user_profile.dart';
+import 'package:flutter/foundation.dart';
 
 class ProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -18,7 +19,8 @@ class ProfileService {
       }
       return null;
     } catch (e) {
-      print('Error getting user profile: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting user profile: $e');
       return null;
     }
   }
@@ -49,7 +51,8 @@ class ProfileService {
       await _firestore.collection('users').doc(uid).set(userProfile.toMap());
       return true;
     } catch (e) {
-      print('Error creating user profile: $e');
+      // ignore: avoid_print
+      debugPrint('Error creating user profile: $e');
       return false;
     }
   }
@@ -77,7 +80,8 @@ class ProfileService {
       await _firestore.collection('users').doc(uid).update(updateData);
       return true;
     } catch (e) {
-      print('Error updating user profile: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating user profile: $e');
       return false;
     }
   }
@@ -104,7 +108,8 @@ class ProfileService {
       }
       return null;
     } catch (e) {
-      print('Error picking image: $e');
+      // ignore: avoid_print
+      debugPrint('Error picking image: $e');
       return null;
     }
   }

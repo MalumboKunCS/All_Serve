@@ -111,24 +111,30 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
         workingHours: _workingHours,
       );
 
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      } else {
-        throw Exception('Failed to update profile');
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Failed to update profile');
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -152,25 +158,30 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
           profileImage: isLogo ? null : File(image.path),
           businessLogo: isLogo ? File(image.path) : null,
         );
-
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${isLogo ? 'Logo' : 'Profile image'} updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          throw Exception('Failed to update image');
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${isLogo ? 'Logo' : 'Profile image'} updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } else {
+            throw Exception('Failed to update image');
+          }
         }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -508,6 +519,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     );
   }
 }
+
 
 
 

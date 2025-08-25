@@ -43,7 +43,8 @@ class _HomePageState extends State<HomePage> {
         isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
+      // ignore: avoid_print
+      debugPrint('Error loading data: $e');
       setState(() {
         isLoading = false;
       });

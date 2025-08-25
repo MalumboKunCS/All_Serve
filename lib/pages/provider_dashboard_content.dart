@@ -34,7 +34,8 @@ class _ProviderDashboardContentState extends State<ProviderDashboardContent> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading dashboard data: $e');
+      // ignore: avoid_print
+      debugPrint('Error loading dashboard data: $e');
       setState(() {
         _isLoading = false;
       });
@@ -400,6 +401,7 @@ class _ProviderDashboardContentState extends State<ProviderDashboardContent> {
     );
   }
 }
+
 
 
 

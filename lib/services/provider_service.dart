@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:all_server/models/provider.dart';
 import 'package:all_server/models/booking.dart';
+import 'package:flutter/foundation.dart';
 
 class ProviderService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -18,7 +19,8 @@ class ProviderService {
       }
       return null;
     } catch (e) {
-      print('Error getting provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting provider: $e');
       return null;
     }
   }
@@ -50,7 +52,8 @@ class ProviderService {
       await _firestore.collection('providers').doc(uid).set(provider.toMap());
       return true;
     } catch (e) {
-      print('Error creating provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error creating provider: $e');
       return false;
     }
   }
@@ -100,7 +103,8 @@ class ProviderService {
       await _firestore.collection('providers').doc(providerId).update(updateData);
       return true;
     } catch (e) {
-      print('Error updating provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating provider: $e');
       return false;
     }
   }
@@ -121,7 +125,8 @@ class ProviderService {
         'lastActiveAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error updating online status: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating online status: $e');
     }
   }
 
@@ -134,7 +139,8 @@ class ProviderService {
       });
       return true;
     } catch (e) {
-      print('Error updating services: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating services: $e');
       return false;
     }
   }
@@ -180,7 +186,8 @@ class ProviderService {
       await _firestore.collection('providers').doc(providerId).update(updateData);
       return true;
     } catch (e) {
-      print('Error uploading verification documents: $e');
+      // ignore: avoid_print
+      debugPrint('Error uploading verification documents: $e');
       return false;
     }
   }
@@ -241,7 +248,8 @@ class ProviderService {
         'averageJobValue': completedJobs > 0 ? totalEarnings / completedJobs : 0.0,
       };
     } catch (e) {
-      print('Error getting provider earnings: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting provider earnings: $e');
       return {
         'totalEarnings': 0.0,
         'completedJobs': 0,
@@ -292,7 +300,8 @@ class ProviderService {
         'completedJobs': completedJobs,
       };
     } catch (e) {
-      print('Error getting dashboard stats: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting dashboard stats: $e');
       return {
         'totalBookings': 0,
         'thisMonthBookings': 0,
@@ -357,30 +366,31 @@ class ProviderService {
 
       return providers;
     } catch (e) {
-      print('Error searching providers: $e');
+      // ignore: avoid_print
+      debugPrint('Error searching providers: $e');
       return [];
     }
   }
 
   // Calculate distance between two coordinates (Haversine formula)
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371; // Earth's radius in kilometers
     
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
     
-    double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(_toRadians(lat1)) *
-        Math.cos(_toRadians(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_toRadians(lat1)) *
+        math.cos(_toRadians(lat2)) *
+        math.sin(dLon / 2) *
+        math.sin(dLon / 2);
     
-    double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     
     return earthRadius * c;
   }
-
+  
   double _toRadians(double degrees) {
-    return degrees * (Math.pi / 180);
+    return degrees * (math.pi / 180);
   }
 }

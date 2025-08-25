@@ -30,9 +30,11 @@ class NotificationService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('User granted permission');
+      // ignore: avoid_print
+      debugPrint('User granted permission');
     } else {
-      print('User declined or has not accepted permission');
+      // ignore: avoid_print
+      debugPrint('User declined or has not accepted permission');
       return;
     }
 
@@ -55,7 +57,8 @@ class NotificationService {
     // Get FCM token
     String? token = await _firebaseMessaging.getToken();
     if (token != null) {
-      print('FCM Token: $token');
+      // ignore: avoid_print
+      debugPrint('FCM Token: $token');
       // Store token in Firestore for user
     }
 
@@ -69,7 +72,8 @@ class NotificationService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    print('Received foreground message: ${message.messageId}');
+    // ignore: avoid_print
+    debugPrint('Received foreground message: ${message.messageId}');
     
     // Show local notification
     await _showLocalNotification(
@@ -80,12 +84,14 @@ class NotificationService {
   }
 
   Future<void> _handleBackgroundMessage(RemoteMessage message) async {
-    print('Received background message: ${message.messageId}');
+    // ignore: avoid_print
+    debugPrint('Received background message: ${message.messageId}');
     // Handle navigation based on notification data
   }
 
   void _handleNotificationTap(NotificationResponse response) {
-    print('Notification tapped: ${response.payload}');
+    // ignore: avoid_print
+    debugPrint('Notification tapped: ${response.payload}');
     // Handle navigation based on payload
   }
 
@@ -127,7 +133,8 @@ class NotificationService {
         });
       }
     } catch (e) {
-      print('Error saving FCM token: $e');
+      // ignore: avoid_print
+      debugPrint('Error saving FCM token: $e');
     }
   }
 
@@ -135,9 +142,11 @@ class NotificationService {
   Future<void> subscribeToTopic(String topic) async {
     try {
       await _firebaseMessaging.subscribeToTopic(topic);
-      print('Subscribed to topic: $topic');
+      // ignore: avoid_print
+      debugPrint('Subscribed to topic: $topic');
     } catch (e) {
-      print('Error subscribing to topic: $e');
+      // ignore: avoid_print
+      debugPrint('Error subscribing to topic: $e');
     }
   }
 
@@ -145,9 +154,11 @@ class NotificationService {
   Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _firebaseMessaging.unsubscribeFromTopic(topic);
-      print('Unsubscribed from topic: $topic');
+      // ignore: avoid_print
+      debugPrint('Unsubscribed from topic: $topic');
     } catch (e) {
-      print('Error unsubscribing from topic: $e');
+      // ignore: avoid_print
+      debugPrint('Error unsubscribing from topic: $e');
     }
   }
 
@@ -176,10 +187,12 @@ class NotificationService {
 
         // In a real app, you would send this to your backend
         // which would use the FCM Admin SDK to send the notification
-        print('Notification stored for user: $userId');
+        // ignore: avoid_print
+        debugPrint('Notification stored for user: $userId');
       }
     } catch (e) {
-      print('Error sending notification: $e');
+      // ignore: avoid_print
+      debugPrint('Error sending notification: $e');
     }
   }
 
@@ -208,7 +221,8 @@ class NotificationService {
         'readAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error marking notification as read: $e');
+      // ignore: avoid_print
+      debugPrint('Error marking notification as read: $e');
     }
   }
 
@@ -227,7 +241,8 @@ class NotificationService {
 
       await batch.commit();
     } catch (e) {
-      print('Error clearing notifications: $e');
+      // ignore: avoid_print
+      debugPrint('Error clearing notifications: $e');
     }
   }
 }
@@ -235,6 +250,7 @@ class NotificationService {
 // Background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling a background message: ${message.messageId}');
+  // ignore: avoid_print
+  debugPrint('Handling a background message: ${message.messageId}');
 }
 

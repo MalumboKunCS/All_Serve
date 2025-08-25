@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:all_server/models/provider.dart';
 import 'package:all_server/services/notification_service.dart';
+import 'package:flutter/foundation.dart';
 
 class AdminService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -55,7 +56,8 @@ class AdminService {
 
       return true;
     } catch (e) {
-      print('Error approving provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error approving provider: $e');
       return false;
     }
   }
@@ -84,7 +86,8 @@ class AdminService {
 
       return true;
     } catch (e) {
-      print('Error rejecting provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error rejecting provider: $e');
       return false;
     }
   }
@@ -112,7 +115,8 @@ class AdminService {
 
       return true;
     } catch (e) {
-      print('Error suspending provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error suspending provider: $e');
       return false;
     }
   }
@@ -138,7 +142,8 @@ class AdminService {
 
       return true;
     } catch (e) {
-      print('Error reactivating provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error reactivating provider: $e');
       return false;
     }
   }
@@ -174,7 +179,8 @@ class AdminService {
         'totalBookings': bookingsSnapshot.docs.length,
       };
     } catch (e) {
-      print('Error getting admin stats: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting admin stats: $e');
       return {};
     }
   }
@@ -197,7 +203,8 @@ class AdminService {
 
       return true;
     } catch (e) {
-      print('Error sending announcement: $e');
+      // ignore: avoid_print
+      debugPrint('Error sending announcement: $e');
       return false;
     }
   }
@@ -211,11 +218,13 @@ class AdminService {
       }
       return null;
     } catch (e) {
-      print('Error getting provider: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting provider: $e');
       return null;
     }
   }
 }
+
 
 
 

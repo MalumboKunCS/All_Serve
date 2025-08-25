@@ -311,8 +311,8 @@ class _ReviewPageState extends State<ReviewPage> {
                         _existingReview!.id,
                         widget.booking.providerId,
                       );
-                      
-                      if (success && mounted) {
+                      if (!mounted) return;
+                      if (success) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Review deleted successfully!')),
                         );

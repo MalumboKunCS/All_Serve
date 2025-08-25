@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:all_server/services/notification_service.dart';
+import 'package:flutter/foundation.dart';
 
 enum BookingStatus {
   pending,
@@ -152,7 +153,8 @@ class BookingService {
 
       return docRef.id;
     } catch (e) {
-      print('Error creating booking: $e');
+      // ignore: avoid_print
+      debugPrint('Error creating booking: $e');
       return null;
     }
   }
@@ -218,7 +220,8 @@ class BookingService {
 
       return true;
     } catch (e) {
-      print('Error updating booking status: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating booking status: $e');
       return false;
     }
   }
@@ -232,7 +235,8 @@ class BookingService {
       }
       return null;
     } catch (e) {
-      print('Error getting booking: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting booking: $e');
       return null;
     }
   }

@@ -224,9 +224,9 @@ class _ProviderVerificationPageState extends State<ProviderVerificationPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
+        color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -378,9 +378,11 @@ class _ProviderVerificationPageState extends State<ProviderVerificationPage> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking file: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking file: $e')),
+        );
+      }
     }
   }
 
@@ -404,33 +406,42 @@ class _ProviderVerificationPageState extends State<ProviderVerificationPage> {
       );
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Documents submitted successfully! They will be reviewed by our admin team.'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Documents submitted successfully! They will be reviewed by our admin team.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
 
         // Clear selected files
-        setState(() {
-          _businessLicense = null;
-          _pacraRegistration = null;
-          _identityDocument = null;
-        });
+        if (mounted) {
+          setState(() {
+            _businessLicense = null;
+            _pacraRegistration = null;
+            _identityDocument = null;
+          });
+        }
       } else {
         throw Exception('Failed to upload documents');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
 }
+
 
 
 

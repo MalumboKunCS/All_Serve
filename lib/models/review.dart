@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class Review {
   final String id;
@@ -107,7 +108,8 @@ class ReviewService {
 
       return true;
     } catch (e) {
-      print('Error submitting review: $e');
+      // ignore: avoid_print
+      debugPrint('Error submitting review: $e');
       return false;
     }
   }
@@ -138,7 +140,8 @@ class ReviewService {
         });
       }
     } catch (e) {
-      print('Error updating provider rating: $e');
+      // ignore: avoid_print
+      debugPrint('Error updating provider rating: $e');
     }
   }
 
@@ -194,7 +197,8 @@ class ReviewService {
 
       return existingReview.docs.isEmpty;
     } catch (e) {
-      print('Error checking review eligibility: $e');
+      // ignore: avoid_print
+      debugPrint('Error checking review eligibility: $e');
       return false;
     }
   }
@@ -213,7 +217,8 @@ class ReviewService {
       }
       return null;
     } catch (e) {
-      print('Error getting booking review: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting booking review: $e');
       return null;
     }
   }
@@ -228,7 +233,8 @@ class ReviewService {
       
       return true;
     } catch (e) {
-      print('Error deleting review: $e');
+      // ignore: avoid_print
+      debugPrint('Error deleting review: $e');
       return false;
     }
   }
@@ -267,7 +273,8 @@ class ReviewService {
         'ratingDistribution': distribution,
       };
     } catch (e) {
-      print('Error getting rating stats: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting rating stats: $e');
       return {
         'averageRating': 0.0,
         'totalReviews': 0,

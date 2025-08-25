@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -39,7 +40,8 @@ class FirebaseService {
       categories.shuffle(Random());
       return categories.take(limit).toList();
     } catch (e) {
-      print('Error fetching categories: $e');
+      // ignore: avoid_print
+      debugPrint('Error fetching categories: $e');
       // Return default categories on error
       return [
         {'icon': 'plumbing', 'label': 'Plumbing', 'id': 'plumbing'},
@@ -68,7 +70,8 @@ class FirebaseService {
       }
       return providerIds;
     } catch (e) {
-      print('Error fetching user previous providers: $e');
+      // ignore: avoid_print
+      debugPrint('Error fetching user previous providers: $e');
       return [];
     }
   }
@@ -115,7 +118,8 @@ class FirebaseService {
       
       return nearbyProviders;
     } catch (e) {
-      print('Error fetching nearby providers: $e');
+      // ignore: avoid_print
+      debugPrint('Error fetching nearby providers: $e');
       return [];
     }
   }
@@ -173,7 +177,8 @@ class FirebaseService {
       // Limit to 10 providers
       return recommendedProviders.take(10).toList();
     } catch (e) {
-      print('Error getting recommended providers: $e');
+      // ignore: avoid_print
+      debugPrint('Error getting recommended providers: $e');
       // Return default providers on error
       return [
         {
@@ -228,7 +233,8 @@ class FirebaseService {
         };
       }).toList();
     } catch (e) {
-      print('Error fetching all categories: $e');
+      // ignore: avoid_print
+      debugPrint('Error fetching all categories: $e');
       return [];
     }
   }
@@ -294,7 +300,8 @@ class FirebaseService {
             return (a['distance'] as double).compareTo(b['distance'] as double);
           });
         } catch (e) {
-          print('Error getting location, falling back to rating sort: $e');
+          // ignore: avoid_print
+          debugPrint('Error getting location, falling back to rating sort: $e');
           providers.sort((a, b) => (b['rating'] as double).compareTo(a['rating'] as double));
         }
       } else {
@@ -304,7 +311,8 @@ class FirebaseService {
       
       return providers;
     } catch (e) {
-      print('Error fetching providers by category: $e');
+      // ignore: avoid_print
+      debugPrint('Error fetching providers by category: $e');
       return [];
     }
   }

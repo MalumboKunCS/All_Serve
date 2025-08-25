@@ -43,6 +43,7 @@ class _ProviderBookingsPageState extends State<ProviderBookingsPage>
       finalPrice: finalPrice,
     );
 
+    if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -448,6 +449,7 @@ class _BookingDetailsDialogState extends State<_BookingDetailsDialog> {
     );
   }
 }
+
 
 
 

@@ -34,23 +34,29 @@ class _ProviderServicesPageState extends State<ProviderServicesPage> {
       );
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Services updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Services updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
         throw Exception('Failed to update services');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -562,6 +568,7 @@ class _ServiceDialogState extends State<_ServiceDialog> {
     );
   }
 }
+
 
 
 

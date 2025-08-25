@@ -41,6 +41,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _locationEnabled = prefs.getBool('locationEnabled') ?? false;
       _searchRadius = prefs.getDouble('searchRadius') ?? 50.0;
@@ -72,6 +73,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
+          if (!mounted) return;
           setState(() {
             _locationEnabled = false;
             _currentLocation = 'Permission denied';
@@ -81,6 +83,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
 
       if (permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
         setState(() {
           _locationEnabled = false;
           _currentLocation = 'Permission permanently denied';
@@ -93,10 +96,12 @@ class _SettingsPageState extends State<SettingsPage> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
+      if (!mounted) return;
       setState(() {
         _currentLocation = '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _currentLocation = 'Error: $e';
       });
@@ -132,20 +137,26 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (success) {
         await _loadUserProfile();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully!')),
+          );
+        }
       } else {
         throw Exception('Failed to update profile');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUpdatingProfile = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUpdatingProfile = false;
+        });
+      }
     }
   }
 
@@ -209,20 +220,26 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (success) {
         await _loadUserProfile();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture updated successfully!')),
+          );
+        }
       } else {
         throw Exception('Failed to update profile picture');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
     } finally {
-      setState(() {
-        _isUpdatingProfile = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUpdatingProfile = false;
+        });
+      }
     }
   }
 

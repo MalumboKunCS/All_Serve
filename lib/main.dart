@@ -30,7 +30,8 @@ Future<void> main() async {
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling a background message: ${message.messageId}');
+  // ignore: avoid_print
+  debugPrint('Handling a background message: ${message.messageId}');
 }
 
 class MyApp extends StatelessWidget {

@@ -10,7 +10,7 @@ class WidgetTree extends StatefulWidget {
   State<WidgetTree> createState() => _WidgetTreeState();
 }
 
-class _WidgetTreeState extends State<WidgetTree>{
+class _WidgetTreeState extends State<WidgetTree> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
