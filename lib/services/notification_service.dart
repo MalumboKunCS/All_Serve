@@ -1,256 +1,462 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'dart:convert';
 
 class NotificationService {
-  static final NotificationService _instance = NotificationService._internal();
-  factory NotificationService() => _instance;
-  NotificationService._internal();
+  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const FirebaseAuth _auth = FirebaseAuth.instance;
+  static const FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = 
-      FlutterLocalNotificationsPlugin();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  bool _isInitialized = false;
-
-  Future<void> initialize() async {
-    if (_isInitialized) return;
-
-    // Request notification permissions
-    NotificationSettings settings = await _firebaseMessaging.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      // ignore: avoid_print
-      debugPrint('User granted permission');
-    } else {
-      // ignore: avoid_print
-      debugPrint('User declined or has not accepted permission');
-      return;
-    }
-
-    // Initialize local notifications
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
-
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        _handleNotificationTap(response);
-      },
-    );
-
-    // Get FCM token
-    String? token = await _firebaseMessaging.getToken();
-    if (token != null) {
-      // ignore: avoid_print
-      debugPrint('FCM Token: $token');
-      // Store token in Firestore for user
-    }
-
-    // Listen to foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-    // Listen to background messages
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleBackgroundMessage);
-
-    _isInitialized = true;
-  }
-
-  Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    // ignore: avoid_print
-    debugPrint('Received foreground message: ${message.messageId}');
-    
-    // Show local notification
-    await _showLocalNotification(
-      title: message.notification?.title ?? 'New Notification',
-      body: message.notification?.body ?? '',
-      payload: message.data.toString(),
-    );
-  }
-
-  Future<void> _handleBackgroundMessage(RemoteMessage message) async {
-    // ignore: avoid_print
-    debugPrint('Received background message: ${message.messageId}');
-    // Handle navigation based on notification data
-  }
-
-  void _handleNotificationTap(NotificationResponse response) {
-    // ignore: avoid_print
-    debugPrint('Notification tapped: ${response.payload}');
-    // Handle navigation based on payload
-  }
-
-  Future<void> _showLocalNotification({
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'booking_requests',
-      'Booking Requests',
-      channelDescription: 'Notifications for booking requests and updates',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: payload,
-    );
-  }
-
-  // Store FCM token for user
-  Future<void> saveFCMToken(String userId) async {
-    try {
-      String? token = await _firebaseMessaging.getToken();
-      if (token != null) {
-        await _firestore.collection('users').doc(userId).update({
-          'fcmToken': token,
-          'platform': defaultTargetPlatform.name,
-          'tokenUpdatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error saving FCM token: $e');
-    }
-  }
-
-  // Subscribe to topic (for general announcements)
-  Future<void> subscribeToTopic(String topic) async {
-    try {
-      await _firebaseMessaging.subscribeToTopic(topic);
-      // ignore: avoid_print
-      debugPrint('Subscribed to topic: $topic');
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error subscribing to topic: $e');
-    }
-  }
-
-  // Unsubscribe from topic
-  Future<void> unsubscribeFromTopic(String topic) async {
-    try {
-      await _firebaseMessaging.unsubscribeFromTopic(topic);
-      // ignore: avoid_print
-      debugPrint('Unsubscribed from topic: $topic');
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error unsubscribing from topic: $e');
-    }
-  }
-
-  // Send notification to specific user (server-side function)
-  Future<void> sendNotificationToUser({
+  // Send notification to a specific user
+  static Future<void> sendNotification({
     required String userId,
     required String title,
     required String body,
     Map<String, dynamic>? data,
+    String? imageUrl,
+    String? notificationType,
   }) async {
     try {
       // Get user's FCM token
       final userDoc = await _firestore.collection('users').doc(userId).get();
-      final fcmToken = userDoc.data()?['fcmToken'] as String?;
-
-      if (fcmToken != null) {
-        // Store notification in Firestore for persistence
-        await _firestore.collection('notifications').add({
-          'userId': userId,
-          'title': title,
-          'body': body,
-          'data': data ?? {},
-          'read': false,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        // In a real app, you would send this to your backend
-        // which would use the FCM Admin SDK to send the notification
-        // ignore: avoid_print
-        debugPrint('Notification stored for user: $userId');
+      if (!userDoc.exists) {
+        throw Exception('User not found');
       }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final fcmToken = userData['fcmToken'] as String?;
+      
+      if (fcmToken == null || fcmToken.isEmpty) {
+        // User doesn't have FCM token, store notification in database
+        await _storeNotificationInDatabase(
+          userId: userId,
+          title: title,
+          body: body,
+          data: data,
+          imageUrl: imageUrl,
+          notificationType: notificationType,
+        );
+        return;
+      }
+
+      // Send FCM notification
+      await _sendFCMNotification(
+        token: fcmToken,
+        title: title,
+        body: body,
+        data: data,
+        imageUrl: imageUrl,
+      );
+
+      // Also store in database for offline users
+      await _storeNotificationInDatabase(
+        userId: userId,
+        title: title,
+        body: body,
+        data: data,
+        imageUrl: imageUrl,
+        notificationType: notificationType,
+      );
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error sending notification: $e');
+      // Fallback: store in database only
+      await _storeNotificationInDatabase(
+        userId: userId,
+        title: title,
+        body: body,
+        data: data,
+        imageUrl: imageUrl,
+        notificationType: notificationType,
+      );
     }
   }
 
-  // Get user notifications from Firestore
-  Stream<List<Map<String, dynamic>>> getUserNotifications(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('timestamp', descending: true)
-        .limit(50)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
+  // Send FCM notification
+  static Future<void> _sendFCMNotification({
+    required String token,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+    String? imageUrl,
+  }) async {
+    try {
+      // This would typically be done through a backend server
+      // For now, we'll store it in Firestore and handle it through Cloud Functions
+      await _firestore.collection('fcm_notifications').add({
+        'token': token,
+        'title': title,
+        'body': body,
+        'data': data ?? {},
+        'imageUrl': imageUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'status': 'pending',
+      });
+    } catch (e) {
+      debugPrint('Error sending FCM notification: $e');
+    }
+  }
+
+  // Store notification in database
+  static Future<void> _storeNotificationInDatabase({
+    required String userId,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+    String? imageUrl,
+    String? notificationType,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(userId).collection('notifications').add({
+        'title': title,
+        'body': body,
+        'data': data ?? {},
+        'imageUrl': imageUrl,
+        'type': notificationType ?? 'general',
+        'isRead': false,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error storing notification: $e');
+    }
+  }
+
+  // Get user's notifications
+  static Future<List<AppNotification>> getUserNotifications({
+    required String userId,
+    int limit = 20,
+    bool unreadOnly = false,
+  }) async {
+    try {
+      Query query = _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .orderBy('timestamp', descending: true)
+          .limit(limit);
+
+      if (unreadOnly) {
+        query = query.where('isRead', isEqualTo: false);
+      }
+
+      final querySnapshot = await query.get();
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return AppNotification.fromMap(doc.id, data);
       }).toList();
-    });
+    } catch (e) {
+      debugPrint('Error getting notifications: $e');
+      return [];
+    }
   }
 
   // Mark notification as read
-  Future<void> markAsRead(String notificationId) async {
+  static Future<void> markNotificationAsRead({
+    required String userId,
+    required String notificationId,
+  }) async {
     try {
-      await _firestore.collection('notifications').doc(notificationId).update({
-        'read': true,
-        'readAt': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error marking notification as read: $e');
     }
   }
 
-  // Clear all notifications for user
-  Future<void> clearAllNotifications(String userId) async {
+  // Mark all notifications as read
+  static Future<void> markAllNotificationsAsRead({
+    required String userId,
+  }) async {
     try {
       final batch = _firestore.batch();
       final notifications = await _firestore
+          .collection('users')
+          .doc(userId)
           .collection('notifications')
-          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
           .get();
 
       for (final doc in notifications.docs) {
-        batch.delete(doc.reference);
+        batch.update(doc.reference, {'isRead': true});
       }
 
       await batch.commit();
     } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error clearing notifications: $e');
+      debugPrint('Error marking all notifications as read: $e');
+    }
+  }
+
+  // Delete notification
+  static Future<void> deleteNotification({
+    required String userId,
+    required String notificationId,
+  }) async {
+    try {
+      await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting notification: $e');
+    }
+  }
+
+  // Get unread notification count
+  static Future<int> getUnreadNotificationCount({
+    required String userId,
+  }) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .where('isRead', isEqualTo: false)
+          .count()
+          .get();
+      
+      return querySnapshot.count;
+    } catch (e) {
+      debugPrint('Error getting unread count: $e');
+      return 0;
+    }
+  }
+
+  // Send booking notification
+  static Future<void> sendBookingNotification({
+    required String providerId,
+    required String customerId,
+    required String bookingId,
+    required String serviceName,
+    required DateTime scheduledDate,
+    required String customerName,
+  }) async {
+    await sendNotification(
+      userId: providerId,
+      title: 'New Booking Request',
+      body: '$customerName has requested $serviceName on ${_formatDate(scheduledDate)}',
+      data: {
+        'type': 'new_booking',
+        'bookingId': bookingId,
+        'customerId': customerId,
+        'serviceName': serviceName,
+        'scheduledDate': scheduledDate.toIso8601String(),
+      },
+      notificationType: 'booking',
+    );
+  }
+
+  // Send booking update notification
+  static Future<void> sendBookingUpdateNotification({
+    required String userId,
+    required String bookingId,
+    required String status,
+    required String serviceName,
+    DateTime? scheduledDate,
+  }) async {
+    String body = 'Your $serviceName booking has been $status';
+    if (scheduledDate != null) {
+      body += ' for ${_formatDate(scheduledDate)}';
+    }
+
+    await sendNotification(
+      userId: userId,
+      title: 'Booking Update',
+      body: body,
+      data: {
+        'type': 'booking_update',
+        'bookingId': bookingId,
+        'status': status,
+        'serviceName': serviceName,
+        'scheduledDate': scheduledDate?.toIso8601String(),
+      },
+      notificationType: 'booking_update',
+    );
+  }
+
+  // Send review request notification
+  static Future<void> sendReviewRequestNotification({
+    required String customerId,
+    required String providerName,
+    required String serviceName,
+    required String bookingId,
+  }) async {
+    await sendNotification(
+      userId: customerId,
+      title: 'Review Your Service',
+      body: 'How was your $serviceName experience with $providerName?',
+      data: {
+        'type': 'review_request',
+        'providerName': providerName,
+        'serviceName': serviceName,
+        'bookingId': bookingId,
+      },
+      notificationType: 'review_request',
+    );
+  }
+
+  // Send review notification
+  static Future<void> sendReviewNotification({
+    required String providerId,
+    required String customerName,
+    required String serviceName,
+    required double rating,
+  }) async {
+    await sendNotification(
+      userId: providerId,
+      title: 'New Review',
+      body: '$customerName left a ${rating.toStringAsFixed(1)}-star review for $serviceName',
+      data: {
+        'type': 'new_review',
+        'customerName': customerName,
+        'serviceName': serviceName,
+        'rating': rating,
+      },
+      notificationType: 'review',
+    );
+  }
+
+  // Send payment notification
+  static Future<void> sendPaymentNotification({
+    required String userId,
+    required String amount,
+    required String serviceName,
+    required String status,
+  }) async {
+    await sendNotification(
+      userId: userId,
+      title: 'Payment $status',
+      body: 'Payment of \$$amount for $serviceName has been $status',
+      data: {
+        'type': 'payment',
+        'amount': amount,
+        'serviceName': serviceName,
+        'status': status,
+      },
+      notificationType: 'payment',
+    );
+  }
+
+  // Send reminder notification
+  static Future<void> sendReminderNotification({
+    required String userId,
+    required String serviceName,
+    required DateTime scheduledDate,
+    required String providerName,
+  }) async {
+    await sendNotification(
+      userId: userId,
+      title: 'Service Reminder',
+      body: 'Your $serviceName with $providerName is scheduled for tomorrow',
+      data: {
+        'type': 'reminder',
+        'serviceName': serviceName,
+        'scheduledDate': scheduledDate.toIso8601String(),
+        'providerName': providerName,
+      },
+      notificationType: 'reminder',
+    );
+  }
+
+  // Helper method to format date
+  static String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}/${date.year}';
+  }
+
+  // Initialize FCM for current user
+  static Future<void> initializeFCM() async {
+    try {
+      // Request permission
+      NotificationSettings settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // Get FCM token
+        String? token = await _messaging.getToken();
+        if (token != null) {
+          // Save token to user's document
+          final user = _auth.currentUser;
+          if (user != null) {
+            await _firestore.collection('users').doc(user.uid).update({
+              'fcmToken': token,
+              'lastTokenUpdate': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+
+        // Listen for token refresh
+        _messaging.onTokenRefresh.listen((newToken) {
+          final user = _auth.currentUser;
+          if (user != null) {
+            _firestore.collection('users').doc(user.uid).update({
+              'fcmToken': newToken,
+              'lastTokenUpdate': FieldValue.serverTimestamp(),
+            });
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error initializing FCM: $e');
     }
   }
 }
 
-// Background message handler (must be top-level function)
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // ignore: avoid_print
-  debugPrint('Handling a background message: ${message.messageId}');
+class AppNotification {
+  final String id;
+  final String title;
+  final String body;
+  final Map<String, dynamic> data;
+  final String? imageUrl;
+  final String type;
+  final bool isRead;
+  final DateTime timestamp;
+
+  AppNotification({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.data,
+    this.imageUrl,
+    required this.type,
+    required this.isRead,
+    required this.timestamp,
+  });
+
+  factory AppNotification.fromMap(String id, Map<String, dynamic> map) {
+    return AppNotification(
+      id: id,
+      title: map['title'] ?? '',
+      body: map['body'] ?? '',
+      data: map['data'] ?? {},
+      imageUrl: map['imageUrl'],
+      type: map['type'] ?? 'general',
+      isRead: map['isRead'] ?? false,
+      timestamp: (map['timestamp'] as Timestamp).toDate(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'title': title,
+      'body': body,
+      'data': data,
+      'imageUrl': imageUrl,
+      'type': type,
+      'isRead': isRead,
+      'timestamp': Timestamp.fromDate(timestamp),
+    };
+  }
 }
 

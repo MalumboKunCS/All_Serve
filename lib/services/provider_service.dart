@@ -5,6 +5,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:all_server/models/provider.dart';
 import 'package:all_server/models/booking.dart';
 import 'package:flutter/foundation.dart';
+import 'package:all_server/models/review.dart';
+import 'package:all_server/services/review_service.dart';
 
 class ProviderService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -391,6 +393,415 @@ class ProviderService {
   }
   
   double _toRadians(double degrees) {
+    return degrees * (math.pi / 180);
+  }
+
+  // Get provider by ID
+  static Future<Provider?> getProviderById(String providerId) async {
+    try {
+      final doc = await _firestore.collection('providers').doc(providerId).get();
+      if (doc.exists) {
+        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting provider: $e');
+      return null;
+    }
+  }
+
+  // Get providers by category
+  static Future<List<Provider>> getProvidersByCategory({
+    required String category,
+    int limit = 20,
+    String? lastDocumentId,
+  }) async {
+    try {
+      Query query = _firestore
+          .collection('providers')
+          .where('categories', arrayContains: category)
+          .where('isActive', isEqualTo: true)
+          .orderBy('rating', descending: true)
+          .limit(limit);
+
+      if (lastDocumentId != null) {
+        final lastDoc = await _firestore
+            .collection('providers')
+            .doc(lastDocumentId)
+            .get();
+        query = query.startAfterDocument(lastDoc);
+      }
+
+      final querySnapshot = await query.get();
+      return querySnapshot.docs.map((doc) {
+        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting providers by category: $e');
+      return [];
+    }
+  }
+
+  // Get nearby providers
+  static Future<List<Provider>> getNearbyProviders({
+    required double latitude,
+    required double longitude,
+    double maxDistance = 50.0, // km
+    int limit = 20,
+  }) async {
+    try {
+      // This is a simplified approach. In production, you'd use
+      // Firestore's GeoPoint queries or a geospatial service
+      final querySnapshot = await _firestore
+          .collection('providers')
+          .where('isActive', isEqualTo: true)
+          .limit(limit)
+          .get();
+
+      final providers = querySnapshot.docs.map((doc) {
+        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+
+      // Filter by distance and sort
+      final nearbyProviders = providers.where((provider) {
+        if (provider.location == null) return false;
+        
+        final distance = _calculateDistance(
+          latitude,
+          longitude,
+          provider.location!.latitude,
+          provider.location!.longitude,
+        );
+        
+        return distance <= maxDistance;
+      }).toList();
+
+      // Sort by distance
+      nearbyProviders.sort((a, b) {
+        final distanceA = _calculateDistance(
+          latitude,
+          longitude,
+          a.location!.latitude,
+          a.location!.longitude,
+        );
+        final distanceB = _calculateDistance(
+          latitude,
+          longitude,
+          b.location!.latitude,
+          b.location!.longitude,
+        );
+        return distanceA.compareTo(distanceB);
+      });
+
+      return nearbyProviders;
+    } catch (e) {
+      debugPrint('Error getting nearby providers: $e');
+      return [];
+    }
+  }
+
+  // Get top rated providers
+  static Future<List<Provider>> getTopRatedProviders({
+    int limit = 20,
+    String? category,
+  }) async {
+    try {
+      Query query = _firestore
+          .collection('providers')
+          .where('isActive', isEqualTo: true)
+          .orderBy('rating', descending: true)
+          .limit(limit);
+
+      if (category != null) {
+        query = query.where('categories', arrayContains: category);
+      }
+
+      final querySnapshot = await query.get();
+      return querySnapshot.docs.map((doc) {
+        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting top rated providers: $e');
+      return [];
+    }
+  }
+
+  // Search providers
+  static Future<List<Provider>> searchProviders({
+    required String query,
+    String? category,
+    double? minRating,
+    int limit = 20,
+  }) async {
+    try {
+      Query queryRef = _firestore
+          .collection('providers')
+          .where('isActive', isEqualTo: true);
+
+      if (category != null) {
+        queryRef = queryRef.where('categories', arrayContains: category);
+      }
+
+      if (minRating != null) {
+        queryRef = queryRef.where('rating', isGreaterThanOrEqualTo: minRating);
+      }
+
+      final querySnapshot = await queryRef.limit(limit).get();
+      final providers = querySnapshot.docs.map((doc) {
+        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+      }).toList();
+
+      // Filter by search query
+      final searchResults = providers.where((provider) {
+        final searchLower = query.toLowerCase();
+        
+        // Search in business name
+        if (provider.businessName.toLowerCase().contains(searchLower)) {
+          return true;
+        }
+        
+        // Search in service names
+        for (final service in provider.services) {
+          if (service.name.toLowerCase().contains(searchLower)) {
+            return true;
+          }
+        }
+        
+        // Search in categories
+        for (final category in provider.categories) {
+          if (category.toLowerCase().contains(searchLower)) {
+            return true;
+          }
+        }
+        
+        // Search in description
+        if (provider.description?.toLowerCase().contains(searchLower) == true) {
+          return true;
+        }
+        
+        return false;
+      }).toList();
+
+      return searchResults;
+    } catch (e) {
+      debugPrint('Error searching providers: $e');
+      return [];
+    }
+  }
+
+  // Get provider statistics
+  static Future<Map<String, dynamic>> getProviderStats(String providerId) async {
+    try {
+      final provider = await getProviderById(providerId);
+      if (provider == null) {
+        throw Exception('Provider not found');
+      }
+
+      // Get reviews
+      final reviews = await ReviewService.getProviderReviews(
+        providerId: providerId,
+        limit: 1000, // Get all reviews for stats
+      );
+
+      // Calculate statistics
+      final totalReviews = reviews.length;
+      final averageRating = totalReviews > 0 
+          ? reviews.map((r) => r.rating).reduce((a, b) => a + b) / totalReviews
+          : 0.0;
+      
+      final ratingDistribution = <int, int>{};
+      for (int i = 1; i <= 5; i++) {
+        ratingDistribution[i] = reviews.where((r) => r.rating == i).length;
+      }
+
+      // Get recent activity
+      final recentBookings = await _getRecentBookings(providerId);
+      final completedJobs = await _getCompletedJobs(providerId);
+
+      return {
+        'totalReviews': totalReviews,
+        'averageRating': averageRating,
+        'ratingDistribution': ratingDistribution,
+        'recentBookings': recentBookings,
+        'completedJobs': completedJobs,
+        'responseRate': provider.responseRate,
+        'completionRate': provider.completionRate,
+      };
+    } catch (e) {
+      debugPrint('Error getting provider stats: $e');
+      return {};
+    }
+  }
+
+  // Update provider profile
+  static Future<void> updateProviderProfile({
+    required String providerId,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      await _firestore
+          .collection('providers')
+          .doc(providerId)
+          .update({
+        ...updates,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error updating provider profile: $e');
+      rethrow;
+    }
+  }
+
+  // Add service to provider
+  static Future<void> addService({
+    required String providerId,
+    required ServiceOffering service,
+  }) async {
+    try {
+      await _firestore
+          .collection('providers')
+          .doc(providerId)
+          .update({
+        'services': FieldValue.arrayUnion([service.toMap()]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error adding service: $e');
+      rethrow;
+    }
+  }
+
+  // Update service
+  static Future<void> updateService({
+    required String providerId,
+    required String serviceId,
+    required Map<String, dynamic> updates,
+  }) async {
+    try {
+      final provider = await getProviderById(providerId);
+      if (provider == null) {
+        throw Exception('Provider not found');
+      }
+
+      final updatedServices = provider.services.map((service) {
+        if (service.id == serviceId) {
+          return service.copyWith(
+            name: updates['name'] ?? service.name,
+            description: updates['description'] ?? service.description,
+            price: updates['price'] ?? service.price,
+            duration: updates['duration'] ?? service.duration,
+            category: updates['category'] ?? service.category,
+            images: updates['images'] ?? service.images,
+            specifications: updates['specifications'] ?? service.specifications,
+            isPopular: updates['isPopular'] ?? service.isPopular,
+            discountPercentage: updates['discountPercentage'] ?? service.discountPercentage,
+          );
+        }
+        return service;
+      }).toList();
+
+      await _firestore
+          .collection('providers')
+          .doc(providerId)
+          .update({
+        'services': updatedServices.map((s) => s.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error updating service: $e');
+      rethrow;
+    }
+  }
+
+  // Delete service
+  static Future<void> deleteService({
+    required String providerId,
+    required String serviceId,
+  }) async {
+    try {
+      final provider = await getProviderById(providerId);
+      if (provider == null) {
+        throw Exception('Provider not found');
+      }
+
+      final updatedServices = provider.services
+          .where((service) => service.id != serviceId)
+          .toList();
+
+      await _firestore
+          .collection('providers')
+          .doc(providerId)
+          .update({
+        'services': updatedServices.map((s) => s.toMap()).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error deleting service: $e');
+      rethrow;
+    }
+  }
+
+  // Get recent bookings for provider
+  static Future<List<Map<String, dynamic>>> _getRecentBookings(String providerId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('bookings')
+          .where('providerId', isEqualTo: providerId)
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting recent bookings: $e');
+      return [];
+    }
+  }
+
+  // Get completed jobs for provider
+  static Future<List<Map<String, dynamic>>> _getCompletedJobs(String providerId) async {
+    try {
+      final querySnapshot = await _firestore
+          .collection('bookings')
+          .where('providerId', isEqualTo: providerId)
+          .where('status', isEqualTo: 'completed')
+          .orderBy('completedAt', descending: true)
+          .limit(10)
+          .get();
+
+      return querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint('Error getting completed jobs: $e');
+      return [];
+    }
+  }
+
+  // Calculate distance between two points
+  static double _calculateDistance(
+    double lat1, double lon1, double lat2, double lon2) {
+    const double earthRadius = 6371; // Earth's radius in kilometers
+    
+    double dLat = _degreesToRadians(lat2 - lat1);
+    double dLon = _degreesToRadians(lon2 - lon1);
+    
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
+        sin(dLon / 2) * sin(dLon / 2);
+    
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    
+    return earthRadius * c;
+  }
+
+  static double _degreesToRadians(double degrees) {
     return degrees * (math.pi / 180);
   }
 }
