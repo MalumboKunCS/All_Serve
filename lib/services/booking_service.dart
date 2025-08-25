@@ -5,25 +5,26 @@ import 'package:all_server/services/notification_service.dart';
 import 'dart:convert';
 
 class BookingService {
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
   
   // Create a new booking
   static Future<String?> createBooking({
     required String providerId,
     required String customerId,
-    required String serviceId,
-    required DateTime scheduledDate,
-    required String description,
-    required double estimatedCost,
-    String? specialInstructions,
+    required String serviceType,
+    required DateTime requestedDate,
+    required String serviceDescription,
+    required double estimatedPrice,
+    String? userNotes,
     Map<String, double>? location,
+    String? timeSlot,
   }) async {
     try {
       // Check if provider is available
       bool isAvailable = await _checkProviderAvailability(
         providerId,
-        scheduledDate,
+        requestedDate,
       );
       
       if (!isAvailable) {
@@ -34,22 +35,21 @@ class BookingService {
       DocumentReference bookingRef = await _firestore.collection('bookings').add({
         'providerId': providerId,
         'customerId': customerId,
-        'serviceId': serviceId,
-        'scheduledDate': Timestamp.fromDate(scheduledDate),
-        'description': description,
-        'estimatedCost': estimatedCost,
-        'specialInstructions': specialInstructions,
+        'serviceType': serviceType,
+        'requestedDate': Timestamp.fromDate(requestedDate),
+        'serviceDescription': serviceDescription,
+        'estimatedPrice': estimatedPrice,
+        'userNotes': userNotes,
         'location': location,
+        'timeSlot': timeSlot,
         'status': BookingStatus.pending.name,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'paymentStatus': PaymentStatus.pending.name,
         'rating': null,
         'review': null,
-        'completionDate': null,
-        'cancellationReason': null,
+        'completedAt': null,
         'providerNotes': null,
-        'customerNotes': null,
+        'userNotes': null,
       });
       
       // Send notification to provider
@@ -107,7 +107,7 @@ class BookingService {
         
         data['service'] = await _getServiceData(data['serviceId']);
         
-        bookings.add(Booking.fromMap(data));
+        bookings.add(Booking.fromMap(data, doc.id));
       }
       
       return bookings;
@@ -367,7 +367,7 @@ class BookingService {
       data['customer'] = await _getCustomerData(data['customerId']);
       data['service'] = await _getServiceData(data['serviceId']);
       
-      return Booking.fromMap(data);
+              return Booking.fromMap(data, doc.id);
     } catch (e) {
       return null;
     }
@@ -387,11 +387,11 @@ class BookingService {
       Query query = _firestore
           .collection('bookings')
           .where('providerId', isEqualTo: providerId)
-          .where('scheduledDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('scheduledDate', isLessThan: Timestamp.fromDate(endOfDay))
+          .where('requestedDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+          .where('requestedDate', isLessThan: Timestamp.fromDate(endOfDay))
           .where('status', whereIn: [
             BookingStatus.pending.name,
-            BookingStatus.confirmed.name,
+            BookingStatus.accepted.name,
             BookingStatus.inProgress.name,
           ]);
       
@@ -412,7 +412,7 @@ class BookingService {
   static bool _canCancelBooking(BookingStatus status) {
     return [
       BookingStatus.pending,
-      BookingStatus.confirmed,
+      BookingStatus.accepted,
     ].contains(status);
   }
   
@@ -498,13 +498,13 @@ class BookingService {
           case 'pending':
             pending++;
             break;
-          case 'confirmed':
-            confirmed++;
+                  case 'accepted':
+          confirmed++;
             break;
           case 'completed':
             completed++;
             if (userType == UserType.provider) {
-              totalEarnings += (data['estimatedCost'] ?? 0).toDouble();
+              totalEarnings += (data['estimatedPrice'] ?? 0).toDouble();
             }
             break;
           case 'cancelled':

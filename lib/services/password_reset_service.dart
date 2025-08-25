@@ -4,9 +4,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
 
 class PasswordResetService {
-  static const FirebaseAuth _auth = FirebaseAuth.instance;
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Send password reset email
   static Future<bool> sendPasswordResetEmail(String email) async {
@@ -86,6 +85,8 @@ class PasswordResetService {
       }
       
       // Get user by email
+      // Note: fetchSignInMethodsForEmail is deprecated, but we'll keep it for now
+      // In production, consider using a different approach
       List<String> methods = await _auth.fetchSignInMethodsForEmail(email);
       if (methods.isEmpty) {
         return false;

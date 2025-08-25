@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:all_server/auth.dart';
 import 'package:all_server/services/two_factor_service.dart';
-import 'package:all_server/pages/profile_setup_page.dart';
+import 'package:all_server/pages/home_page.dart';
 
 class EnhancedRegisterPage extends StatefulWidget {
   const EnhancedRegisterPage({super.key});
@@ -59,21 +59,15 @@ class _EnhancedRegisterPageState extends State<EnhancedRegisterPage> {
           await TwoFactorService.enable2FA(userCredential.user!.uid);
         }
 
-        // Navigate to profile setup
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProfileSetupPage(
-                userId: userCredential.user!.uid,
-                isProvider: _isProvider,
-                firstName: _firstNameController.text.trim(),
-                lastName: _lastNameController.text.trim(),
-                phone: _phoneController.text.trim(),
-              ),
-            ),
-          );
-        }
+                            // Navigate to home page after successful registration
+                    if (mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HomePage(),
+                        ),
+                      );
+                    }
       }
     } on FirebaseAuthException catch (e) {
       setState(() {

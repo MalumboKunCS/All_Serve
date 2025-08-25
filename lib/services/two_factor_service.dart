@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class TwoFactorService {
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FlutterSecureStorage _storage = FlutterSecureStorage();
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Generate a random 6-digit OTP
   static String generateOTP() {
@@ -36,7 +35,7 @@ class TwoFactorService {
   }
   
   // Verify OTP
-  static Future<bool> verifyOTP(String userId, String otp) async {
+  static Future<bool> verifyOTP({required String userId, required String otp}) async {
     try {
       String? storedHash = await _storage.read(key: 'otp_$userId');
       String? timestampStr = await _storage.read(key: 'otp_timestamp_$userId');
@@ -62,7 +61,7 @@ class TwoFactorService {
   }
   
   // Send OTP to user (in real app, this would send SMS/email)
-  static Future<bool> sendOTP(String userId, String email) async {
+  static Future<bool> sendOTP({required String userId, required String email}) async {
     try {
       String otp = generateOTP();
       String hashedOTP = hashOTP(otp);
@@ -86,9 +85,10 @@ class TwoFactorService {
     }
   }
   
-  // Enable 2FA for a user
-  static Future<bool> enable2FA(String userId, String secretKey) async {
+    // Enable 2FA for a user
+  static Future<bool> enable2FA(String userId) async {
     try {
+      String secretKey = generateSecretKey();
       await _firestore.collection('users').doc(userId).update({
         'twoFactorEnabled': true,
         'twoFactorSecret': secretKey,

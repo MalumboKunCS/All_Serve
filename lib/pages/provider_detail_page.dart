@@ -581,7 +581,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                       radius: 20,
                       backgroundColor: Colors.blue.shade100,
                       child: Text(
-                        review.customerName?.substring(0, 1).toUpperCase() ?? 'U',
+                        review.userId.substring(0, 1).toUpperCase(),
                         style: TextStyle(
                           color: Colors.blue.shade700,
                           fontWeight: FontWeight.bold,
@@ -596,7 +596,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            review.customerName ?? 'Anonymous',
+                            'User ${review.userId.substring(0, 8)}', // TODO: Fetch actual user name
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,

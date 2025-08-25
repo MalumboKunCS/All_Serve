@@ -77,7 +77,7 @@ class _HomePageState extends State<HomePage> {
 
       // Get address from coordinates
       try {
-        List<Placemark> placemarks = await _searchService.getAddressFromCoordinates(
+        List<Placemark> placemarks = await SearchService.getAddressFromCoordinates(
           position.latitude, 
           position.longitude
         );
@@ -133,10 +133,10 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      List<Provider> results = await _searchService.searchProviders(
+      List<Provider> results = await SearchService.searchProviders(
         query: query,
-        userLatitude: userLocation?.latitude,
-        userLongitude: userLocation?.longitude,
+        userLatitude: userLocation?['latitude'],
+        userLongitude: userLocation?['longitude'],
         maxDistance: 50.0, // 50km radius
       );
 

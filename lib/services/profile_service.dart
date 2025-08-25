@@ -40,9 +40,9 @@ class ProfileService {
       }
 
       final userProfile = UserProfile(
-        uid: uid,
+        id: uid,
         email: email,
-        displayName: displayName,
+        firstName: displayName,
         profileImageUrl: profileImageUrl,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -60,7 +60,7 @@ class ProfileService {
   // Update user profile
   Future<bool> updateUserProfile({
     required String uid,
-    String? displayName,
+    String? firstName,
     File? profileImage,
   }) async {
     try {
@@ -68,8 +68,8 @@ class ProfileService {
         'updatedAt': DateTime.now(),
       };
 
-      if (displayName != null) {
-        updateData['displayName'] = displayName;
+      if (firstName != null) {
+        updateData['firstName'] = firstName;
       }
 
       if (profileImage != null) {

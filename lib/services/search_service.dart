@@ -2,10 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:all_server/models/provider.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:math';
 
 class SearchService {
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
   // Get current user location
   static Future<Map<String, double>> getCurrentLocation() async {

@@ -72,7 +72,7 @@ class _SearchPageState extends State<SearchPage> {
 
       // Get address from coordinates
       try {
-        List<Placemark> placemarks = await _searchService.getAddressFromCoordinates(
+        List<Placemark> placemarks = await SearchService.getAddressFromCoordinates(
           position.latitude, 
           position.longitude
         );
@@ -93,7 +93,7 @@ class _SearchPageState extends State<SearchPage> {
 
   Future<void> _loadSearchSuggestions() async {
     try {
-      List<String> suggestions = await _searchService.getSearchSuggestions();
+      List<String> suggestions = await SearchService.getSearchSuggestions();
       setState(() {
         searchSuggestions = suggestions;
       });
@@ -117,11 +117,11 @@ class _SearchPageState extends State<SearchPage> {
     });
 
     try {
-      List<Provider> results = await _searchService.searchProviders(
+      List<Provider> results = await SearchService.searchProviders(
         query: _searchController.text.trim(),
         category: selectedCategory,
-        userLatitude: userLocation?.latitude,
-        userLongitude: userLocation?.longitude,
+        userLatitude: userLocation?['latitude'],
+        userLongitude: userLocation?['longitude'],
         maxDistance: maxDistance,
         minRating: minRating,
       );

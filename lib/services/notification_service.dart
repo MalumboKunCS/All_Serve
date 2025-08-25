@@ -1,12 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const FirebaseAuth _auth = FirebaseAuth.instance;
-  static const FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
+  // Send notification to a specific user (alias for sendNotification)
+  static Future<void> sendNotificationToUser({
+    required String userId,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+    String? imageUrl,
+    String? notificationType,
+  }) async {
+    return sendNotification(
+      userId: userId,
+      title: title,
+      body: body,
+      data: data,
+      imageUrl: imageUrl,
+      notificationType: notificationType,
+    );
+  }
 
   // Send notification to a specific user
   static Future<void> sendNotification({
@@ -220,7 +239,7 @@ class NotificationService {
           .count()
           .get();
       
-      return querySnapshot.count;
+      return querySnapshot.count ?? 0;
     } catch (e) {
       debugPrint('Error getting unread count: $e');
       return 0;

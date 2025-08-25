@@ -5,8 +5,8 @@ import 'package:all_server/services/notification_service.dart';
 import 'package:all_server/services/booking_service.dart';
 
 class ReviewService {
-  static const FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const FirebaseAuth _auth = FirebaseAuth.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
   
   // Create a new review
   static Future<String?> createReview({
@@ -43,7 +43,7 @@ class ReviewService {
         'isVerified': false,
         'helpfulCount': 0,
         'reportedCount': 0,
-        'status': ReviewStatus.active.name,
+        'status': 'active', // TODO: Define ReviewStatus enum
       });
       
       // Update provider's rating
@@ -91,7 +91,8 @@ class ReviewService {
         query = query.where('status', isEqualTo: status.name);
       }
       
-      query = query.orderBy('createdAt', descending: true).limit(limit).offset(offset);
+      query = query.orderBy('createdAt', descending: true).limit(limit);
+      // TODO: Implement offset functionality with startAfterDocument
       
       QuerySnapshot snapshot = await query.get();
       
@@ -103,7 +104,7 @@ class ReviewService {
         // Get customer data
         data['customer'] = await _getCustomerData(data['customerId']);
         
-        reviews.add(Review.fromMap(data));
+        reviews.add(Review.fromMap(data, doc.id));
       }
       
       return reviews;
@@ -133,7 +134,7 @@ class ReviewService {
         // Get provider data
         data['provider'] = await _getProviderData(data['providerId']);
         
-        reviews.add(Review.fromMap(data));
+        reviews.add(Review.fromMap(data, doc.id));
       }
       
       return reviews;
@@ -292,7 +293,7 @@ class ReviewService {
         
         if (reportedCount >= 5) {
           await _firestore.collection('reviews').doc(reviewId).update({
-            'status': ReviewStatus.hidden.name,
+            'status': 'hidden', // TODO: Define ReviewStatus enum
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -344,7 +345,7 @@ class ReviewService {
       QuerySnapshot snapshot = await _firestore
           .collection('reviews')
           .where('providerId', isEqualTo: providerId)
-          .where('status', isEqualTo: ReviewStatus.active.name)
+          .where('status', isEqualTo: 'active') // TODO: Define ReviewStatus enum
           .get();
       
       if (snapshot.docs.isEmpty) {
@@ -368,7 +369,7 @@ class ReviewService {
         String ratingKey = rating.floor().toString();
         ratingDistribution[ratingKey] = (ratingDistribution[ratingKey] ?? 0) + 1;
         
-        totalHelpful += (data['helpfulCount'] ?? 0);
+        totalHelpful += (data['helpfulCount'] ?? 0).toInt();
       }
       
       double averageRating = totalRating / snapshot.docs.length;
@@ -409,7 +410,7 @@ class ReviewService {
       }
       
       // Check if booking is completed
-      if (bookingData['status'] != BookingStatus.completed.name) {
+      if (bookingData['status'] != 'completed') { // TODO: Define BookingStatus enum
         return false;
       }
       
@@ -450,7 +451,7 @@ class ReviewService {
       QuerySnapshot reviews = await _firestore
           .collection('reviews')
           .where('providerId', isEqualTo: providerId)
-          .where('status', isEqualTo: ReviewStatus.active.name)
+          .where('status', isEqualTo: 'active') // TODO: Define ReviewStatus enum
           .get();
       
       if (reviews.docs.isEmpty) {

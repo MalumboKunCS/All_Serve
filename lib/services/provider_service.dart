@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:math' as math;
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:all_server/models/provider.dart';
@@ -9,11 +9,11 @@ import 'package:all_server/models/review.dart';
 import 'package:all_server/services/review_service.dart';
 
 class ProviderService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Get provider profile
-  Future<Provider?> getProvider(String providerId) async {
+  static Future<Provider?> getProvider(String providerId) async {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
       if (doc.exists) {
@@ -28,7 +28,7 @@ class ProviderService {
   }
 
   // Create provider profile
-  Future<bool> createProvider({
+  static Future<bool> createProvider({
     required String uid,
     required String email,
     required String businessName,
@@ -61,7 +61,7 @@ class ProviderService {
   }
 
   // Update provider profile
-  Future<bool> updateProvider({
+  static Future<bool> updateProvider({
     required String providerId,
     String? businessName,
     String? ownerName,
@@ -381,19 +381,19 @@ class ProviderService {
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
     
-    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_toRadians(lat1)) *
-        math.cos(_toRadians(lat2)) *
-        math.sin(dLon / 2) *
-        math.sin(dLon / 2);
+          double a = sin(dLat / 2) * sin(dLat / 2) +
+          cos(_toRadians(lat1)) *
+          cos(_toRadians(lat2)) *
+          sin(dLon / 2) *
+          sin(dLon / 2);
     
-    double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+          double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     
     return earthRadius * c;
   }
   
-  double _toRadians(double degrees) {
-    return degrees * (math.pi / 180);
+  static double _toRadians(double degrees) {
+    return degrees * (pi / 180);
   }
 
   // Get provider by ID
@@ -419,7 +419,7 @@ class ProviderService {
     try {
       Query query = _firestore
           .collection('providers')
-          .where('categories', arrayContains: category)
+          .where('category', isEqualTo: category)
           .where('isActive', isEqualTo: true)
           .orderBy('rating', descending: true)
           .limit(limit);
@@ -624,8 +624,8 @@ class ProviderService {
         'ratingDistribution': ratingDistribution,
         'recentBookings': recentBookings,
         'completedJobs': completedJobs,
-        'responseRate': provider.responseRate,
-        'completionRate': provider.completionRate,
+        'responseRate': 0.0, // TODO: Calculate from actual data
+        'completionRate': 0.0, // TODO: Calculate from actual data
       };
     } catch (e) {
       debugPrint('Error getting provider stats: $e');
@@ -684,12 +684,11 @@ class ProviderService {
       }
 
       final updatedServices = provider.services.map((service) {
-        if (service.id == serviceId) {
-          return service.copyWith(
+        if (service.name == serviceId) { // Using name as identifier since id doesn't exist
+          return ServiceOffering(
             name: updates['name'] ?? service.name,
             description: updates['description'] ?? service.description,
             price: updates['price'] ?? service.price,
-            duration: updates['duration'] ?? service.duration,
             category: updates['category'] ?? service.category,
             images: updates['images'] ?? service.images,
             specifications: updates['specifications'] ?? service.specifications,
@@ -725,7 +724,7 @@ class ProviderService {
       }
 
       final updatedServices = provider.services
-          .where((service) => service.id != serviceId)
+          .where((service) => service.name != serviceId)
           .toList();
 
       await _firestore
@@ -802,6 +801,6 @@ class ProviderService {
   }
 
   static double _degreesToRadians(double degrees) {
-    return degrees * (math.pi / 180);
+    return degrees * (pi / 180);
   }
 }
