@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:all_server/services/provider_service.dart';
-import 'package:all_server/services/booking_service.dart';
-import 'package:all_server/services/review_service.dart';
+import 'package:all_server/services/review_service.dart' as review_service;
 import 'package:all_server/models/provider.dart';
 import 'package:all_server/models/review.dart';
 import 'package:all_server/pages/booking_page.dart';
@@ -9,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:geolocator/geolocator.dart';
 
 class ProviderDetailPage extends StatefulWidget {
   final String providerId;
@@ -26,14 +24,12 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
   Provider? _provider;
   List<Review> _reviews = [];
   bool _isLoading = true;
-  Map<String, double>? _userLocation;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _loadProviderData();
-    _getUserLocation();
   }
 
   @override
@@ -51,7 +47,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
       }
 
       // Load reviews
-      final reviews = await ReviewService.getProviderReviews(
+      final reviews = await review_service.ReviewService.getProviderReviews(
         providerId: widget.providerId,
         limit: 10,
       );
@@ -60,15 +56,6 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
       // Handle error
     } finally {
       setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _getUserLocation() async {
-    try {
-      _userLocation = await SearchService.getCurrentLocation();
-      setState(() {});
-    } catch (e) {
-      // Handle location error
     }
   }
 
@@ -92,22 +79,22 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Provider Details'),
+          title: const Text('Provider Details'),
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_provider == null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('Provider Details'),
+          title: const Text('Provider Details'),
           backgroundColor: Colors.transparent,
           elevation: 0,
         ),
-        body: Center(child: Text('Provider not found')),
+        body: const Center(child: Text('Provider not found')),
       );
     }
 
@@ -147,7 +134,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                       ),
                     ),
@@ -190,12 +177,12 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
               ),
             ),
             leading: IconButton(
-              icon: Icon(Icons.arrow_back, color: Colors.white),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
               IconButton(
-                icon: Icon(Icons.share, color: Colors.white),
+                icon: const Icon(Icons.share, color: Colors.white),
                 onPressed: () {
                   // TODO: Implement share functionality
                 },
@@ -221,7 +208,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                               children: [
                                 RatingBarIndicator(
                                   rating: _provider!.rating,
-                                  itemBuilder: (context, index) => Icon(
+                                  itemBuilder: (context, index) => const Icon(
                                     Icons.star,
                                     color: Colors.amber,
                                   ),
@@ -230,7 +217,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  '${_provider!.rating.toStringAsFixed(1)}',
+                                  _provider!.rating.toStringAsFixed(1),
                                   style: GoogleFonts.poppins(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
@@ -239,13 +226,13 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                               ],
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${_provider!.reviewCount} reviews',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
+                                                         Text(
+                               '${_provider!.reviewCount} reviews',
+                               style: GoogleFonts.poppins(
+                                 fontSize: 14,
+                                 color: Colors.grey.shade600,
+                               ),
+                             ),
                           ],
                         ),
                       ),
@@ -253,12 +240,12 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                       // Online Status
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _provider!.isOnline ? Colors.green : Colors.grey,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          _provider!.isOnline ? 'Online' : 'Offline',
+                                                 decoration: BoxDecoration(
+                           color: _provider!.isOnline ? Colors.green : Colors.grey,
+                           borderRadius: BorderRadius.circular(20),
+                         ),
+                         child: Text(
+                           _provider!.isOnline ? 'Online' : 'Offline',
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: Colors.white,
@@ -277,8 +264,8 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: _makeBooking,
-                          icon: Icon(Icons.calendar_today),
-                          label: Text('Book Now'),
+                          icon: const Icon(Icons.calendar_today),
+                          label: const Text('Book Now'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue.shade600,
                             foregroundColor: Colors.white,
@@ -296,8 +283,8 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: _launchWebsite,
-                            icon: Icon(Icons.language),
-                            label: Text('Website'),
+                            icon: const Icon(Icons.language),
+                            label: const Text('Website'),
                             style: OutlinedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -325,14 +312,14 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                           labelColor: Colors.blue.shade600,
                           unselectedLabelColor: Colors.grey.shade600,
                           indicatorColor: Colors.blue.shade600,
-                          tabs: [
+                          tabs: const [
                             Tab(text: 'About'),
                             Tab(text: 'Services'),
                             Tab(text: 'Reviews'),
                           ],
                         ),
                         
-                        Container(
+                        SizedBox(
                           height: 400,
                           child: TabBarView(
                             controller: _tabController,
@@ -606,7 +593,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                             children: [
                               RatingBarIndicator(
                                 rating: review.rating,
-                                itemBuilder: (context, index) => Icon(
+                                itemBuilder: (context, index) => const Icon(
                                   Icons.star,
                                   color: Colors.amber,
                                 ),
@@ -631,14 +618,15 @@ class _ProviderDetailPageState extends State<ProviderDetailPage>
                 
                 const SizedBox(height: 12),
                 
-                Text(
-                  review.comment,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    height: 1.4,
+                if (review.comment != null && review.comment!.isNotEmpty)
+                  Text(
+                    review.comment!,
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

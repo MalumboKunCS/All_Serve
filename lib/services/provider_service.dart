@@ -6,7 +6,7 @@ import 'package:all_server/models/provider.dart';
 import 'package:all_server/models/booking.dart';
 import 'package:flutter/foundation.dart';
 import 'package:all_server/models/review.dart';
-import 'package:all_server/services/review_service.dart';
+import 'package:all_server/services/review_service.dart' as review_service;
 
 class ProviderService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -93,12 +93,12 @@ class ProviderService {
       if (workingHours != null) updateData['workingHours'] = workingHours;
 
       if (profileImage != null) {
-        final imageUrl = await _uploadImage(providerId, 'profile', profileImage);
+        final imageUrl = await _uploadImageStatic(providerId, 'profile', profileImage);
         updateData['profileImageUrl'] = imageUrl;
       }
 
       if (businessLogo != null) {
-        final logoUrl = await _uploadImage(providerId, 'logo', businessLogo);
+        final logoUrl = await _uploadImageStatic(providerId, 'logo', businessLogo);
         updateData['businessLogoUrl'] = logoUrl;
       }
 
@@ -111,13 +111,15 @@ class ProviderService {
     }
   }
 
-  // Upload image to Firebase Storage
-  Future<String> _uploadImage(String providerId, String type, File imageFile) async {
+  // Upload image to Firebase Storage (static version)
+  static Future<String> _uploadImageStatic(String providerId, String type, File imageFile) async {
     final ref = _storage.ref().child('provider_images/$providerId/$type/${DateTime.now().millisecondsSinceEpoch}');
     final uploadTask = ref.putFile(imageFile);
     final snapshot = await uploadTask;
     return await snapshot.ref.getDownloadURL();
   }
+
+
 
   // Update online status
   Future<void> updateOnlineStatus(String providerId, bool isOnline) async {
@@ -314,7 +316,7 @@ class ProviderService {
   }
 
   // Search providers by category and location
-  Future<List<Provider>> searchProviders({
+  static Future<List<Provider>> searchProvidersByLocation({
     String? category,
     Map<String, double>? userLocation,
     double radiusKm = 50.0,
@@ -338,7 +340,7 @@ class ProviderService {
         providers = providers.where((provider) {
           if (provider.location == null) return false;
           
-          final distance = _calculateDistance(
+          final distance = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
             provider.location!['latitude']!,
@@ -350,13 +352,13 @@ class ProviderService {
 
         // Sort by distance
         providers.sort((a, b) {
-          final distanceA = _calculateDistance(
+          final distanceA = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
             a.location!['latitude']!,
             a.location!['longitude']!,
           );
-          final distanceB = _calculateDistance(
+          final distanceB = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
             b.location!['latitude']!,
@@ -374,20 +376,20 @@ class ProviderService {
     }
   }
 
-  // Calculate distance between two coordinates (Haversine formula)
-    double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  // Calculate distance between two coordinates (Haversine formula) - static version
+  static double _calculateDistanceStatic(double lat1, double lon1, double lat2, double lon2) {
     const double earthRadius = 6371; // Earth's radius in kilometers
     
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
     
-          double a = sin(dLat / 2) * sin(dLat / 2) +
-          cos(_toRadians(lat1)) *
-          cos(_toRadians(lat2)) *
-          sin(dLon / 2) *
-          sin(dLon / 2);
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+        cos(_toRadians(lat2)) *
+        sin(dLon / 2) *
+        sin(dLon / 2);
     
-          double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     
     return earthRadius * c;
   }
@@ -401,7 +403,7 @@ class ProviderService {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
       if (doc.exists) {
-        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }
       return null;
     } catch (e) {
@@ -434,7 +436,7 @@ class ProviderService {
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting providers by category: $e');
@@ -459,18 +461,18 @@ class ProviderService {
           .get();
 
       final providers = querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
 
       // Filter by distance and sort
       final nearbyProviders = providers.where((provider) {
         if (provider.location == null) return false;
         
-        final distance = _calculateDistance(
+        final distance = _calculateDistanceStatic(
           latitude,
           longitude,
-          provider.location!.latitude,
-          provider.location!.longitude,
+          provider.location!['latitude']!,
+          provider.location!['longitude']!,
         );
         
         return distance <= maxDistance;
@@ -478,17 +480,17 @@ class ProviderService {
 
       // Sort by distance
       nearbyProviders.sort((a, b) {
-        final distanceA = _calculateDistance(
+        final distanceA = _calculateDistanceStatic(
           latitude,
           longitude,
-          a.location!.latitude,
-          a.location!.longitude,
+          a.location!['latitude']!,
+          a.location!['longitude']!,
         );
-        final distanceB = _calculateDistance(
+        final distanceB = _calculateDistanceStatic(
           latitude,
           longitude,
-          b.location!.latitude,
-          b.location!.longitude,
+          b.location!['latitude']!,
+          b.location!['longitude']!,
         );
         return distanceA.compareTo(distanceB);
       });
@@ -513,12 +515,12 @@ class ProviderService {
           .limit(limit);
 
       if (category != null) {
-        query = query.where('categories', arrayContains: category);
+        query = query.where('category', isEqualTo: category);
       }
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting top rated providers: $e');
@@ -526,7 +528,7 @@ class ProviderService {
     }
   }
 
-  // Search providers
+  // Search providers by text query
   static Future<List<Provider>> searchProviders({
     required String query,
     String? category,
@@ -539,7 +541,7 @@ class ProviderService {
           .where('isActive', isEqualTo: true);
 
       if (category != null) {
-        queryRef = queryRef.where('categories', arrayContains: category);
+        queryRef = queryRef.where('category', isEqualTo: category);
       }
 
       if (minRating != null) {
@@ -548,7 +550,7 @@ class ProviderService {
 
       final querySnapshot = await queryRef.limit(limit).get();
       final providers = querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
 
       // Filter by search query
@@ -567,15 +569,13 @@ class ProviderService {
           }
         }
         
-        // Search in categories
-        for (final category in provider.categories) {
-          if (category.toLowerCase().contains(searchLower)) {
-            return true;
-          }
+        // Search in category
+        if (provider.category.toLowerCase().contains(searchLower)) {
+          return true;
         }
         
         // Search in description
-        if (provider.description?.toLowerCase().contains(searchLower) == true) {
+        if (provider.description.toLowerCase().contains(searchLower)) {
           return true;
         }
         
@@ -598,7 +598,7 @@ class ProviderService {
       }
 
       // Get reviews
-      final reviews = await ReviewService.getProviderReviews(
+      final reviews = await review_service.ReviewService.getProviderReviews(
         providerId: providerId,
         limit: 1000, // Get all reviews for stats
       );
@@ -690,6 +690,7 @@ class ProviderService {
             description: updates['description'] ?? service.description,
             price: updates['price'] ?? service.price,
             category: updates['category'] ?? service.category,
+            estimatedDuration: updates['estimatedDuration'] ?? service.estimatedDuration,
             images: updates['images'] ?? service.images,
             specifications: updates['specifications'] ?? service.specifications,
             isPopular: updates['isPopular'] ?? service.isPopular,
@@ -783,24 +784,5 @@ class ProviderService {
     }
   }
 
-  // Calculate distance between two points
-  static double _calculateDistance(
-    double lat1, double lon1, double lat2, double lon2) {
-    const double earthRadius = 6371; // Earth's radius in kilometers
-    
-    double dLat = _degreesToRadians(lat2 - lat1);
-    double dLon = _degreesToRadians(lon2 - lon1);
-    
-    double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_degreesToRadians(lat1)) * cos(_degreesToRadians(lat2)) *
-        sin(dLon / 2) * sin(dLon / 2);
-    
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
-    
-    return earthRadius * c;
-  }
 
-  static double _degreesToRadians(double degrees) {
-    return degrees * (pi / 180);
-  }
 }

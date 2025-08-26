@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:all_server/auth.dart';
 import 'package:all_server/services/two_factor_service.dart';
 import 'package:all_server/pages/home_page.dart';
 
@@ -152,27 +151,31 @@ class _EnhancedRegisterPageState extends State<EnhancedRegisterPage> {
                       Row(
                         children: [
                           Expanded(
-                            child: RadioListTile<bool>(
+                            child: ListTile(
                               title: const Text('Customer'),
-                              value: false,
-                              groupValue: _isProvider,
-                              onChanged: (value) {
-                                setState(() {
-                                  _isProvider = value!;
-                                });
-                              },
+                              leading: Radio<bool>(
+                                value: false,
+                                groupValue: _isProvider,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isProvider = value!;
+                                  });
+                                },
+                              ),
                             ),
                           ),
                           Expanded(
-                            child: RadioListTile<bool>(
+                            child: ListTile(
                               title: const Text('Service Provider'),
-                              value: true,
-                              groupValue: _isProvider,
-                              onChanged: (value) {
-                                setState(() {
-                                  _isProvider = value!;
-                                });
-                              },
+                              leading: Radio<bool>(
+                                value: true,
+                                groupValue: _isProvider,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _isProvider = value!;
+                                  });
+                                },
+                              ),
                             ),
                           ),
                         ],

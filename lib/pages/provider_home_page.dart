@@ -18,7 +18,7 @@ class ProviderHomePage extends StatefulWidget {
 }
 
 class _ProviderHomePageState extends State<ProviderHomePage> {
-  final ProviderService _providerService = ProviderService();
+
   Provider? _provider;
   int _selectedIndex = 0;
   bool _isLoading = true;
@@ -70,7 +70,7 @@ class _ProviderHomePageState extends State<ProviderHomePage> {
   Future<void> _loadProvider() async {
     final user = Auth().currentUser;
     if (user != null) {
-      final provider = await _providerService.getProvider(user.uid);
+      final provider = await ProviderService.getProviderById(user.uid);
       setState(() {
         _provider = provider;
         _isLoading = false;

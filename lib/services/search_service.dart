@@ -74,15 +74,15 @@ class SearchService {
       
       for (DocumentSnapshot doc in snapshot.docs) {
         try {
-          final provider = Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+          final provider = Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
           
           // Calculate distance if location is available
           if (provider.location != null && userLatitude != null && userLongitude != null) {
             double distance = _calculateDistance(
               userLatitude,
               userLongitude,
-              provider.location!.latitude,
-              provider.location!.longitude,
+              provider.location!['latitude']!,
+              provider.location!['longitude']!,
             );
             
             // Filter by max distance if specified
@@ -121,11 +121,11 @@ class SearchService {
             a.location != null && b.location != null) {
           double distanceA = _calculateDistance(
             userLatitude, userLongitude,
-            a.location!.latitude, a.location!.longitude,
+            a.location!['latitude']!, a.location!['longitude']!,
           );
           double distanceB = _calculateDistance(
             userLatitude, userLongitude,
-            b.location!.latitude, b.location!.longitude,
+            b.location!['latitude']!, b.location!['longitude']!,
           );
           return distanceA.compareTo(distanceB);
         }
@@ -151,9 +151,9 @@ class SearchService {
     try {
       Query providersQuery = _firestore.collection('providers');
       
-              if (category != null && category.isNotEmpty) {
-          providersQuery = providersQuery.where('category', isEqualTo: category);
-        }
+      if (category != null && category.isNotEmpty) {
+        providersQuery = providersQuery.where('category', isEqualTo: category);
+      }
       
       providersQuery = providersQuery.where('isActive', isEqualTo: true);
       
@@ -163,14 +163,14 @@ class SearchService {
       
       for (DocumentSnapshot doc in snapshot.docs) {
         try {
-          final provider = Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+          final provider = Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
           
           if (provider.location != null) {
             double distance = _calculateDistance(
               latitude,
               longitude,
-              provider.location!.latitude,
-              provider.location!.longitude,
+              provider.location!['latitude']!,
+              provider.location!['longitude']!,
             );
             
             if (distance <= maxDistance) {
@@ -189,11 +189,11 @@ class SearchService {
         
         double distanceA = _calculateDistance(
           latitude, longitude,
-          a.location!.latitude, a.location!.longitude,
+          a.location!['latitude']!, a.location!['longitude']!,
         );
         double distanceB = _calculateDistance(
           latitude, longitude,
-          b.location!.latitude, b.location!.longitude,
+          b.location!['latitude']!, b.location!['longitude']!,
         );
         
         return distanceA.compareTo(distanceB);
@@ -227,15 +227,15 @@ class SearchService {
       
       for (DocumentSnapshot doc in snapshot.docs) {
         try {
-          final provider = Provider.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+          final provider = Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
           
           // Calculate distance if location is available
           if (provider.location != null && userLatitude != null && userLongitude != null) {
             double distance = _calculateDistance(
               userLatitude,
               userLongitude,
-              provider.location!.latitude,
-              provider.location!.longitude,
+              provider.location!['latitude']!,
+              provider.location!['longitude']!,
             );
             
             // Filter by max distance if specified
@@ -312,13 +312,13 @@ class SearchService {
       }
     }
     
-         // Search in category
-     if (provider.category.toLowerCase().contains(searchLower)) {
-       return true;
-     }
+    // Search in category
+    if (provider.category.toLowerCase().contains(searchLower)) {
+      return true;
+    }
     
     // Search in description
-    if (provider.description?.toLowerCase().contains(searchLower) == true) {
+    if (provider.description.toLowerCase().contains(searchLower)) {
       return true;
     }
     
@@ -342,20 +342,20 @@ class SearchService {
       }
     }
     
-         // Category match (medium weight)
-     if (provider.category.toLowerCase().contains(searchLower)) {
-       score += 5;
-     }
+    // Category match (medium weight)
+    if (provider.category.toLowerCase().contains(searchLower)) {
+      score += 5;
+    }
     
     // Description match (low weight)
-    if (provider.description?.toLowerCase().contains(searchLower) == true) {
+    if (provider.description.toLowerCase().contains(searchLower)) {
       score += 2;
     }
     
-         // Boost score for verified providers
-     if (provider.verificationStatus == VerificationStatus.approved) {
-       score += 3;
-     }
+    // Boost score for verified providers
+    if (provider.verificationStatus == VerificationStatus.approved) {
+      score += 3;
+    }
     
     // Boost score for popular services
     for (final service in provider.services) {

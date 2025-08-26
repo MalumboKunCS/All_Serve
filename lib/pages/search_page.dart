@@ -14,7 +14,6 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  final SearchService _searchService = SearchService();
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   
@@ -120,8 +119,8 @@ class _SearchPageState extends State<SearchPage> {
       List<Provider> results = await SearchService.searchProviders(
         query: _searchController.text.trim(),
         category: selectedCategory,
-        userLatitude: userLocation?['latitude'],
-        userLongitude: userLocation?['longitude'],
+        userLatitude: userLocation?.latitude,
+        userLongitude: userLocation?.longitude,
         maxDistance: maxDistance,
         minRating: minRating,
       );
@@ -432,29 +431,29 @@ class _SearchPageState extends State<SearchPage> {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6),
           child: ListTile(
-                                                                        leading: CircleAvatar(
-                                backgroundImage: provider.profileImageUrl != null
-                                    ? NetworkImage(provider.profileImageUrl!)
-                                    : null,
-                                radius: 24,
-                                child: provider.profileImageUrl == null
-                                    ? Text(
-                                        provider.businessName.isNotEmpty
-                                            ? provider.businessName[0].toUpperCase()
-                                            : 'P',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                         title: Text(
-               provider.businessName.isNotEmpty
-                   ? provider.businessName
-                   : provider.ownerName ?? 'Provider',
-               style: const TextStyle(fontWeight: FontWeight.bold),
-             ),
+            leading: CircleAvatar(
+              backgroundImage: provider.profileImageUrl != null
+                  ? NetworkImage(provider.profileImageUrl!)
+                  : null,
+              radius: 24,
+              child: provider.profileImageUrl == null
+                  ? Text(
+                      provider.businessName.isNotEmpty
+                          ? provider.businessName[0].toUpperCase()
+                          : 'P',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : null,
+            ),
+            title: Text(
+              provider.businessName.isNotEmpty
+                  ? provider.businessName
+                  : provider.ownerName ?? 'Provider',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -479,8 +478,8 @@ class _SearchPageState extends State<SearchPage> {
                         ' • ${_calculateDistance(
                           userLocation!.latitude,
                           userLocation!.longitude,
-                          provider.location!.latitude,
-                          provider.location!.longitude,
+                          provider.location!['latitude']!,
+                          provider.location!['longitude']!,
                         ).toStringAsFixed(1)} km',
                         style: TextStyle(
                           color: Colors.grey[600],
@@ -491,17 +490,17 @@ class _SearchPageState extends State<SearchPage> {
                 ),
               ],
             ),
-                                           trailing: ElevatedButton(
-                                 onPressed: () {
-                                   Navigator.push(
-                                     context,
-                                     MaterialPageRoute(
-                                       builder: (context) => ProviderDetailPage(providerId: provider.id),
-                                     ),
-                                   );
-                                 },
-                                 child: const Text('View'),
-                               ),
+            trailing: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ProviderDetailPage(providerId: provider.id),
+                  ),
+                );
+              },
+              child: const Text('View'),
+            ),
           ),
         );
       },

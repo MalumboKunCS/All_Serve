@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:all_server/models/provider.dart';
-import 'package:all_server/models/booking.dart';
 import 'package:all_server/services/booking_service.dart';
 import 'package:all_server/services/notification_service.dart';
 import 'package:intl/intl.dart';
@@ -21,8 +20,6 @@ class BookingPage extends StatefulWidget {
 }
 
 class _BookingPageState extends State<BookingPage> {
-  final BookingService _bookingService = BookingService();
-  
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
   ServiceOffering? selectedService;
@@ -150,15 +147,17 @@ class _BookingPageState extends State<BookingPage> {
     });
 
     try {
-      // Create the booking
-      final booking = await _bookingService.createBooking(
+      // Create the booking using the correct parameters
+      final bookingId = await BookingService.createBooking(
         providerId: widget.provider.id,
-        serviceId: selectedService!.id,
-        scheduledDate: selectedDate!,
-        scheduledTime: selectedTime!,
-        customerAddress: customerAddress ?? _addressController.text,
-        specialInstructions: specialInstructions ?? _instructionsController.text,
-        estimatedCost: estimatedCost ?? 0.0,
+        customerId: 'current_user_id', // This should come from auth service
+        serviceType: selectedService!.name,
+        requestedDate: selectedDate!,
+        serviceDescription: selectedService!.description,
+        estimatedPrice: estimatedCost ?? 0.0,
+        userNotes: specialInstructions ?? _instructionsController.text,
+        location: null, // Could be added later for location-based services
+        timeSlot: selectedTime!.format(context),
       );
 
       // Send notification to provider
@@ -168,7 +167,7 @@ class _BookingPageState extends State<BookingPage> {
         body: 'You have a new booking request from a customer',
         data: {
           'type': 'new_booking',
-          'bookingId': booking.id,
+          'bookingId': bookingId,
         },
       );
 
@@ -180,7 +179,7 @@ class _BookingPageState extends State<BookingPage> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, booking);
+        Navigator.pop(context, bookingId);
       }
     } catch (e) {
       debugPrint('Error submitting booking: $e');
@@ -251,37 +250,37 @@ class _BookingPageState extends State<BookingPage> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                                         CircleAvatar(
-                       backgroundImage: widget.provider.profileImageUrl != null
-                           ? NetworkImage(widget.provider.profileImageUrl!)
-                           : null,
-                       radius: 30,
-                       child: widget.provider.profileImageUrl == null
-                           ? Text(
-                               widget.provider.businessName.isNotEmpty
-                                   ? widget.provider.businessName[0].toUpperCase()
-                                   : 'P',
-                               style: const TextStyle(
-                                 fontSize: 20,
-                                 fontWeight: FontWeight.bold,
-                               ),
-                             )
-                           : null,
-                     ),
+                    CircleAvatar(
+                      backgroundImage: widget.provider.profileImageUrl != null
+                          ? NetworkImage(widget.provider.profileImageUrl!)
+                          : null,
+                      radius: 30,
+                      child: widget.provider.profileImageUrl == null
+                          ? Text(
+                              widget.provider.businessName.isNotEmpty
+                                  ? widget.provider.businessName[0].toUpperCase()
+                                  : 'P',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                                                     Text(
-                             widget.provider.businessName.isNotEmpty
-                                 ? widget.provider.businessName
-                                 : widget.provider.ownerName ?? 'Provider',
-                             style: const TextStyle(
-                               fontSize: 18,
-                               fontWeight: FontWeight.bold,
-                             ),
-                           ),
+                          Text(
+                            widget.provider.businessName.isNotEmpty
+                                ? widget.provider.businessName
+                                : widget.provider.ownerName ?? 'Provider',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           const SizedBox(height: 4),
                           Row(
                             children: [

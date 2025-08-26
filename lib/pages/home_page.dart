@@ -10,6 +10,7 @@ import 'package:all_server/pages/provider_detail_page.dart';
 import 'package:all_server/pages/search_page.dart';
 import 'package:all_server/models/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:math';
 
 class HomePage extends StatefulWidget {
@@ -22,7 +23,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final User? user = Auth().currentUser;
   final FirebaseService _firebaseService = FirebaseService();
-  final SearchService _searchService = SearchService();
   final TextEditingController _searchController = TextEditingController();
   
   List<Map<String, dynamic>> categories = [];
@@ -133,12 +133,12 @@ class _HomePageState extends State<HomePage> {
     });
 
     try {
-      List<Provider> results = await SearchService.searchProviders(
-        query: query,
-        userLatitude: userLocation?['latitude'],
-        userLongitude: userLocation?['longitude'],
-        maxDistance: 50.0, // 50km radius
-      );
+              List<Provider> results = await SearchService.searchProviders(
+          query: query,
+          userLatitude: userLocation?.latitude,
+          userLongitude: userLocation?.longitude,
+          maxDistance: 50.0, // 50km radius
+        );
 
       setState(() {
         searchResults = results;
@@ -151,9 +151,11 @@ class _HomePageState extends State<HomePage> {
         searchResults = [];
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Search failed: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Search failed: $e')),
+        );
+      }
     }
   }
 
@@ -390,14 +392,14 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       const Icon(Icons.star, color: Colors.amber, size: 16),
                                       Text(' (${provider.reviewCount})'),
-                                      if (provider.location != null && userLocation != null)
-                                        Text(
-                                          ' • ${_calculateDistance(
-                                            userLocation!.latitude,
-                                            userLocation!.longitude,
-                                            provider.location!.latitude,
-                                            provider.location!.longitude,
-                                          ).toStringAsFixed(1)} km',
+                                                                              if (provider.location != null && userLocation != null)
+                                          Text(
+                                            ' • ${_calculateDistance(
+                                              userLocation!.latitude,
+                                              userLocation!.longitude,
+                                              provider.location!['latitude']!,
+                                              provider.location!['longitude']!,
+                                            ).toStringAsFixed(1)} km',
                                           style: TextStyle(
                                             color: Colors.grey[600],
                                             fontSize: 12,

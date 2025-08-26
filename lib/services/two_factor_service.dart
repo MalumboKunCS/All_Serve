@@ -119,7 +119,8 @@ class TwoFactorService {
     try {
       DocumentSnapshot doc = await _firestore.collection('users').doc(userId).get();
       if (doc.exists) {
-        return doc.data()?['twoFactorEnabled'] ?? false;
+        final data = doc.data() as Map<String, dynamic>?;
+        return data?['twoFactorEnabled'] ?? false;
       }
       return false;
     } catch (e) {

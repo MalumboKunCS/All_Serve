@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:all_server/models/provider.dart';
 import 'package:all_server/models/booking.dart';
 import 'package:all_server/services/provider_service.dart';
+import 'package:all_server/services/booking_service.dart';
 
 class ProviderBookingsPage extends StatefulWidget {
   final Provider provider;
@@ -16,7 +17,6 @@ class _ProviderBookingsPageState extends State<ProviderBookingsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final ProviderService _providerService = ProviderService();
-  final BookingService _bookingService = BookingService();
 
   @override
   void initState() {
@@ -36,11 +36,10 @@ class _ProviderBookingsPageState extends State<ProviderBookingsPage>
     String? notes,
     double? finalPrice,
   ) async {
-    final success = await _bookingService.updateBookingStatus(
+    final success = await BookingService.updateBookingStatus(
       bookingId: bookingId,
-      status: status,
-      providerNotes: notes,
-      finalPrice: finalPrice,
+      newStatus: status,
+      notes: notes,
     );
 
     if (!mounted) return;

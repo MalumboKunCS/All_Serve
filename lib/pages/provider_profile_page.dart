@@ -15,7 +15,7 @@ class ProviderProfilePage extends StatefulWidget {
 
 class _ProviderProfilePageState extends State<ProviderProfilePage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final ProviderService _providerService = ProviderService();
+
   
   late TextEditingController _businessNameController;
   late TextEditingController _ownerNameController;
@@ -93,7 +93,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
     });
 
     try {
-      final success = await _providerService.updateProvider(
+      final success = await ProviderService.updateProvider(
         providerId: widget.provider.id,
         businessName: _businessNameController.text.trim(),
         ownerName: _ownerNameController.text.trim().isNotEmpty 
@@ -153,7 +153,7 @@ class _ProviderProfilePageState extends State<ProviderProfilePage> {
       });
 
       try {
-        final success = await _providerService.updateProvider(
+        final success = await ProviderService.updateProvider(
           providerId: widget.provider.id,
           profileImage: isLogo ? null : File(image.path),
           businessLogo: isLogo ? File(image.path) : null,

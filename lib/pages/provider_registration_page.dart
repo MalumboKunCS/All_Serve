@@ -20,7 +20,7 @@ class _ProviderRegistrationPageState extends State<ProviderRegistrationPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   
-  final ProviderService _providerService = ProviderService();
+
   
   String? _selectedCategory;
   bool _isLoading = false;
@@ -87,7 +87,7 @@ class _ProviderRegistrationPageState extends State<ProviderRegistrationPage> {
       final user = Auth().currentUser;
       if (user != null) {
         // Create provider profile
-        final success = await _providerService.createProvider(
+        final success = await ProviderService.createProvider(
           uid: user.uid,
           email: _emailController.text.trim(),
           businessName: _businessNameController.text.trim(),

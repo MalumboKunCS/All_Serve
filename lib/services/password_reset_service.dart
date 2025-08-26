@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:math';
 
 class PasswordResetService {
@@ -85,10 +84,15 @@ class PasswordResetService {
       }
       
       // Get user by email
-      // Note: fetchSignInMethodsForEmail is deprecated, but we'll keep it for now
-      // In production, consider using a different approach
-      List<String> methods = await _auth.fetchSignInMethodsForEmail(email);
-      if (methods.isEmpty) {
+      // Note: fetchSignInMethodsForEmail is deprecated, so we'll use a different approach
+      // Check if user exists in Firestore instead
+      QuerySnapshot userQuery = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get();
+      
+      if (userQuery.docs.isEmpty) {
         return false;
       }
       

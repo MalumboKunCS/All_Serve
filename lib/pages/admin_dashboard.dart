@@ -12,7 +12,6 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final AdminService _adminService = AdminService();
   Map<String, dynamic>? _adminStats;
 
   @override
@@ -29,7 +28,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   }
 
   Future<void> _loadAdminStats() async {
-    final stats = await _adminService.getAdminStats();
+    final stats = await AdminService.getDashboardStats();
     setState(() {
       _adminStats = stats;
     });
@@ -113,7 +112,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                 ),
                 _buildStatCard(
                   'Verified Providers',
-                  '${_adminStats!['verifiedProviders'] ?? 0}',
+                  '${_adminStats!['activeProviders'] ?? 0}',
                   Icons.verified,
                   Colors.purple,
                 ),
@@ -178,7 +177,7 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Widget _buildPendingVerificationsTab() {
     return StreamBuilder<List<Provider>>(
-      stream: _adminService.getPendingVerifications(),
+      stream: AdminService.getPendingVerifications(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -307,7 +306,7 @@ class _AdminDashboardState extends State<AdminDashboard>
 
   Widget _buildAllProvidersTab() {
     return StreamBuilder<List<Provider>>(
-      stream: _adminService.getAllProviders(),
+      stream: AdminService.getAllProviders(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -551,7 +550,7 @@ class _AdminDashboardState extends State<AdminDashboard>
           ),
           ElevatedButton(
             onPressed: () async {
-              final success = await _adminService.approveProvider(
+              final success = await AdminService.approveProvider(
                 provider.id,
                 notesController.text.trim(),
               );
@@ -611,7 +610,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                 return;
               }
               
-              final success = await _adminService.rejectProvider(
+              final success = await AdminService.rejectProvider(
                 provider.id,
                 reasonController.text.trim(),
               );
@@ -682,9 +681,10 @@ class _AdminDashboardState extends State<AdminDashboard>
                 return;
               }
               
-              final success = await _adminService.sendAnnouncementToProviders(
-                titleController.text.trim(),
-                messageController.text.trim(),
+              final success = await AdminService.sendSystemNotification(
+                title: titleController.text.trim(),
+                body: messageController.text.trim(),
+                targetAudience: 'providers',
               );
               if (context.mounted) {
                 Navigator.pop(context);
@@ -711,7 +711,7 @@ class _AdminDashboardState extends State<AdminDashboard>
         _showSuspendDialog(provider);
         break;
       case 'reactivate':
-        _adminService.reactivateProvider(provider.id);
+        AdminService.reactivateProvider(provider.id);
         break;
       case 'view':
         // Show provider details
@@ -755,7 +755,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                 return;
               }
               
-              final success = await _adminService.suspendProvider(
+              final success = await AdminService.suspendProvider(
                 provider.id,
                 reasonController.text.trim(),
               );

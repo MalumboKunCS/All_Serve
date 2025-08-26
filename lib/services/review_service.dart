@@ -41,7 +41,7 @@ class ReviewService {
         'isVerified': false,
         'helpfulCount': 0,
         'reportedCount': 0,
-        'status': 'active', // TODO: Define ReviewStatus enum
+        'status': 'active',
       });
       
       // Update provider's rating
@@ -76,7 +76,6 @@ class ReviewService {
   // Get reviews for a provider
   static Future<List<Review>> getProviderReviews({
     required String providerId,
-    ReviewStatus? status,
     int limit = 20,
     int offset = 0,
   }) async {
@@ -85,12 +84,7 @@ class ReviewService {
           .collection('reviews')
           .where('providerId', isEqualTo: providerId);
       
-      if (status != null) {
-        query = query.where('status', isEqualTo: status.name);
-      }
-      
       query = query.orderBy('createdAt', descending: true).limit(limit);
-      // TODO: Implement offset functionality with startAfterDocument
       
       QuerySnapshot snapshot = await query.get();
       
@@ -291,7 +285,7 @@ class ReviewService {
         
         if (reportedCount >= 5) {
           await _firestore.collection('reviews').doc(reviewId).update({
-            'status': 'hidden', // TODO: Define ReviewStatus enum
+            'status': 'hidden',
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -343,7 +337,7 @@ class ReviewService {
       QuerySnapshot snapshot = await _firestore
           .collection('reviews')
           .where('providerId', isEqualTo: providerId)
-          .where('status', isEqualTo: 'active') // TODO: Define ReviewStatus enum
+
           .get();
       
       if (snapshot.docs.isEmpty) {
@@ -367,7 +361,7 @@ class ReviewService {
         String ratingKey = rating.floor().toString();
         ratingDistribution[ratingKey] = (ratingDistribution[ratingKey] ?? 0) + 1;
         
-        totalHelpful += (data['helpfulCount'] ?? 0).toInt();
+        totalHelpful += (data['helpfulCount'] as int? ?? 0);
       }
       
       double averageRating = totalRating / snapshot.docs.length;
@@ -408,7 +402,7 @@ class ReviewService {
       }
       
       // Check if booking is completed
-      if (bookingData['status'] != 'completed') { // TODO: Define BookingStatus enum
+      if (bookingData['status'] != 'completed') {
         return false;
       }
       
@@ -449,7 +443,6 @@ class ReviewService {
       QuerySnapshot reviews = await _firestore
           .collection('reviews')
           .where('providerId', isEqualTo: providerId)
-          .where('status', isEqualTo: 'active') // TODO: Define ReviewStatus enum
           .get();
       
       if (reviews.docs.isEmpty) {

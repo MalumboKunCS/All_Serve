@@ -4,8 +4,6 @@ import 'package:all_server/auth.dart';
 import 'package:all_server/services/two_factor_service.dart';
 import 'package:all_server/services/password_reset_service.dart';
 import 'package:all_server/pages/profile_setup_page.dart';
-import 'package:all_server/pages/enhanced_register_page.dart';
-import 'package:all_server/pages/two_factor_verification_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_otp_text_field/flutter_otp_text_field.dart';
 
@@ -113,8 +111,8 @@ class _EnhancedLoginPageState extends State<EnhancedLoginPage>
 
     try {
       bool isValid = await TwoFactorService.verifyOTP(
-        userId!,
-        _controller2FA.text,
+        userId: userId!,
+        otp: _controller2FA.text,
       );
 
       if (isValid) {

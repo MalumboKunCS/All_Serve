@@ -130,7 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final success = await _profileService.updateUserProfile(
         uid: user.uid,
-        displayName: _nameController.text.trim().isNotEmpty 
+        firstName: _nameController.text.trim().isNotEmpty 
             ? _nameController.text.trim() 
             : null,
       );

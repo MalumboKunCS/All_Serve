@@ -46,7 +46,6 @@ class BookingService {
         'review': null,
         'completedAt': null,
         'providerNotes': null,
-        'userNotes': null,
       });
       
       // Send notification to provider
