@@ -22,7 +22,6 @@ class BookingPage extends StatefulWidget {
 
 class _BookingPageState extends State<BookingPage> {
   final BookingService _bookingService = BookingService();
-  final NotificationService _notificationService = NotificationService();
   
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
@@ -163,10 +162,10 @@ class _BookingPageState extends State<BookingPage> {
       );
 
       // Send notification to provider
-      await _notificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: widget.provider.id,
         title: 'New Booking Request',
-        body: 'You have a new booking request from ${booking.customerName}',
+        body: 'You have a new booking request from a customer',
         data: {
           'type': 'new_booking',
           'bookingId': booking.id,

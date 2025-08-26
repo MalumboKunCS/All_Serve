@@ -4,11 +4,10 @@ import 'package:all_server/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
 class AdminService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final NotificationService _notificationService = NotificationService();
+  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Get all providers pending verification
-  Stream<List<Provider>> getPendingVerifications() {
+  static Stream<List<Provider>> getPendingVerifications() {
     return _firestore
         .collection('providers')
         .where('verificationStatus', isEqualTo: VerificationStatus.pending.name)
@@ -21,7 +20,7 @@ class AdminService {
   }
 
   // Get all providers (for admin overview)
-  Stream<List<Provider>> getAllProviders() {
+  static Stream<List<Provider>> getAllProviders() {
     return _firestore
         .collection('providers')
         .orderBy('createdAt', descending: true)
@@ -34,7 +33,7 @@ class AdminService {
   }
 
   // Approve provider verification
-  Future<bool> approveProvider(String providerId, String adminNotes) async {
+  static Future<bool> approveProvider(String providerId, String adminNotes) async {
     try {
       await _firestore.collection('providers').doc(providerId).update({
         'verificationStatus': VerificationStatus.approved.name,
@@ -45,7 +44,7 @@ class AdminService {
       });
 
       // Send notification to provider
-      await _notificationService.sendNotificationToUser(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'Verification Approved',
         body: 'Congratulations! Your provider account has been verified. You can now receive bookings.',
@@ -63,7 +62,7 @@ class AdminService {
   }
 
   // Reject provider verification
-  Future<bool> rejectProvider(String providerId, String reason) async {
+  static Future<bool> rejectProvider(String providerId, String reason) async {
     try {
       await _firestore.collection('providers').doc(providerId).update({
         'verificationStatus': VerificationStatus.rejected.name,
@@ -74,7 +73,7 @@ class AdminService {
       });
 
       // Send notification to provider
-      await _notificationService.sendNotificationToUser(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'Verification Rejected',
         body: 'Your verification has been rejected. Please check the reason and resubmit valid documents.',
@@ -93,20 +92,20 @@ class AdminService {
   }
 
   // Suspend provider
-  Future<bool> suspendProvider(String providerId, String reason) async {
+  static Future<bool> suspendProvider(String providerId, String reason) async {
     try {
       await _firestore.collection('providers').doc(providerId).update({
         'status': ProviderStatus.suspended.name,
         'suspendedAt': FieldValue.serverTimestamp(),
         'suspensionReason': reason,
-        'suspendedBy': 'admin',
+        'suspendedBy': 'admin', // In real app, use admin user ID
       });
 
       // Send notification to provider
-      await _notificationService.sendNotificationToUser(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'Account Suspended',
-        body: 'Your provider account has been suspended. Please contact support for more information.',
+        body: 'Your account has been suspended. Please contact support for more information.',
         data: {
           'type': 'account_suspended',
           'reason': reason,
@@ -121,20 +120,20 @@ class AdminService {
     }
   }
 
-  // Reactivate provider
-  Future<bool> reactivateProvider(String providerId) async {
+  // Reactivate suspended provider
+  static Future<bool> reactivateProvider(String providerId) async {
     try {
       await _firestore.collection('providers').doc(providerId).update({
         'status': ProviderStatus.verified.name,
         'reactivatedAt': FieldValue.serverTimestamp(),
-        'reactivatedBy': 'admin',
+        'reactivatedBy': 'admin', // In real app, use admin user ID
       });
 
       // Send notification to provider
-      await _notificationService.sendNotificationToUser(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'Account Reactivated',
-        body: 'Your provider account has been reactivated. You can now receive bookings again.',
+        body: 'Your account has been reactivated. You can now receive bookings again.',
         data: {
           'type': 'account_reactivated',
         },
@@ -148,79 +147,108 @@ class AdminService {
     }
   }
 
-  // Get admin dashboard statistics
-  Future<Map<String, dynamic>> getAdminStats() async {
+  // Get admin dashboard stats
+  static Future<Map<String, dynamic>> getDashboardStats() async {
     try {
       final providersSnapshot = await _firestore.collection('providers').get();
       final bookingsSnapshot = await _firestore.collection('bookings').get();
       final usersSnapshot = await _firestore.collection('users').get();
 
-      final providers = providersSnapshot.docs.map((doc) => 
-        Provider.fromMap(doc.data(), doc.id)).toList();
+      int totalProviders = providersSnapshot.docs.length;
+      int totalBookings = bookingsSnapshot.docs.length;
+      int totalUsers = usersSnapshot.docs.length;
 
-      int pendingVerifications = providers
-          .where((p) => p.verificationStatus == VerificationStatus.pending)
-          .length;
-      
-      int verifiedProviders = providers
-          .where((p) => p.status == ProviderStatus.verified)
+      int pendingVerifications = providersSnapshot.docs
+          .where((doc) => doc.data()['verificationStatus'] == VerificationStatus.pending.name)
           .length;
 
-      int suspendedProviders = providers
-          .where((p) => p.status == ProviderStatus.suspended)
+      int activeProviders = providersSnapshot.docs
+          .where((doc) => doc.data()['status'] == ProviderStatus.verified.name)
+          .length;
+
+      int suspendedProviders = providersSnapshot.docs
+          .where((doc) => doc.data()['status'] == ProviderStatus.suspended.name)
           .length;
 
       return {
-        'totalUsers': usersSnapshot.docs.length,
-        'totalProviders': providers.length,
-        'verifiedProviders': verifiedProviders,
+        'totalProviders': totalProviders,
+        'totalBookings': totalBookings,
+        'totalUsers': totalUsers,
         'pendingVerifications': pendingVerifications,
+        'activeProviders': activeProviders,
         'suspendedProviders': suspendedProviders,
-        'totalBookings': bookingsSnapshot.docs.length,
       };
     } catch (e) {
       // ignore: avoid_print
-      debugPrint('Error getting admin stats: $e');
+      debugPrint('Error getting dashboard stats: $e');
       return {};
     }
   }
 
-  // Send announcement to all providers
-  Future<bool> sendAnnouncementToProviders(String title, String message) async {
+  // Get system analytics
+  static Future<Map<String, dynamic>> getSystemAnalytics() async {
     try {
-      final providersSnapshot = await _firestore.collection('providers').get();
+      final now = DateTime.now();
+      final lastMonth = now.subtract(Duration(days: 30));
+
+      // Get monthly provider registrations
+      final monthlyProviders = await _firestore
+          .collection('providers')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(lastMonth))
+          .get();
+
+      // Get monthly bookings
+      final monthlyBookings = await _firestore
+          .collection('bookings')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(lastMonth))
+          .get();
+
+      // Get monthly revenue (if payment tracking is implemented)
+      double monthlyRevenue = 0.0; // TODO: Implement payment tracking
+
+      return {
+        'monthlyProviderRegistrations': monthlyProviders.docs.length,
+        'monthlyBookings': monthlyBookings.docs.length,
+        'monthlyRevenue': monthlyRevenue,
+        'period': 'Last 30 days',
+      };
+    } catch (e) {
+      // ignore: avoid_print
+      debugPrint('Error getting system analytics: $e');
+      return {};
+    }
+  }
+
+  // Send system-wide notification
+  static Future<bool> sendSystemNotification({
+    required String title,
+    required String body,
+    String? targetAudience, // 'all', 'providers', 'customers'
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      String collection = 'users';
+      if (targetAudience == 'providers') {
+        collection = 'providers';
+      }
+
+      final usersSnapshot = await _firestore.collection(collection).get();
       
-      for (final doc in providersSnapshot.docs) {
-        await _notificationService.sendNotificationToUser(
+      for (final doc in usersSnapshot.docs) {
+        await NotificationService.sendNotificationToUser(
           userId: doc.id,
           title: title,
-          body: message,
-          data: {
-            'type': 'admin_announcement',
-          },
+          body: body,
+          data: data,
+          notificationType: 'system',
         );
       }
 
       return true;
     } catch (e) {
       // ignore: avoid_print
-      debugPrint('Error sending announcement: $e');
+      debugPrint('Error sending system notification: $e');
       return false;
-    }
-  }
-
-  // Get provider by ID with admin view
-  Future<Provider?> getProviderForAdmin(String providerId) async {
-    try {
-      final doc = await _firestore.collection('providers').doc(providerId).get();
-      if (doc.exists) {
-        return Provider.fromMap(doc.data()!, doc.id);
-      }
-      return null;
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error getting provider: $e');
-      return null;
     }
   }
 }

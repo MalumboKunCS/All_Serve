@@ -1,12 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:all_server/models/booking.dart';
 import 'package:all_server/services/notification_service.dart';
-import 'dart:convert';
 
 class BookingService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
   
   // Create a new booking
   static Future<String?> createBooking({

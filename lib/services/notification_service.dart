@@ -127,14 +127,14 @@ class NotificationService {
   }) async {
     try {
       await _firestore.collection('users').doc(userId).collection('notifications').add({
-        'title': title,
-        'body': body,
-        'data': data ?? {},
+          'title': title,
+          'body': body,
+          'data': data ?? {},
         'imageUrl': imageUrl,
         'type': notificationType ?? 'general',
         'isRead': false,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+          'timestamp': FieldValue.serverTimestamp(),
+        });
     } catch (e) {
       debugPrint('Error storing notification: $e');
     }
@@ -150,8 +150,8 @@ class NotificationService {
       Query query = _firestore
           .collection('users')
           .doc(userId)
-          .collection('notifications')
-          .orderBy('timestamp', descending: true)
+        .collection('notifications')
+        .orderBy('timestamp', descending: true)
           .limit(limit);
 
       if (unreadOnly) {
@@ -253,12 +253,11 @@ class NotificationService {
     required String bookingId,
     required String serviceName,
     required DateTime scheduledDate,
-    required String customerName,
   }) async {
     await sendNotification(
       userId: providerId,
       title: 'New Booking Request',
-      body: '$customerName has requested $serviceName on ${_formatDate(scheduledDate)}',
+      body: 'A customer has requested $serviceName on ${_formatDate(scheduledDate)}',
       data: {
         'type': 'new_booking',
         'bookingId': bookingId,
@@ -322,17 +321,15 @@ class NotificationService {
   // Send review notification
   static Future<void> sendReviewNotification({
     required String providerId,
-    required String customerName,
     required String serviceName,
     required double rating,
   }) async {
     await sendNotification(
       userId: providerId,
       title: 'New Review',
-      body: '$customerName left a ${rating.toStringAsFixed(1)}-star review for $serviceName',
+      body: 'A customer left a ${rating.toStringAsFixed(1)}-star review for $serviceName',
       data: {
         'type': 'new_review',
-        'customerName': customerName,
         'serviceName': serviceName,
         'rating': rating,
       },

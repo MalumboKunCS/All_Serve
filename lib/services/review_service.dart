@@ -1,12 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:all_server/models/review.dart';
 import 'package:all_server/services/notification_service.dart';
 import 'package:all_server/services/booking_service.dart';
 
 class ReviewService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseAuth _auth = FirebaseAuth.instance;
   
   // Create a new review
   static Future<String?> createReview({
