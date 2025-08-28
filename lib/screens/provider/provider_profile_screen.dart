@@ -1,0 +1,464 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../theme/app_theme.dart';
+import '../../models/provider.dart' as app_provider;
+import '../../models/category.dart';
+import '../../services/location_service.dart';
+import '../../services/search_service.dart';
+
+class ProviderProfileScreen extends StatefulWidget {
+  final app_provider.Provider? provider;
+
+  const ProviderProfileScreen({
+    super.key,
+    this.provider,
+  });
+
+  @override
+  State<ProviderProfileScreen> createState() => _ProviderProfileScreenState();
+}
+
+class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _businessNameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _websiteController = TextEditingController();
+  final _serviceAreaController = TextEditingController();
+  
+  String? _selectedCategoryId;
+  List<Category> _categories = [];
+  Position? _selectedLocation;
+  bool _isLoading = false;
+  bool _isLoadingLocation = false;
+  final LocationService _locationService = LocationService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+    _loadProviderData();
+  }
+
+  @override
+  void dispose() {
+    _businessNameController.dispose();
+    _descriptionController.dispose();
+    _websiteController.dispose();
+    _serviceAreaController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await SearchService.getCategories();
+      if (mounted) {
+        setState(() => _categories = categories);
+      }
+    } catch (e) {
+      print('Error loading categories: $e');
+    }
+  }
+
+  void _loadProviderData() {
+    if (widget.provider != null) {
+      _businessNameController.text = widget.provider!.businessName;
+      _descriptionController.text = widget.provider!.description;
+      _websiteController.text = widget.provider!.websiteUrl ?? '';
+      _serviceAreaController.text = widget.provider!.serviceAreaKm.toString();
+      _selectedCategoryId = widget.provider!.categoryId;
+      _selectedLocation = Position(
+        latitude: widget.provider!.lat,
+        longitude: widget.provider!.lng,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      );
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() => _isLoadingLocation = true);
+    
+    try {
+      final hasPermission = await _locationService.checkAndRequestPermissions();
+      if (!hasPermission) {
+        throw Exception('Location permission denied');
+      }
+
+      final position = await _locationService.getCurrentLocation();
+      if (position != null) {
+        setState(() => _selectedLocation = position);
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Location updated successfully'),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to get location: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select a category'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+    if (_selectedLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please set your business location'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final geohash = _locationService.generateGeohash(
+        _selectedLocation!.latitude,
+        _selectedLocation!.longitude,
+      );
+
+      final keywords = _generateKeywords();
+
+      final profileData = {
+        'businessName': _businessNameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'categoryId': _selectedCategoryId!,
+        'websiteUrl': _websiteController.text.trim().isNotEmpty 
+          ? _websiteController.text.trim() 
+          : null,
+        'lat': _selectedLocation!.latitude,
+        'lng': _selectedLocation!.longitude,
+        'geohash': geohash,
+        'serviceAreaKm': double.tryParse(_serviceAreaController.text) ?? 10.0,
+        'keywords': keywords,
+      };
+
+      if (widget.provider != null) {
+        // Update existing provider
+        await FirebaseFirestore.instance
+            .collection('providers')
+            .doc(widget.provider!.providerId)
+            .update(profileData);
+      } else {
+        // Create new provider - this would be done during registration
+        // For now, we'll just show an error
+        throw Exception('Cannot create provider from profile screen');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Profile updated successfully!'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save profile: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  List<String> _generateKeywords() {
+    final keywords = <String>{};
+    
+    // Add business name words
+    keywords.addAll(_extractWords(_businessNameController.text));
+    
+    // Add description words
+    keywords.addAll(_extractWords(_descriptionController.text));
+    
+    // Add category name
+    final category = _categories.firstWhere(
+      (cat) => cat.categoryId == _selectedCategoryId,
+      orElse: () => Category(
+        categoryId: '', 
+        name: '', 
+        description: '', 
+        createdAt: DateTime.now(),
+      ),
+    );
+    keywords.addAll(_extractWords(category.name));
+    
+    return keywords.toList();
+  }
+
+  List<String> _extractWords(String text) {
+    return text
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length > 2)
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundDark,
+      appBar: AppBar(
+        title: const Text('Edit Profile'),
+        backgroundColor: AppTheme.surfaceDark,
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _saveProfile,
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: _isLoading ? AppTheme.textSecondary : AppTheme.accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Business Information Section
+              _buildSectionHeader('Business Information'),
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _businessNameController,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Business Name',
+                  prefixIcon: const Icon(Icons.business),
+                ),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter your business name';
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _descriptionController,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Business Description',
+                  prefixIcon: const Icon(Icons.description),
+                ),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                maxLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a business description';
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Category Dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedCategoryId,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Service Category',
+                  prefixIcon: const Icon(Icons.category),
+                ),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                dropdownColor: AppTheme.surfaceDark,
+                items: _categories.map((category) {
+                  return DropdownMenuItem(
+                    value: category.categoryId,
+                    child: Text(
+                      category.name,
+                      style: const TextStyle(color: AppTheme.textPrimary),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() => _selectedCategoryId = value);
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a category';
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _websiteController,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Website URL (Optional)',
+                  prefixIcon: const Icon(Icons.language),
+                  hintText: 'https://your-website.com',
+                ),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                keyboardType: TextInputType.url,
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Location Section
+              _buildSectionHeader('Business Location'),
+              const SizedBox(height: 16),
+              
+              Card(
+                color: AppTheme.surfaceDark,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: AppTheme.accent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _selectedLocation != null
+                                ? 'Location set: ${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)}'
+                                : 'No location set',
+                              style: AppTheme.bodyText.copyWith(
+                                color: _selectedLocation != null 
+                                  ? AppTheme.textPrimary 
+                                  : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: _isLoadingLocation ? null : _getCurrentLocation,
+                        style: AppTheme.secondaryButtonStyle,
+                        icon: _isLoadingLocation
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.my_location),
+                        label: Text(_isLoadingLocation ? 'Getting Location...' : 'Use Current Location'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              TextFormField(
+                controller: _serviceAreaController,
+                decoration: AppTheme.inputDecoration.copyWith(
+                  labelText: 'Service Area (km)',
+                  prefixIcon: Icon(Icons.location_on),
+                  suffixText: 'km',
+                ),
+                style: const TextStyle(color: AppTheme.textPrimary),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter service area';
+                  }
+                  final area = double.tryParse(value);
+                  if (area == null || area <= 0) {
+                    return 'Please enter a valid service area';
+                  }
+                  return null;
+                },
+              ),
+              
+              const SizedBox(height: 32),
+              
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: AppTheme.primaryButtonStyle,
+                  child: _isLoading
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Saving...'),
+                        ],
+                      )
+                    : const Text('Save Profile'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: AppTheme.heading3.copyWith(
+        color: AppTheme.textPrimary,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+}

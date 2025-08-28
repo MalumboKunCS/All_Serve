@@ -1,261 +1,264 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum ProviderStatus {
-  pending,
-  verified,
-  suspended,
-  rejected,
-}
+class Service {
+  final String serviceId;
+  final String title;
+  final double priceFrom;
+  final double priceTo;
+  final int durationMin;
 
-enum VerificationStatus {
-  notSubmitted,
-  pending,
-  approved,
-  rejected,
+  Service({
+    required this.serviceId,
+    required this.title,
+    required this.priceFrom,
+    required this.priceTo,
+    required this.durationMin,
+  });
+
+  factory Service.fromMap(Map<String, dynamic> map) {
+    return Service(
+      serviceId: map['serviceId'] ?? '',
+      title: map['title'] ?? '',
+      priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
+      priceTo: (map['priceTo'] ?? 0.0).toDouble(),
+      durationMin: map['durationMin'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'serviceId': serviceId,
+      'title': title,
+      'priceFrom': priceFrom,
+      'priceTo': priceTo,
+      'durationMin': durationMin,
+    };
+  }
 }
 
 class Provider {
-  final String id;
-  final String email;
+  final String providerId;
+  final String ownerUid;
   final String businessName;
-  final String? ownerName;
-  final String category;
   final String description;
-  final String? phone;
-  final String? profileImageUrl;
-  final String? businessLogoUrl;
-  final Map<String, double>? location; // lat, lng
-  final String? address;
-  final double? serviceRadius;
-  final List<String> serviceAreas;
-  final ProviderStatus status;
-  final VerificationStatus verificationStatus;
-  final List<ServiceOffering> services;
-  final Map<String, String>? workingHours; // day -> hours
-  final bool isOnline;
-  final double rating;
-  final int reviewCount;
+  final String categoryId;
+  final List<Service> services;
+  final String? logoUrl;
+  final List<String> images;
+  final String? websiteUrl;
+  final double lat;
+  final double lng;
+  final String geohash;
+  final double serviceAreaKm;
+  final double ratingAvg;
+  final int ratingCount;
+  final bool verified;
+  final String verificationStatus; // "pending" | "approved" | "rejected"
+  final Map<String, String> documents; // {nrcUrl, businessLicenseUrl, otherDocs...}
+  final String status; // "active" | "suspended" | "inactive"
   final DateTime createdAt;
-  final DateTime? updatedAt;
-  final DateTime? lastActiveAt;
-  final List<String>? verificationDocuments;
-  final String? pacraRegistration;
-  final String? businessLicense;
-  final String? websiteUrl; // New field for website URL
-  final bool twoFactorEnabled; // New field for 2FA
-  final String? twoFactorSecret; // New field for 2FA secret
-  final List<String> portfolioImages; // New field for portfolio images
-  final Map<String, dynamic>? businessHours; // Enhanced business hours
-  final List<String> acceptedPaymentMethods; // New field for payment methods
-  final double? minimumOrderAmount; // New field for minimum order
-  final bool acceptsEmergencyJobs; // New field for emergency availability
-  final int responseTimeMinutes; // New field for average response time
+  final List<String> keywords; // for search functionality
+  final List<String> galleryImages; // Gallery images URLs
+  final String? adminNotes; // Admin notes for verification
 
   Provider({
-    required this.id,
-    required this.email,
+    required this.providerId,
+    required this.ownerUid,
     required this.businessName,
-    this.ownerName,
-    required this.category,
     required this.description,
-    this.phone,
-    this.profileImageUrl,
-    this.businessLogoUrl,
-    this.location,
-    this.address,
-    this.serviceRadius,
-    this.serviceAreas = const [],
-    required this.status,
-    required this.verificationStatus,
-    this.services = const [],
-    this.workingHours,
-    this.isOnline = false,
-    this.rating = 0.0,
-    this.reviewCount = 0,
-    required this.createdAt,
-    this.updatedAt,
-    this.lastActiveAt,
-    this.verificationDocuments,
-    this.pacraRegistration,
-    this.businessLicense,
+    required this.categoryId,
+    required this.services,
+    this.logoUrl,
+    required this.images,
     this.websiteUrl,
-    this.twoFactorEnabled = false,
-    this.twoFactorSecret,
-    this.portfolioImages = const [],
-    this.businessHours,
-    this.acceptedPaymentMethods = const [],
-    this.minimumOrderAmount,
-    this.acceptsEmergencyJobs = false,
-    this.responseTimeMinutes = 0,
+    required this.lat,
+    required this.lng,
+    required this.geohash,
+    required this.serviceAreaKm,
+    this.ratingAvg = 0.0,
+    this.ratingCount = 0,
+    this.verified = false,
+    this.verificationStatus = 'pending',
+    required this.documents,
+    this.status = 'active',
+    required this.createdAt,
+    required this.keywords,
+    this.galleryImages = const [],
+    this.adminNotes,
   });
 
-  factory Provider.fromMap(Map<String, dynamic> data, String id) {
+  factory Provider.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Provider(
-      id: id,
-      email: data['email'] ?? '',
+      providerId: doc.id,
+      ownerUid: data['ownerUid'] ?? '',
       businessName: data['businessName'] ?? '',
-      ownerName: data['ownerName'],
-      category: data['category'] ?? '',
       description: data['description'] ?? '',
-      phone: data['phone'],
-      profileImageUrl: data['profileImageUrl'],
-      businessLogoUrl: data['businessLogoUrl'],
-      location: data['location'] != null 
-          ? Map<String, double>.from(data['location']) 
-          : null,
-      address: data['address'],
-      serviceRadius: data['serviceRadius']?.toDouble(),
-      serviceAreas: data['serviceAreas'] != null 
-          ? List<String>.from(data['serviceAreas']) 
-          : [],
-      status: ProviderStatus.values.firstWhere(
-        (e) => e.name == data['status'],
-        orElse: () => ProviderStatus.pending,
-      ),
-      verificationStatus: VerificationStatus.values.firstWhere(
-        (e) => e.name == data['verificationStatus'],
-        orElse: () => VerificationStatus.notSubmitted,
-      ),
-      services: data['services'] != null
-          ? (data['services'] as List).map((s) => ServiceOffering.fromMap(s)).toList()
-          : [],
-      workingHours: data['workingHours'] != null 
-          ? Map<String, String>.from(data['workingHours']) 
-          : null,
-      isOnline: data['isOnline'] ?? false,
-      rating: (data['rating'] ?? 0).toDouble(),
-      reviewCount: data['reviewCount'] ?? 0,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null 
-          ? (data['updatedAt'] as Timestamp).toDate() 
-          : null,
-      lastActiveAt: data['lastActiveAt'] != null 
-          ? (data['lastActiveAt'] as Timestamp).toDate() 
-          : null,
-      verificationDocuments: data['verificationDocuments'] != null 
-          ? List<String>.from(data['verificationDocuments']) 
-          : null,
-      pacraRegistration: data['pacraRegistration'],
-      businessLicense: data['businessLicense'],
+      categoryId: data['categoryId'] ?? '',
+      services: (data['services'] as List<dynamic>?)
+              ?.map((e) => Service.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      logoUrl: data['logoUrl'],
+      images: List<String>.from(data['images'] ?? []),
       websiteUrl: data['websiteUrl'],
-      twoFactorEnabled: data['twoFactorEnabled'] ?? false,
-      twoFactorSecret: data['twoFactorSecret'],
-      portfolioImages: data['portfolioImages'] != null 
-          ? List<String>.from(data['portfolioImages']) 
-          : [],
-      businessHours: data['businessHours'] != null 
-          ? Map<String, dynamic>.from(data['businessHours']) 
-          : null,
-      acceptedPaymentMethods: data['acceptedPaymentMethods'] != null 
-          ? List<String>.from(data['acceptedPaymentMethods']) 
-          : [],
-      minimumOrderAmount: data['minimumOrderAmount']?.toDouble(),
-      acceptsEmergencyJobs: data['acceptsEmergencyJobs'] ?? false,
-      responseTimeMinutes: data['responseTimeMinutes'] ?? 0,
+      lat: (data['lat'] ?? 0.0).toDouble(),
+      lng: (data['lng'] ?? 0.0).toDouble(),
+      geohash: data['geohash'] ?? '',
+      serviceAreaKm: (data['serviceAreaKm'] ?? 0.0).toDouble(),
+      ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
+      ratingCount: data['ratingCount'] ?? 0,
+      verified: data['verified'] ?? false,
+      verificationStatus: data['verificationStatus'] ?? 'pending',
+      documents: Map<String, String>.from(data['documents'] ?? {}),
+      status: data['status'] ?? 'active',
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      keywords: List<String>.from(data['keywords'] ?? []),
+      galleryImages: List<String>.from(data['galleryImages'] ?? []),
+      adminNotes: data['adminNotes'],
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'email': email,
-      'businessName': businessName,
-      'ownerName': ownerName,
-      'category': category,
-      'description': description,
-      'phone': phone,
-      'profileImageUrl': profileImageUrl,
-      'businessLogoUrl': businessLogoUrl,
-      'location': location,
-      'address': address,
-      'serviceRadius': serviceRadius,
-      'serviceAreas': serviceAreas,
-      'status': status.name,
-      'verificationStatus': verificationStatus.name,
-      'services': services.map((s) => s.toMap()).toList(),
-      'workingHours': workingHours,
-      'isOnline': isOnline,
-      'rating': rating,
-      'reviewCount': reviewCount,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'lastActiveAt': lastActiveAt != null ? Timestamp.fromDate(lastActiveAt!) : null,
-      'verificationDocuments': verificationDocuments,
-      'pacraRegistration': pacraRegistration,
-      'businessLicense': businessLicense,
-      'websiteUrl': websiteUrl,
-      'twoFactorEnabled': twoFactorEnabled,
-      'twoFactorSecret': twoFactorSecret,
-      'portfolioImages': portfolioImages,
-      'businessHours': businessHours,
-      'acceptedPaymentMethods': acceptedPaymentMethods,
-      'minimumOrderAmount': minimumOrderAmount,
-      'acceptsEmergencyJobs': acceptsEmergencyJobs,
-      'responseTimeMinutes': responseTimeMinutes,
-    };
-  }
-}
-
-class ServiceOffering {
-  final String name;
-  final String description;
-  final double price;
-  final String? priceUnit; // per hour, fixed, etc.
-  final int estimatedDuration; // in minutes
-  final bool isActive;
-  final List<String> images; // New field for service images
-  final String? category; // New field for service category
-  final Map<String, dynamic>? specifications; // New field for service specs
-  final bool isPopular; // New field for popular services
-  final double? discountPercentage; // New field for discounts
-
-  ServiceOffering({
-    required this.name,
-    required this.description,
-    required this.price,
-    this.priceUnit,
-    required this.estimatedDuration,
-    this.isActive = true,
-    this.images = const [],
-    this.category,
-    this.specifications,
-    this.isPopular = false,
-    this.discountPercentage,
-  });
-
-  factory ServiceOffering.fromMap(Map<String, dynamic> data) {
-    return ServiceOffering(
-      name: data['name'] ?? '',
+  factory Provider.fromMap(Map<String, dynamic> data, {String? id}) {
+    return Provider(
+      providerId: id ?? data['providerId'] ?? '',
+      ownerUid: data['ownerUid'] ?? '',
+      businessName: data['businessName'] ?? '',
       description: data['description'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      priceUnit: data['priceUnit'],
-      estimatedDuration: data['estimatedDuration'] ?? 60,
-      isActive: data['isActive'] ?? true,
-      images: data['images'] != null 
-          ? List<String>.from(data['images']) 
-          : [],
-      category: data['category'],
-      specifications: data['specifications'] != null 
-          ? Map<String, dynamic>.from(data['specifications']) 
-          : null,
-      isPopular: data['isPopular'] ?? false,
-      discountPercentage: data['discountPercentage']?.toDouble(),
+      categoryId: data['categoryId'] ?? '',
+      services: (data['services'] as List<dynamic>?)
+              ?.map((e) => Service.fromMap(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      logoUrl: data['logoUrl'],
+      images: List<String>.from(data['images'] ?? []),
+      websiteUrl: data['websiteUrl'],
+      lat: (data['lat'] ?? 0.0).toDouble(),
+      lng: (data['lng'] ?? 0.0).toDouble(),
+      geohash: data['geohash'] ?? '',
+      serviceAreaKm: (data['serviceAreaKm'] ?? 0.0).toDouble(),
+      ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
+      ratingCount: data['ratingCount'] ?? 0,
+      verified: data['verified'] ?? false,
+      verificationStatus: data['verificationStatus'] ?? 'pending',
+      documents: Map<String, String>.from(data['documents'] ?? {}),
+      status: data['status'] ?? 'active',
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+      keywords: List<String>.from(data['keywords'] ?? []),
+      galleryImages: List<String>.from(data['galleryImages'] ?? []),
+      adminNotes: data['adminNotes'],
     );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'ownerUid': ownerUid,
+      'businessName': businessName,
+      'description': description,
+      'categoryId': categoryId,
+      'services': services.map((e) => e.toMap()).toList(),
+      'logoUrl': logoUrl,
+      'images': images,
+      'websiteUrl': websiteUrl,
+      'lat': lat,
+      'lng': lng,
+      'geohash': geohash,
+      'serviceAreaKm': serviceAreaKm,
+      'ratingAvg': ratingAvg,
+      'ratingCount': ratingCount,
+      'verified': verified,
+      'verificationStatus': verificationStatus,
+      'documents': documents,
+      'status': status,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'keywords': keywords,
+      'galleryImages': galleryImages,
+      'adminNotes': adminNotes,
+    };
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'name': name,
+      'providerId': providerId,
+      'ownerUid': ownerUid,
+      'businessName': businessName,
       'description': description,
-      'price': price,
-      'priceUnit': priceUnit,
-      'estimatedDuration': estimatedDuration,
-      'isActive': isActive,
+      'categoryId': categoryId,
+      'services': services.map((e) => e.toMap()).toList(),
+      'logoUrl': logoUrl,
       'images': images,
-      'category': category,
-      'specifications': specifications,
-      'isPopular': isPopular,
-      'discountPercentage': discountPercentage,
+      'websiteUrl': websiteUrl,
+      'lat': lat,
+      'lng': lng,
+      'geohash': geohash,
+      'serviceAreaKm': serviceAreaKm,
+      'ratingAvg': ratingAvg,
+      'ratingCount': ratingCount,
+      'verified': verified,
+      'verificationStatus': verificationStatus,
+      'documents': documents,
+      'status': status,
+      'createdAt': createdAt.toIso8601String(),
+      'keywords': keywords,
+      'galleryImages': galleryImages,
+      'adminNotes': adminNotes,
     };
   }
+
+  Provider copyWith({
+    String? businessName,
+    String? description,
+    String? categoryId,
+    List<Service>? services,
+    String? logoUrl,
+    List<String>? images,
+    String? websiteUrl,
+    double? lat,
+    double? lng,
+    String? geohash,
+    double? serviceAreaKm,
+    double? ratingAvg,
+    int? ratingCount,
+    bool? verified,
+    String? verificationStatus,
+    Map<String, String>? documents,
+    String? status,
+    List<String>? keywords,
+    List<String>? galleryImages,
+    String? adminNotes,
+  }) {
+    return Provider(
+      providerId: providerId,
+      ownerUid: ownerUid,
+      businessName: businessName ?? this.businessName,
+      description: description ?? this.description,
+      categoryId: categoryId ?? this.categoryId,
+      services: services ?? this.services,
+      logoUrl: logoUrl ?? this.logoUrl,
+      images: images ?? this.images,
+      websiteUrl: websiteUrl ?? this.websiteUrl,
+      lat: lat ?? this.lat,
+      lng: lng ?? this.lng,
+      geohash: geohash ?? this.geohash,
+      serviceAreaKm: serviceAreaKm ?? this.serviceAreaKm,
+      ratingAvg: ratingAvg ?? this.ratingAvg,
+      ratingCount: ratingCount ?? this.ratingCount,
+      verified: verified ?? this.verified,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+      documents: documents ?? this.documents,
+      status: status ?? this.status,
+      createdAt: createdAt,
+      keywords: keywords ?? this.keywords,
+      galleryImages: galleryImages ?? this.galleryImages,
+      adminNotes: adminNotes ?? this.adminNotes,
+    );
+  }
+
+  // Convenience getters for document URLs
+  String? get nrcUrl => documents['nrcUrl'];
+  String? get businessLicenseUrl => documents['businessLicenseUrl'];
+  String? get certificatesUrl => documents['certificatesUrl'];
 }
 

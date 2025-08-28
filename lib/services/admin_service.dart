@@ -1,33 +1,36 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:all_server/models/provider.dart';
-import 'package:all_server/services/notification_service.dart';
+import '../models/provider.dart' as app_provider;
+import 'notification_service.dart';
 import 'package:flutter/foundation.dart';
+
+enum VerificationStatus { pending, approved, rejected }
+enum ProviderStatus { active, suspended, inactive, verified, rejected }
 
 class AdminService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Get all providers pending verification
-  static Stream<List<Provider>> getPendingVerifications() {
+  static Stream<List<app_provider.Provider>> getPendingVerifications() {
     return _firestore
         .collection('providers')
         .where('verificationStatus', isEqualTo: VerificationStatus.pending.name)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data(), doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
     });
   }
 
   // Get all providers (for admin overview)
-  static Stream<List<Provider>> getAllProviders() {
+  static Stream<List<app_provider.Provider>> getAllProviders() {
     return _firestore
         .collection('providers')
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data(), doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
     });
   }
@@ -240,7 +243,6 @@ class AdminService {
           title: title,
           body: body,
           data: data,
-          notificationType: 'system',
         );
       }
 

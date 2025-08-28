@@ -2,22 +2,62 @@ import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:all_server/models/provider.dart';
-import 'package:all_server/models/booking.dart';
+import '../models/provider.dart' as app_provider;
+import '../models/booking.dart';
 import 'package:flutter/foundation.dart';
-import 'package:all_server/models/review.dart';
-import 'package:all_server/services/review_service.dart' as review_service;
+
+import 'review_service.dart' as review_service;
+
+enum ProviderStatus { active, suspended, inactive }
+enum VerificationStatus { pending, approved, rejected }
+enum BookingStatus { pending, accepted, inProgress, completed, cancelled, rejected }
+
+class ServiceOffering {
+  final String serviceId;
+  final String title;
+  final double priceFrom;
+  final double priceTo;
+  final int durationMin;
+
+  ServiceOffering({
+    required this.serviceId,
+    required this.title,
+    required this.priceFrom,
+    required this.priceTo,
+    required this.durationMin,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'serviceId': serviceId,
+      'title': title,
+      'priceFrom': priceFrom,
+      'priceTo': priceTo,
+      'durationMin': durationMin,
+    };
+  }
+
+  factory ServiceOffering.fromMap(Map<String, dynamic> map) {
+    return ServiceOffering(
+      serviceId: map['serviceId'] ?? '',
+      title: map['title'] ?? '',
+      priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
+      priceTo: (map['priceTo'] ?? 0.0).toDouble(),
+      durationMin: map['durationMin'] ?? 0,
+    );
+  }
+}
 
 class ProviderService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Get provider profile
-  static Future<Provider?> getProvider(String providerId) async {
+  static Future<app_provider.Provider?> getProvider(String providerId) async {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
       if (doc.exists) {
-        return Provider.fromMap(doc.data()!, doc.id);
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }
       return null;
     } catch (e) {
@@ -38,17 +78,21 @@ class ProviderService {
     String? phone,
   }) async {
     try {
-      final provider = Provider(
-        id: uid,
-        email: email,
+      final provider = app_provider.Provider(
+        providerId: uid,
+        ownerUid: uid,
         businessName: businessName,
-        ownerName: ownerName,
-        category: category,
         description: description,
-        phone: phone,
-        status: ProviderStatus.pending,
-        verificationStatus: VerificationStatus.notSubmitted,
+        categoryId: category,
+        services: [],
+        images: [],
+        lat: 0.0,
+        lng: 0.0,
+        geohash: '',
+        serviceAreaKm: 10.0,
+        documents: {},
         createdAt: DateTime.now(),
+        keywords: [],
       );
 
       await _firestore.collection('providers').doc(uid).set(provider.toMap());
@@ -205,7 +249,7 @@ class ProviderService {
   }
 
   // Get provider bookings
-  Stream<List<Booking>> getProviderBookings(String providerId) {
+  static Stream<List<Booking>> getProviderBookings(String providerId) {
     return _firestore
         .collection('bookings')
         .where('providerId', isEqualTo: providerId)
@@ -213,13 +257,13 @@ class ProviderService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return Booking.fromMap(doc.data(), doc.id);
+        return Booking.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
     });
   }
 
   // Get provider earnings
-  Future<Map<String, dynamic>> getProviderEarnings(String providerId) async {
+  static Future<Map<String, dynamic>> getProviderEarnings(String providerId) async {
     try {
       final completedBookings = await _firestore
           .collection('bookings')
@@ -233,7 +277,7 @@ class ProviderService {
       Map<String, double> monthlyEarnings = {};
       
       for (final doc in completedBookings.docs) {
-        final data = doc.data();
+        final data = doc.data()! as Map<String, dynamic>;
         final price = (data['finalPrice'] ?? data['estimatedPrice'] ?? 0).toDouble();
         totalEarnings += price;
 
@@ -294,7 +338,7 @@ class ProviderService {
       int pendingBookingsCount = pendingBookings.docs.length;
       
       int completedJobs = allBookings.docs
-          .where((doc) => doc.data()['status'] == BookingStatus.completed.name)
+          .where((doc) => (doc.data() as Map<String, dynamic>)['status'] == BookingStatus.completed.name)
           .length;
 
       return {
@@ -316,7 +360,7 @@ class ProviderService {
   }
 
   // Search providers by category and location
-  static Future<List<Provider>> searchProvidersByLocation({
+  static Future<List<app_provider.Provider>> searchProvidersByLocation({
     String? category,
     Map<String, double>? userLocation,
     double radiusKm = 50.0,
@@ -324,27 +368,27 @@ class ProviderService {
     try {
       Query query = _firestore.collection('providers');
       
-      query = query.where('status', isEqualTo: ProviderStatus.verified.name);
+      query = query.where('status', isEqualTo: 'active');
       
       if (category != null && category.isNotEmpty) {
         query = query.where('category', isEqualTo: category);
       }
 
       final snapshot = await query.get();
-      List<Provider> providers = snapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      List<app_provider.Provider> providers = snapshot.docs.map((doc) {
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
 
       // Filter by location if provided
       if (userLocation != null) {
         providers = providers.where((provider) {
-          if (provider.location == null) return false;
+          if (provider.lat == 0.0 && provider.lng == 0.0) return false;
           
           final distance = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
-            provider.location!['latitude']!,
-            provider.location!['longitude']!,
+            provider.lat,
+            provider.lng,
           );
           
           return distance <= radiusKm;
@@ -355,14 +399,14 @@ class ProviderService {
           final distanceA = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
-            a.location!['latitude']!,
-            a.location!['longitude']!,
+            a.lat,
+            a.lng,
           );
           final distanceB = _calculateDistanceStatic(
             userLocation['latitude']!,
             userLocation['longitude']!,
-            b.location!['latitude']!,
-            b.location!['longitude']!,
+            b.lat,
+            b.lng,
           );
           return distanceA.compareTo(distanceB);
         });
@@ -399,11 +443,11 @@ class ProviderService {
   }
 
   // Get provider by ID
-  static Future<Provider?> getProviderById(String providerId) async {
+  static Future<app_provider.Provider?> getProviderById(String providerId) async {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
-      if (doc.exists) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      if (doc.exists && doc.data() != null) {
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }
       return null;
     } catch (e) {
@@ -413,7 +457,7 @@ class ProviderService {
   }
 
   // Get providers by category
-  static Future<List<Provider>> getProvidersByCategory({
+  static Future<List<app_provider.Provider>> getProvidersByCategory({
     required String category,
     int limit = 20,
     String? lastDocumentId,
@@ -436,7 +480,7 @@ class ProviderService {
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting providers by category: $e');
@@ -445,7 +489,7 @@ class ProviderService {
   }
 
   // Get nearby providers
-  static Future<List<Provider>> getNearbyProviders({
+  static Future<List<app_provider.Provider>> getNearbyProviders({
     required double latitude,
     required double longitude,
     double maxDistance = 50.0, // km
@@ -461,18 +505,18 @@ class ProviderService {
           .get();
 
       final providers = querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
 
       // Filter by distance and sort
       final nearbyProviders = providers.where((provider) {
-        if (provider.location == null) return false;
+        if (provider.lat == 0.0 && provider.lng == 0.0) return false;
         
         final distance = _calculateDistanceStatic(
           latitude,
           longitude,
-          provider.location!['latitude']!,
-          provider.location!['longitude']!,
+          provider.lat,
+          provider.lng,
         );
         
         return distance <= maxDistance;
@@ -483,14 +527,14 @@ class ProviderService {
         final distanceA = _calculateDistanceStatic(
           latitude,
           longitude,
-          a.location!['latitude']!,
-          a.location!['longitude']!,
+          a.lat,
+          a.lng,
         );
         final distanceB = _calculateDistanceStatic(
           latitude,
           longitude,
-          b.location!['latitude']!,
-          b.location!['longitude']!,
+          b.lat,
+          b.lng,
         );
         return distanceA.compareTo(distanceB);
       });
@@ -503,7 +547,7 @@ class ProviderService {
   }
 
   // Get top rated providers
-  static Future<List<Provider>> getTopRatedProviders({
+  static Future<List<app_provider.Provider>> getTopRatedProviders({
     int limit = 20,
     String? category,
   }) async {
@@ -520,7 +564,7 @@ class ProviderService {
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting top rated providers: $e');
@@ -529,7 +573,7 @@ class ProviderService {
   }
 
   // Search providers by text query
-  static Future<List<Provider>> searchProviders({
+  static Future<List<app_provider.Provider>> searchProviders({
     required String query,
     String? category,
     double? minRating,
@@ -550,7 +594,7 @@ class ProviderService {
 
       final querySnapshot = await queryRef.limit(limit).get();
       final providers = querySnapshot.docs.map((doc) {
-        return Provider.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
       }).toList();
 
       // Filter by search query
@@ -564,13 +608,13 @@ class ProviderService {
         
         // Search in service names
         for (final service in provider.services) {
-          if (service.name.toLowerCase().contains(searchLower)) {
+          if (service.title.toLowerCase().contains(searchLower)) {
             return true;
           }
         }
         
         // Search in category
-        if (provider.category.toLowerCase().contains(searchLower)) {
+        if (provider.categoryId.toLowerCase().contains(searchLower)) {
           return true;
         }
         
@@ -594,7 +638,7 @@ class ProviderService {
     try {
       final provider = await getProviderById(providerId);
       if (provider == null) {
-        throw Exception('Provider not found');
+        throw Exception('app_provider.Provider not found');
       }
 
       // Get reviews
@@ -680,21 +724,17 @@ class ProviderService {
     try {
       final provider = await getProviderById(providerId);
       if (provider == null) {
-        throw Exception('Provider not found');
+        throw Exception('app_provider.Provider not found');
       }
 
       final updatedServices = provider.services.map((service) {
-        if (service.name == serviceId) { // Using name as identifier since id doesn't exist
-          return ServiceOffering(
-            name: updates['name'] ?? service.name,
-            description: updates['description'] ?? service.description,
-            price: updates['price'] ?? service.price,
-            category: updates['category'] ?? service.category,
-            estimatedDuration: updates['estimatedDuration'] ?? service.estimatedDuration,
-            images: updates['images'] ?? service.images,
-            specifications: updates['specifications'] ?? service.specifications,
-            isPopular: updates['isPopular'] ?? service.isPopular,
-            discountPercentage: updates['discountPercentage'] ?? service.discountPercentage,
+        if (service.title == serviceId) { // Using title as identifier
+          return app_provider.Service(
+            serviceId: service.serviceId,
+            title: updates['title'] ?? service.title,
+            priceFrom: updates['priceFrom'] ?? service.priceFrom,
+            priceTo: updates['priceTo'] ?? service.priceTo,
+            durationMin: updates['durationMin'] ?? service.durationMin,
           );
         }
         return service;
@@ -721,11 +761,11 @@ class ProviderService {
     try {
       final provider = await getProviderById(providerId);
       if (provider == null) {
-        throw Exception('Provider not found');
+        throw Exception('app_provider.Provider not found');
       }
 
       final updatedServices = provider.services
-          .where((service) => service.name != serviceId)
+          .where((service) => service.title != serviceId)
           .toList();
 
       await _firestore
@@ -752,7 +792,7 @@ class ProviderService {
           .get();
 
       return querySnapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = doc.data()! as Map<String, dynamic>;
         data['id'] = doc.id;
         return data;
       }).toList();
@@ -774,7 +814,7 @@ class ProviderService {
           .get();
 
       return querySnapshot.docs.map((doc) {
-        final data = doc.data();
+        final data = doc.data()! as Map<String, dynamic>;
         data['id'] = doc.id;
         return data;
       }).toList();

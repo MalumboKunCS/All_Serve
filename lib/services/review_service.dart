@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:all_server/models/review.dart';
-import 'package:all_server/services/notification_service.dart';
-import 'package:all_server/services/booking_service.dart';
+import '../models/review.dart';
+import 'notification_service.dart';
+
 
 class ReviewService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -56,7 +56,7 @@ class ReviewService {
       });
       
       // Send notification to provider
-      await NotificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'New Review Received',
         body: 'You have received a new review from a customer',
@@ -96,7 +96,7 @@ class ReviewService {
         // Get customer data
         data['customer'] = await _getCustomerData(data['customerId']);
         
-        reviews.add(Review.fromMap(data, doc.id));
+        reviews.add(Review.fromMap(data, id: doc.id));
       }
       
       return reviews;
@@ -126,7 +126,7 @@ class ReviewService {
         // Get provider data
         data['provider'] = await _getProviderData(data['providerId']);
         
-        reviews.add(Review.fromMap(data, doc.id));
+        reviews.add(Review.fromMap(data, id: doc.id));
       }
       
       return reviews;

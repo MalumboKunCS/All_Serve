@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:all_server/models/booking.dart';
-import 'package:all_server/services/notification_service.dart';
+import '../models/booking.dart';
+import 'notification_service.dart';
+
+enum BookingStatus { pending, accepted, inProgress, completed, cancelled, rejected }
 
 class BookingService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -49,7 +51,7 @@ class BookingService {
       });
       
       // Send notification to provider
-      await NotificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: providerId,
         title: 'New Booking Request',
         body: 'You have a new booking request from a customer',
@@ -103,7 +105,7 @@ class BookingService {
         
         data['service'] = await _getServiceData(data['serviceId']);
         
-        bookings.add(Booking.fromMap(data, doc.id));
+        bookings.add(Booking.fromMap(data, id: doc.id));
       }
       
       return bookings;
@@ -149,7 +151,7 @@ class BookingService {
         Map<String, dynamic> bookingData = bookingDoc.data() as Map<String, dynamic>;
         
         // Send notification to customer
-        await NotificationService.sendNotification(
+        await NotificationService.sendNotificationToUser(
           userId: bookingData['customerId'],
           title: 'Booking Status Updated',
           body: 'Your booking status has been updated to ${newStatus.name}',
@@ -212,7 +214,7 @@ class BookingService {
           ? bookingData['providerId'] 
           : bookingData['customerId'];
       
-      await NotificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: notificationUserId,
         title: 'Booking Cancelled',
         body: 'A booking has been cancelled',
@@ -277,7 +279,7 @@ class BookingService {
           ? bookingData['providerId'] 
           : bookingData['customerId'];
       
-      await NotificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: notificationUserId,
         title: 'Booking Rescheduled',
         body: 'A booking has been rescheduled',
@@ -326,7 +328,7 @@ class BookingService {
       });
       
       // Send review request notification to customer
-      await NotificationService.sendNotification(
+      await NotificationService.sendNotificationToUser(
         userId: bookingData['customerId'],
         title: 'Service Completed',
         body: 'Your service has been completed. Please leave a review!',
@@ -363,7 +365,7 @@ class BookingService {
       data['customer'] = await _getCustomerData(data['customerId']);
       data['service'] = await _getServiceData(data['serviceId']);
       
-              return Booking.fromMap(data, doc.id);
+              return Booking.fromMap(data, id: doc.id);
     } catch (e) {
       return null;
     }

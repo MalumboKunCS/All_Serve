@@ -1,206 +1,123 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserProfile {
-  final String id;
+  final String uid;
   final String email;
-  final String? firstName;
-  final String? lastName;
+  final String? fullName;
   final String? phoneNumber;
-  final String? profileImageUrl;
-  final String? address;
-  final Map<String, double>? location; // lat, lng
+  final String? profilePicture;
+  final String role; // 'customer', 'provider', 'admin'
+  final Map<String, dynamic> preferences;
   final DateTime createdAt;
-  final DateTime? updatedAt;
-  final DateTime? lastActiveAt;
-  final bool isEmailVerified;
-  final bool isPhoneVerified;
-  final String? websiteUrl; // New field for website URL
-  final bool twoFactorEnabled; // New field for 2FA
-  final String? twoFactorSecret; // New field for 2FA secret
-  final List<String> favoriteCategories; // New field for favorite service categories
-  final List<String> savedProviders; // New field for saved service providers
-  final Map<String, dynamic>? preferences; // New field for user preferences
-  final bool acceptsNotifications; // New field for notification preferences
-  final String? language; // New field for language preference
-  final String? timezone; // New field for timezone preference
+  final DateTime lastActive;
+  final bool isActive;
+  final Map<String, String>? address;
 
   UserProfile({
-    required this.id,
+    required this.uid,
     required this.email,
-    this.firstName,
-    this.lastName,
+    this.fullName,
     this.phoneNumber,
-    this.profileImageUrl,
-    this.address,
-    this.location,
+    this.profilePicture,
+    required this.role,
+    this.preferences = const {},
     required this.createdAt,
-    this.updatedAt,
-    this.lastActiveAt,
-    this.isEmailVerified = false,
-    this.isPhoneVerified = false,
-    this.websiteUrl,
-    this.twoFactorEnabled = false,
-    this.twoFactorSecret,
-    this.favoriteCategories = const [],
-    this.savedProviders = const [],
-    this.preferences,
-    this.acceptsNotifications = true,
-    this.language,
-    this.timezone,
+    required this.lastActive,
+    this.isActive = true,
+    this.address,
   });
 
-  factory UserProfile.fromMap(Map<String, dynamic> data, String id) {
+  factory UserProfile.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return UserProfile(
-      id: id,
+      uid: doc.id,
       email: data['email'] ?? '',
-      firstName: data['firstName'],
-      lastName: data['lastName'],
+      fullName: data['fullName'],
       phoneNumber: data['phoneNumber'],
-      profileImageUrl: data['profileImageUrl'],
-      address: data['address'],
-      location: data['location'] != null 
-          ? Map<String, double>.from(data['location']) 
-          : null,
+      profilePicture: data['profilePicture'],
+      role: data['role'] ?? 'customer',
+      preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null 
-          ? (data['updatedAt'] as Timestamp).toDate() 
-          : null,
-      lastActiveAt: data['lastActiveAt'] != null 
-          ? (data['lastActiveAt'] as Timestamp).toDate() 
-          : null,
-      isEmailVerified: data['isEmailVerified'] ?? false,
-      isPhoneVerified: data['isPhoneVerified'] ?? false,
-      websiteUrl: data['websiteUrl'],
-      twoFactorEnabled: data['twoFactorEnabled'] ?? false,
-      twoFactorSecret: data['twoFactorSecret'],
-      favoriteCategories: data['favoriteCategories'] != null 
-          ? List<String>.from(data['favoriteCategories']) 
-          : [],
-      savedProviders: data['savedProviders'] != null 
-          ? List<String>.from(data['savedProviders']) 
-          : [],
-      preferences: data['preferences'] != null 
-          ? Map<String, dynamic>.from(data['preferences']) 
-          : null,
-      acceptsNotifications: data['acceptsNotifications'] ?? true,
-      language: data['language'],
-      timezone: data['timezone'],
+      lastActive: (data['lastActive'] as Timestamp).toDate(),
+      isActive: data['isActive'] ?? true,
+      address: data['address'] != null ? Map<String, String>.from(data['address']) : null,
     );
+  }
+
+  factory UserProfile.fromMap(Map<String, dynamic> data, {String? id}) {
+    return UserProfile(
+      uid: id ?? data['uid'] ?? '',
+      email: data['email'] ?? '',
+      fullName: data['fullName'],
+      phoneNumber: data['phoneNumber'],
+      profilePicture: data['profilePicture'],
+      role: data['role'] ?? 'customer',
+      preferences: Map<String, dynamic>.from(data['preferences'] ?? {}),
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+      lastActive: data['lastActive'] is Timestamp 
+          ? (data['lastActive'] as Timestamp).toDate()
+          : DateTime.parse(data['lastActive'] ?? DateTime.now().toIso8601String()),
+      isActive: data['isActive'] ?? true,
+      address: data['address'] != null ? Map<String, String>.from(data['address']) : null,
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'email': email,
+      'fullName': fullName,
+      'phoneNumber': phoneNumber,
+      'profilePicture': profilePicture,
+      'role': role,
+      'preferences': preferences,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'lastActive': Timestamp.fromDate(lastActive),
+      'isActive': isActive,
+      'address': address,
+    };
   }
 
   Map<String, dynamic> toMap() {
     return {
+      'uid': uid,
       'email': email,
-      'firstName': firstName,
-      'lastName': lastName,
+      'fullName': fullName,
       'phoneNumber': phoneNumber,
-      'profileImageUrl': profileImageUrl,
-      'address': address,
-      'location': location,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'lastActiveAt': lastActiveAt != null ? Timestamp.fromDate(lastActiveAt!) : null,
-      'isEmailVerified': isEmailVerified,
-      'isPhoneVerified': isPhoneVerified,
-      'websiteUrl': websiteUrl,
-      'twoFactorEnabled': twoFactorEnabled,
-      'twoFactorSecret': twoFactorSecret,
-      'favoriteCategories': favoriteCategories,
-      'savedProviders': savedProviders,
+      'profilePicture': profilePicture,
+      'role': role,
       'preferences': preferences,
-      'acceptsNotifications': acceptsNotifications,
-      'language': language,
-      'timezone': timezone,
+      'createdAt': createdAt.toIso8601String(),
+      'lastActive': lastActive.toIso8601String(),
+      'isActive': isActive,
+      'address': address,
     };
   }
 
-  // Get full name
-  String get fullName {
-    if (firstName != null && lastName != null) {
-      return '$firstName $lastName';
-    } else if (firstName != null) {
-      return firstName!;
-    } else if (lastName != null) {
-      return lastName!;
-    }
-    return 'Unknown User';
-  }
-
-  // Get display name (first name or email)
-  String get displayName {
-    return firstName ?? email.split('@')[0];
-  }
-
-  // Check if profile is complete
-  bool get isProfileComplete {
-    return firstName != null && 
-           lastName != null && 
-           phoneNumber != null && 
-           address != null;
-  }
-
-  // Get profile completion percentage
-  double get profileCompletionPercentage {
-    int completedFields = 0;
-    int totalFields = 4; // firstName, lastName, phoneNumber, address
-    
-    if (firstName != null) completedFields++;
-    if (lastName != null) completedFields++;
-    if (phoneNumber != null) completedFields++;
-    if (address != null) completedFields++;
-    
-    return completedFields / totalFields;
-  }
-
-  // Copy with method for updating fields
   UserProfile copyWith({
-    String? id,
     String? email,
-    String? firstName,
-    String? lastName,
+    String? fullName,
     String? phoneNumber,
-    String? profileImageUrl,
-    String? address,
-    Map<String, double>? location,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    DateTime? lastActiveAt,
-    bool? isEmailVerified,
-    bool? isPhoneVerified,
-    String? websiteUrl,
-    bool? twoFactorEnabled,
-    String? twoFactorSecret,
-    List<String>? favoriteCategories,
-    List<String>? savedProviders,
+    String? profilePicture,
+    String? role,
     Map<String, dynamic>? preferences,
-    bool? acceptsNotifications,
-    String? language,
-    String? timezone,
+    DateTime? lastActive,
+    bool? isActive,
+    Map<String, String>? address,
   }) {
     return UserProfile(
-      id: id ?? this.id,
+      uid: uid,
       email: email ?? this.email,
-      firstName: firstName ?? this.firstName,
-      lastName: lastName ?? this.lastName,
+      fullName: fullName ?? this.fullName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
-      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
-      address: address ?? this.address,
-      location: location ?? this.location,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      lastActiveAt: lastActiveAt ?? this.lastActiveAt,
-      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
-      isPhoneVerified: isPhoneVerified ?? this.isPhoneVerified,
-      websiteUrl: websiteUrl ?? this.websiteUrl,
-      twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,
-      twoFactorSecret: twoFactorSecret ?? this.twoFactorSecret,
-      favoriteCategories: favoriteCategories ?? this.favoriteCategories,
-      savedProviders: savedProviders ?? this.savedProviders,
+      profilePicture: profilePicture ?? this.profilePicture,
+      role: role ?? this.role,
       preferences: preferences ?? this.preferences,
-      acceptsNotifications: acceptsNotifications ?? this.acceptsNotifications,
-      language: language ?? this.language,
-      timezone: timezone ?? this.timezone,
+      createdAt: createdAt,
+      lastActive: lastActive ?? this.lastActive,
+      isActive: isActive ?? this.isActive,
+      address: address ?? this.address,
     );
   }
 }
-

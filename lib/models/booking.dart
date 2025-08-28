@@ -1,130 +1,103 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum BookingStatus {
-  pending,
-  accepted,
-  rejected,
-  inProgress,
-  completed,
-  cancelled,
-}
-
 class Booking {
-  final String id;
-  final String userId;
+  final String bookingId;
+  final String customerId;
   final String providerId;
-  final String serviceType;
-  final String? serviceDescription;
-  final DateTime requestedDate;
-  final String? timeSlot;
-  final BookingStatus status;
-  final double? estimatedPrice;
-  final double? finalPrice;
-  final String? userNotes;
-  final String? providerNotes;
+  final String serviceId;
+  final Map<String, dynamic> address; // {address, lat, lng}
+  final DateTime scheduledAt;
+  final DateTime requestedAt;
+  final String status; // "requested" | "accepted" | "rejected" | "completed" | "cancelled"
+  final String? notes;
   final DateTime createdAt;
-  final DateTime? updatedAt;
-  final DateTime? completedAt;
-  final String? userAddress;
-  final Map<String, double>? location; // lat, lng
 
   Booking({
-    required this.id,
-    required this.userId,
+    required this.bookingId,
+    required this.customerId,
     required this.providerId,
-    required this.serviceType,
-    this.serviceDescription,
-    required this.requestedDate,
-    this.timeSlot,
+    required this.serviceId,
+    required this.address,
+    required this.scheduledAt,
+    required this.requestedAt,
     required this.status,
-    this.estimatedPrice,
-    this.finalPrice,
-    this.userNotes,
-    this.providerNotes,
+    this.notes,
     required this.createdAt,
-    this.updatedAt,
-    this.completedAt,
-    this.userAddress,
-    this.location,
   });
 
-  factory Booking.fromMap(Map<String, dynamic> data, String id) {
+  factory Booking.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Booking(
-      id: id,
-      userId: data['userId'] ?? '',
+      bookingId: doc.id,
+      customerId: data['customerId'] ?? '',
       providerId: data['providerId'] ?? '',
-      serviceType: data['serviceType'] ?? '',
-      serviceDescription: data['serviceDescription'],
-      requestedDate: (data['requestedDate'] as Timestamp).toDate(),
-      timeSlot: data['timeSlot'],
-      status: BookingStatus.values.firstWhere(
-        (e) => e.name == data['status'],
-        orElse: () => BookingStatus.pending,
-      ),
-      estimatedPrice: data['estimatedPrice']?.toDouble(),
-      finalPrice: data['finalPrice']?.toDouble(),
-      userNotes: data['userNotes'],
-      providerNotes: data['providerNotes'],
+      serviceId: data['serviceId'] ?? '',
+      address: Map<String, dynamic>.from(data['address'] ?? {}),
+      scheduledAt: (data['scheduledAt'] as Timestamp).toDate(),
+      requestedAt: (data['requestedAt'] as Timestamp).toDate(),
+      status: data['status'] ?? 'requested',
+      notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null 
-          ? (data['updatedAt'] as Timestamp).toDate() 
-          : null,
-      completedAt: data['completedAt'] != null 
-          ? (data['completedAt'] as Timestamp).toDate() 
-          : null,
-      userAddress: data['userAddress'],
-      location: data['location'] != null 
-          ? Map<String, double>.from(data['location']) 
-          : null,
     );
   }
 
-  Map<String, dynamic> toMap() {
+  factory Booking.fromMap(Map<String, dynamic> data, {String? id}) {
+    return Booking(
+      bookingId: id ?? data['bookingId'] ?? '',
+      customerId: data['customerId'] ?? '',
+      providerId: data['providerId'] ?? '',
+      serviceId: data['serviceId'] ?? '',
+      address: Map<String, dynamic>.from(data['address'] ?? {}),
+      scheduledAt: data['scheduledAt'] is Timestamp 
+          ? (data['scheduledAt'] as Timestamp).toDate()
+          : DateTime.parse(data['scheduledAt'] ?? DateTime.now().toIso8601String()),
+      requestedAt: data['requestedAt'] is Timestamp 
+          ? (data['requestedAt'] as Timestamp).toDate()
+          : DateTime.parse(data['requestedAt'] ?? DateTime.now().toIso8601String()),
+      status: data['status'] ?? 'requested',
+      notes: data['notes'],
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
     return {
-      'userId': userId,
+      'customerId': customerId,
       'providerId': providerId,
-      'serviceType': serviceType,
-      'serviceDescription': serviceDescription,
-      'requestedDate': Timestamp.fromDate(requestedDate),
-      'timeSlot': timeSlot,
-      'status': status.name,
-      'estimatedPrice': estimatedPrice,
-      'finalPrice': finalPrice,
-      'userNotes': userNotes,
-      'providerNotes': providerNotes,
+      'serviceId': serviceId,
+      'address': address,
+      'scheduledAt': Timestamp.fromDate(scheduledAt),
+      'requestedAt': Timestamp.fromDate(requestedAt),
+      'status': status,
+      'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'completedAt': completedAt != null ? Timestamp.fromDate(completedAt!) : null,
-      'userAddress': userAddress,
-      'location': location,
     };
   }
 
   Booking copyWith({
-    BookingStatus? status,
-    double? finalPrice,
-    String? providerNotes,
-    DateTime? updatedAt,
-    DateTime? completedAt,
+    String? status,
+    String? notes,
   }) {
     return Booking(
-      id: id,
-      userId: userId,
+      bookingId: bookingId,
+      customerId: customerId,
       providerId: providerId,
-      serviceType: serviceType,
-      serviceDescription: serviceDescription,
-      requestedDate: requestedDate,
-      timeSlot: timeSlot,
+      serviceId: serviceId,
+      address: address,
+      scheduledAt: scheduledAt,
+      requestedAt: requestedAt,
       status: status ?? this.status,
-      estimatedPrice: estimatedPrice,
-      finalPrice: finalPrice ?? this.finalPrice,
-      userNotes: userNotes,
-      providerNotes: providerNotes ?? this.providerNotes,
+      notes: notes ?? this.notes,
       createdAt: createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      completedAt: completedAt ?? this.completedAt,
-      userAddress: userAddress,
-      location: location,
     );
   }
+
+  bool get canBeCancelled => status == 'requested' || status == 'accepted';
+  bool get isCompleted => status == 'completed';
+  bool get isCancelled => status == 'cancelled';
+  bool get isRejected => status == 'rejected';
+  bool get isRequested => status == 'requested';
+  bool get isAccepted => status == 'accepted';
 }

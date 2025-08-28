@@ -1,286 +1,99 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 class Review {
-  final String id;
-  final String userId;
-  final String providerId;
+  final String reviewId;
   final String bookingId;
-  final double rating; // 1-5 stars
-  final String? comment;
+  final String customerId;
+  final String providerId;
+  final double rating;
+  final String comment;
   final DateTime createdAt;
-  final DateTime? updatedAt;
-  final List<String>? images; // URLs to review images
+  final bool flagged;
+  final String? flagReason;
+  final List<String> helpfulVotes;
 
   Review({
-    required this.id,
-    required this.userId,
-    required this.providerId,
+    required this.reviewId,
     required this.bookingId,
+    required this.customerId,
+    required this.providerId,
     required this.rating,
-    this.comment,
+    required this.comment,
     required this.createdAt,
-    this.updatedAt,
-    this.images,
+    this.flagged = false,
+    this.flagReason,
+    this.helpfulVotes = const [],
   });
 
-  factory Review.fromMap(Map<String, dynamic> data, String id) {
+  factory Review.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Review(
-      id: id,
-      userId: data['userId'] ?? '',
-      providerId: data['providerId'] ?? '',
+      reviewId: doc.id,
       bookingId: data['bookingId'] ?? '',
-      rating: (data['rating'] ?? 0).toDouble(),
-      comment: data['comment'],
+      customerId: data['customerId'] ?? '',
+      providerId: data['providerId'] ?? '',
+      rating: (data['rating'] ?? 0.0).toDouble(),
+      comment: data['comment'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: data['updatedAt'] != null 
-          ? (data['updatedAt'] as Timestamp).toDate() 
-          : null,
-      images: data['images'] != null 
-          ? List<String>.from(data['images']) 
-          : null,
+      flagged: data['flagged'] ?? false,
+      flagReason: data['flagReason'],
+      helpfulVotes: List<String>.from(data['helpfulVotes'] ?? []),
     );
   }
 
-  Map<String, dynamic> toMap() {
+  factory Review.fromMap(Map<String, dynamic> data, {String? id}) {
+    return Review(
+      reviewId: id ?? data['reviewId'] ?? '',
+      bookingId: data['bookingId'] ?? '',
+      customerId: data['customerId'] ?? '',
+      providerId: data['providerId'] ?? '',
+      rating: (data['rating'] ?? 0.0).toDouble(),
+      comment: data['comment'] ?? '',
+      createdAt: data['createdAt'] is Timestamp 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
+      flagged: data['flagged'] ?? false,
+      flagReason: data['flagReason'],
+      helpfulVotes: List<String>.from(data['helpfulVotes'] ?? []),
+    );
+  }
+
+  Map<String, dynamic> toFirestore() {
     return {
-      'userId': userId,
-      'providerId': providerId,
       'bookingId': bookingId,
+      'customerId': customerId,
+      'providerId': providerId,
       'rating': rating,
       'comment': comment,
       'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
-      'images': images,
+      'flagged': flagged,
+      'flagReason': flagReason,
+      'helpfulVotes': helpfulVotes,
     };
   }
-}
 
-class ReviewService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // Submit a review
-  Future<bool> submitReview({
-    required String userId,
-    required String providerId,
-    required String bookingId,
-    required double rating,
+  Review copyWith({
+    String? bookingId,
+    String? customerId,
+    String? providerId,
+    double? rating,
     String? comment,
-    List<String>? images,
-  }) async {
-    try {
-      // Check if review already exists for this booking
-      final existingReview = await _firestore
-          .collection('reviews')
-          .where('bookingId', isEqualTo: bookingId)
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      if (existingReview.docs.isNotEmpty) {
-        // Update existing review
-        await _firestore
-            .collection('reviews')
-            .doc(existingReview.docs.first.id)
-            .update({
-          'rating': rating,
-          'comment': comment,
-          'images': images,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-      } else {
-        // Create new review
-        final review = Review(
-          id: '',
-          userId: userId,
-          providerId: providerId,
-          bookingId: bookingId,
-          rating: rating,
-          comment: comment,
-          createdAt: DateTime.now(),
-          images: images,
-        );
-
-        await _firestore.collection('reviews').add(review.toMap());
-      }
-
-      // Update provider's average rating
-      await _updateProviderRating(providerId);
-
-      return true;
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error submitting review: $e');
-      return false;
-    }
-  }
-
-  // Update provider's average rating
-  Future<void> _updateProviderRating(String providerId) async {
-    try {
-      final reviews = await _firestore
-          .collection('reviews')
-          .where('providerId', isEqualTo: providerId)
-          .get();
-
-      if (reviews.docs.isNotEmpty) {
-        double totalRating = 0;
-        int reviewCount = reviews.docs.length;
-
-        for (final doc in reviews.docs) {
-          totalRating += (doc.data()['rating'] ?? 0).toDouble();
-        }
-
-        double averageRating = totalRating / reviewCount;
-
-        // Update provider document with new rating
-        await _firestore.collection('providers').doc(providerId).update({
-          'rating': averageRating,
-          'reviews': reviewCount,
-          'ratingUpdatedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error updating provider rating: $e');
-    }
-  }
-
-  // Get reviews for a provider
-  Stream<List<Review>> getProviderReviews(String providerId) {
-    return _firestore
-        .collection('reviews')
-        .where('providerId', isEqualTo: providerId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Review.fromMap(doc.data(), doc.id);
-      }).toList();
-    });
-  }
-
-  // Get reviews by a user
-  Stream<List<Review>> getUserReviews(String userId) {
-    return _firestore
-        .collection('reviews')
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return Review.fromMap(doc.data(), doc.id);
-      }).toList();
-    });
-  }
-
-  // Check if user can review a booking
-  Future<bool> canReviewBooking(String userId, String bookingId) async {
-    try {
-      // Check if booking is completed
-      final booking = await _firestore
-          .collection('bookings')
-          .doc(bookingId)
-          .get();
-
-      if (!booking.exists) return false;
-
-      final bookingData = booking.data()!;
-      if (bookingData['userId'] != userId) return false;
-      if (bookingData['status'] != 'completed') return false;
-
-      // Check if review already exists
-      final existingReview = await _firestore
-          .collection('reviews')
-          .where('bookingId', isEqualTo: bookingId)
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      return existingReview.docs.isEmpty;
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error checking review eligibility: $e');
-      return false;
-    }
-  }
-
-  // Get existing review for a booking
-  Future<Review?> getBookingReview(String bookingId, String userId) async {
-    try {
-      final reviews = await _firestore
-          .collection('reviews')
-          .where('bookingId', isEqualTo: bookingId)
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      if (reviews.docs.isNotEmpty) {
-        return Review.fromMap(reviews.docs.first.data(), reviews.docs.first.id);
-      }
-      return null;
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error getting booking review: $e');
-      return null;
-    }
-  }
-
-  // Delete a review
-  Future<bool> deleteReview(String reviewId, String providerId) async {
-    try {
-      await _firestore.collection('reviews').doc(reviewId).delete();
-      
-      // Update provider's average rating
-      await _updateProviderRating(providerId);
-      
-      return true;
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error deleting review: $e');
-      return false;
-    }
-  }
-
-  // Get provider rating statistics
-  Future<Map<String, dynamic>> getProviderRatingStats(String providerId) async {
-    try {
-      final reviews = await _firestore
-          .collection('reviews')
-          .where('providerId', isEqualTo: providerId)
-          .get();
-
-      if (reviews.docs.isEmpty) {
-        return {
-          'averageRating': 0.0,
-          'totalReviews': 0,
-          'ratingDistribution': [0, 0, 0, 0, 0], // 1-star to 5-star counts
-        };
-      }
-
-      double totalRating = 0;
-      List<int> distribution = [0, 0, 0, 0, 0];
-
-      for (final doc in reviews.docs) {
-        final rating = (doc.data()['rating'] ?? 0).toDouble();
-        totalRating += rating;
-        
-        // Count distribution (rating 1.0-1.9 = index 0, 2.0-2.9 = index 1, etc.)
-        int ratingIndex = (rating - 1).clamp(0, 4).toInt();
-        distribution[ratingIndex]++;
-      }
-
-      return {
-        'averageRating': totalRating / reviews.docs.length,
-        'totalReviews': reviews.docs.length,
-        'ratingDistribution': distribution,
-      };
-    } catch (e) {
-      // ignore: avoid_print
-      debugPrint('Error getting rating stats: $e');
-      return {
-        'averageRating': 0.0,
-        'totalReviews': 0,
-        'ratingDistribution': [0, 0, 0, 0, 0],
-      };
-    }
+    DateTime? createdAt,
+    bool? flagged,
+    String? flagReason,
+    List<String>? helpfulVotes,
+  }) {
+    return Review(
+      reviewId: reviewId,
+      bookingId: bookingId ?? this.bookingId,
+      customerId: customerId ?? this.customerId,
+      providerId: providerId ?? this.providerId,
+      rating: rating ?? this.rating,
+      comment: comment ?? this.comment,
+      createdAt: createdAt ?? this.createdAt,
+      flagged: flagged ?? this.flagged,
+      flagReason: flagReason ?? this.flagReason,
+      helpfulVotes: helpfulVotes ?? this.helpfulVotes,
+    );
   }
 }
-

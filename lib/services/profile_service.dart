@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:all_server/models/user_profile.dart';
+import '../models/user_profile.dart';
 import 'package:flutter/foundation.dart';
 
 class ProfileService {
@@ -15,7 +15,7 @@ class ProfileService {
     try {
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
-        return UserProfile.fromMap(doc.data()!, uid);
+        return UserProfile.fromMap(doc.data()!, id: uid);
       }
       return null;
     } catch (e) {
@@ -40,12 +40,13 @@ class ProfileService {
       }
 
       final userProfile = UserProfile(
-        id: uid,
+        uid: uid,
         email: email,
-        firstName: displayName,
-        profileImageUrl: profileImageUrl,
+        fullName: displayName,
+        profilePicture: profileImageUrl,
+        role: 'customer',
         createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        lastActive: DateTime.now(),
       );
 
       await _firestore.collection('users').doc(uid).set(userProfile.toMap());
@@ -118,7 +119,7 @@ class ProfileService {
   Stream<UserProfile?> getUserProfileStream(String uid) {
     return _firestore.collection('users').doc(uid).snapshots().map((doc) {
       if (doc.exists) {
-        return UserProfile.fromMap(doc.data()!, uid);
+        return UserProfile.fromMap(doc.data()!, id: uid);
       }
       return null;
     });
