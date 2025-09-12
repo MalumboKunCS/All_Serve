@@ -5,6 +5,9 @@ import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../services/auth_service.dart';
 import 'provider_profile_screen.dart';
+import 'provider_documents_screen.dart';
+import 'provider_gallery_screen.dart';
+import 'provider_settings_subscreens.dart';
 
 class ProviderSettingsScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -80,11 +83,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Upload Documents',
               subtitle: 'NRC, Business License, Certificates',
               onTap: () {
-                // TODO: Navigate to document upload screen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Document upload coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ProviderDocumentsScreen(provider: widget.provider),
                   ),
                 );
               },
@@ -95,11 +96,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Manage Gallery',
               subtitle: 'Upload and manage business photos',
               onTap: () {
-                // TODO: Navigate to gallery management screen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Gallery management coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => ProviderGalleryScreen(provider: widget.provider),
                   ),
                 );
               },
@@ -116,11 +115,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Security Settings',
               subtitle: 'Password, 2FA, and security preferences',
               onTap: () {
-                // TODO: Navigate to security settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Security settings coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProviderSecurityScreen(),
                   ),
                 );
               },
@@ -131,11 +128,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Notification Settings',
               subtitle: 'Manage booking and review notifications',
               onTap: () {
-                // TODO: Navigate to notification settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Notification settings coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProviderNotificationSettingsScreen(),
                   ),
                 );
               },
@@ -152,11 +147,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Help & Support',
               subtitle: 'FAQs, contact support, and guides',
               onTap: () {
-                // TODO: Navigate to help screen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Help & support coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProviderHelpScreen(),
                   ),
                 );
               },
@@ -167,11 +160,9 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
               title: 'Terms & Privacy',
               subtitle: 'Terms of service and privacy policy',
               onTap: () {
-                // TODO: Navigate to terms screen
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Terms & privacy coming soon'),
-                    backgroundColor: AppTheme.info,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const ProviderTermsScreen(),
                   ),
                 );
               },

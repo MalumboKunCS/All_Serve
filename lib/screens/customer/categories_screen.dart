@@ -24,10 +24,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   Future<void> _loadCategories() async {
     try {
-        final categories = await SearchService.getCategories();
+      final categories = await SearchService.getCategories();
       if (mounted) {
         setState(() {
-          _categories = categories;
+          _categories = List<Category>.from(categories);
           _isLoading = false;
         });
       }

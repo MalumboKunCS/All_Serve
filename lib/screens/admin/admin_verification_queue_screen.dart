@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme.dart';
 import '../../models/verification_queue.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/user.dart' as app_user;
-
+import 'document_viewer_screen.dart';
 import '../../services/auth_service.dart';
+import '../../services/admin_service_client.dart';
 
 class AdminVerificationQueueScreen extends StatefulWidget {
   const AdminVerificationQueueScreen({super.key});
@@ -490,13 +490,106 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
   }
 
   Future<void> _viewDocument(String url) async {
-    // TODO: Implement document viewer
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Document viewer: $url'),
-        backgroundColor: AppTheme.info,
+    try {
+      // Check if it's a PDF
+      if (url.toLowerCase().contains('.pdf')) {
+        await _openPdfViewer(url);
+      } else {
+        // For images and other documents, open in a full-screen viewer
+        await _openImageDocumentViewer(url);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening document: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPdfViewer(String url) async {
+    // For PDFs, we'll use a web view or external app
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: Text(
+          'PDF Document',
+          style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'This document is a PDF. You can view it by:',
+              style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _launchUrl(url);
+                    },
+                    style: AppTheme.primaryButtonStyle,
+                    icon: const Icon(Icons.open_in_browser),
+                    label: const Text('Open in Browser'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _openImageDocumentViewer(String url) async {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DocumentViewerScreen(
+          documentUrl: url,
+          documentTitle: 'Verification Document',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      // You'll need to add url_launcher dependency for this
+      // await launchUrl(Uri.parse(url));
+      
+      // For now, show a message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening: $url'),
+            backgroundColor: AppTheme.info,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening URL: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _approveVerification(VerificationQueue verification) async {
@@ -508,15 +601,13 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
         throw Exception('Admin not authenticated');
       }
 
-      // Call Cloud Function to approve verification
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('adminApproveProvider');
-      
-      await callable.call({
-        'providerId': verification.providerId,
-        'approve': true,
-        'notes': 'Documents verified and approved by admin',
-      });
+      // Approve provider using client service
+      final adminService = AdminServiceClient();
+      await adminService.approveProvider(
+        providerId: verification.providerId,
+        adminUid: adminUid,
+        notes: 'Documents verified and approved by admin',
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -608,15 +699,13 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
         throw Exception('Admin not authenticated');
       }
 
-      // Call Cloud Function to reject verification
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('adminApproveProvider');
-      
-      await callable.call({
-        'providerId': verification.providerId,
-        'approve': false,
-        'notes': reason.trim(),
-      });
+      // Reject provider using client service
+      final adminService = AdminServiceClient();
+      await adminService.rejectProvider(
+        providerId: verification.providerId,
+        adminUid: adminUid,
+        reason: reason.trim(),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

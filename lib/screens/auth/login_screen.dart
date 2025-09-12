@@ -5,6 +5,10 @@ import '../../theme/app_theme.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'two_fa_verification_screen.dart';
+import '../customer/customer_home_screen.dart';
+import '../provider/provider_dashboard_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
+// Post-login navigation is handled by SplashScreen via auth state listener
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -51,8 +55,26 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('User profile not found. Please contact support.');
       }
       
-      // Navigation will be handled by the auth state listener in splash screen
+      // Navigate based on role immediately so we leave the login page
       print('LoginScreen: Login completed successfully');
+      if (!mounted) return;
+      final role = (userWithData.role).toLowerCase();
+      Widget destination;
+      switch (role) {
+        case 'provider':
+          destination = const ProviderDashboardScreen();
+          break;
+        case 'admin':
+          destination = const AdminDashboardScreen();
+          break;
+        case 'customer':
+        default:
+          destination = const CustomerHomeScreen();
+      }
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
       
     } catch (e) {
       print('LoginScreen: Login error: $e');

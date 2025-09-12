@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
@@ -20,6 +21,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late AnimationController _fadeController;
   late Animation<double> _logoAnimation;
   late Animation<double> _fadeAnimation;
+  StreamSubscription<app_user.User?>? _authSub;
 
   @override
   void initState() {
@@ -87,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       }
       
       // Also listen to future auth state changes
-      authService.userStream.listen((user) {
+      _authSub = authService.userStream.listen((user) {
         print('SplashScreen: Auth state changed - User: ${user?.uid}, role: ${user?.role}');
         if (mounted) {
           _navigateBasedOnUser(user);
@@ -147,6 +149,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   void dispose() {
     _logoController.dispose();
     _fadeController.dispose();
+    _authSub?.cancel();
     super.dispose();
   }
 

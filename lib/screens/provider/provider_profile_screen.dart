@@ -53,7 +53,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     try {
       final categories = await SearchService.getCategories();
       if (mounted) {
-        setState(() => _categories = categories);
+        setState(() => _categories = List<Category>.from(categories));
       }
     } catch (e) {
       print('Error loading categories: $e');
@@ -71,13 +71,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         latitude: widget.provider!.lat,
         longitude: widget.provider!.lng,
         timestamp: DateTime.now(),
-        accuracy: 0,
-        altitude: 0,
-        altitudeAccuracy: 0,
-        heading: 0,
-        headingAccuracy: 0,
-        speed: 0,
-        speedAccuracy: 0,
+        accuracy: 0.0,
+        altitude: 0.0,
+        altitudeAccuracy: 0.0,
+        heading: 0.0,
+        headingAccuracy: 0.0,
+        speed: 0.0,
+        speedAccuracy: 0.0,
       );
     }
   }

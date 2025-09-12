@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/booking.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/review.dart';
 import '../../services/auth_service.dart';
+import '../../services/review_service_client.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Booking booking;
@@ -335,17 +335,25 @@ class _ReviewScreenState extends State<ReviewScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Call postReview Cloud Function
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('postReview');
+      // Create or update review using client service
+      final reviewService = ReviewServiceClient();
       
-      await callable.call({
-        'bookingId': widget.booking.bookingId,
-        'rating': _rating,
-        'comment': _commentController.text.trim(),
-        'isUpdate': _hasExistingReview,
-        if (_hasExistingReview) 'reviewId': _existingReview!.reviewId,
-      });
+      if (_hasExistingReview) {
+        await reviewService.updateReview(
+          reviewId: _existingReview!.reviewId,
+          customerId: currentUser.uid,
+          rating: _rating.toDouble(),
+          comment: _commentController.text.trim(),
+        );
+      } else {
+        await reviewService.createReview(
+          bookingId: widget.booking.bookingId,
+          customerId: currentUser.uid,
+          providerId: widget.booking.providerId,
+          rating: _rating.toDouble(),
+          comment: _commentController.text.trim(),
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

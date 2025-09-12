@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import '../../theme/app_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/search_service.dart';
 import '../../services/location_service.dart';
 import '../../models/provider.dart' as app_provider;
@@ -25,6 +27,7 @@ class AdvancedSearchScreen extends StatefulWidget {
 class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
+  Timer? _debounce;
   late TabController _tabController;
 
   // Search state
@@ -38,6 +41,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
 
   // Filters
   SearchFilters _filters = SearchFilters();
+  final List<String> _selectedFeatures = [];
   bool _showFilters = false;
 
   // UI state
@@ -73,6 +77,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
     _searchController.dispose();
     _scrollController.dispose();
     _tabController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -155,7 +160,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
   }
 
   Widget _buildSearchBar() {
-    return Container(
+    return SizedBox(
       height: 40,
       child: TextField(
         controller: _searchController,
@@ -222,6 +227,10 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
 
             // Price filter
             _buildPriceFilter(),
+            const SizedBox(height: 16),
+
+            // Feature keywords (select 1-3)
+            _buildFeatureFilter(),
             const SizedBox(height: 16),
 
             // Verification filter
@@ -325,7 +334,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
                 });
               },
               backgroundColor: AppTheme.backgroundDark,
-              selectedColor: AppTheme.accent.withOpacity(0.2),
+              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
               ),
@@ -368,7 +377,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
                 });
               },
               backgroundColor: AppTheme.backgroundDark,
-              selectedColor: AppTheme.accent.withOpacity(0.2),
+              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
               ),
@@ -443,7 +452,53 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
                 }
               },
               backgroundColor: AppTheme.backgroundDark,
-              selectedColor: AppTheme.accent.withOpacity(0.2),
+              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
+              labelStyle: TextStyle(
+                color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeatureFilter() {
+    // Static features list; in production could be dynamic from Firestore
+    final features = <String>[
+      '24/7', 'Emergency', 'Eco-friendly', 'Warranty', 'Certified',
+      'Mobile', 'On-site', 'Fast', 'Budget', 'Premium',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Features (select 1-3)',
+          style: AppTheme.bodyText.copyWith(color: AppTheme.textPrimary),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: features.map((f) {
+            final isSelected = _selectedFeatures.contains(f);
+            return FilterChip(
+              label: Text(f),
+              selected: isSelected,
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    if (_selectedFeatures.length < 3) {
+                      _selectedFeatures.add(f);
+                    }
+                  } else {
+                    _selectedFeatures.remove(f);
+                  }
+                });
+              },
+              backgroundColor: AppTheme.backgroundDark,
+              selectedColor: AppTheme.accent.withValues(alpha: 0.2),
               labelStyle: TextStyle(
                 color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
               ),
@@ -465,48 +520,44 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
       return _buildEmptyProvidersState();
     }
 
-    return Column(
-      children: [
-        // Results header
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Text(
-                '${_providers.length} providers found',
-                style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
-              ),
-              const Spacer(),
-              if (_userLocation == null)
-                TextButton.icon(
-                  onPressed: _initializeLocation,
-                  icon: Icon(Icons.location_on, color: AppTheme.accent),
-                  label: Text('Enable Location', style: TextStyle(color: AppTheme.accent)),
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: _providers.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Text(
+                  '${_providers.length} providers found',
+                  style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
                 ),
-            ],
-          ),
-        ),
-
-        // Providers list
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _providers.length + (_isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == _providers.length) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: CircularProgressIndicator(color: AppTheme.accent),
+                const Spacer(),
+                if (_userLocation == null)
+                  TextButton.icon(
+                    onPressed: _initializeLocation,
+                    icon: Icon(Icons.location_on, color: AppTheme.accent),
+                    label: Text('Enable Location', style: TextStyle(color: AppTheme.accent)),
                   ),
-                );
-              }
+              ],
+            ),
+          );
+        }
 
-              return _buildProviderCard(_providers[index]);
-            },
-          ),
-        ),
-      ],
+        final listIndex = index - 1;
+        if (listIndex == _providers.length) {
+          if (!_isLoadingMore) return const SizedBox.shrink();
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: CircularProgressIndicator(color: AppTheme.accent),
+            ),
+          );
+        }
+
+        return _buildProviderCard(_providers[listIndex]);
+      },
     );
   }
 
@@ -552,15 +603,27 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
           child: Row(
             children: [
               // Provider logo
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: AppTheme.primary,
-                backgroundImage: (provider.logoUrl?.isNotEmpty ?? false)
-                    ? NetworkImage(provider.logoUrl!)
-                    : null,
-                child: (provider.logoUrl?.isEmpty ?? true)
-                    ? const Icon(Icons.business, color: Colors.white)
-                    : null,
+              ClipOval(
+                child: SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: (provider.logoUrl?.isNotEmpty ?? false)
+                      ? CachedNetworkImage(
+                          imageUrl: provider.logoUrl!,
+                          fit: BoxFit.cover,
+                          memCacheWidth: 120,
+                          fadeInDuration: Duration.zero,
+                          placeholder: (context, _) => Container(color: AppTheme.primary.withValues(alpha: 0.2)),
+                          errorWidget: (context, url, error) => Container(
+                            color: AppTheme.primary,
+                            child: const Icon(Icons.business, color: Colors.white),
+                          ),
+                        )
+                      : Container(
+                          color: AppTheme.primary,
+                          child: const Icon(Icons.business, color: Colors.white),
+                        ),
+                ),
               ),
               
               const SizedBox(width: 16),
@@ -733,10 +796,12 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
 
   // Event handlers
   void _onSearchChanged(String value) {
-    // Simplified - just check if we should trigger search
-    if (value.length >= 2 && value != _lastQuery) {
-      // Could implement debounced search here
-    }
+    _debounce?.cancel();
+    if (value.length < 2 || value == _lastQuery) return;
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _onSearchSubmitted(value);
+    });
   }
 
   void _onSearchSubmitted(String value) {
@@ -790,6 +855,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         maxPrice: _filters.maxPrice,
         isVerified: _filters.isVerified,
         serviceIds: _filters.serviceIds,
+        featureKeywords: _selectedFeatures.isEmpty ? null : List<String>.from(_selectedFeatures),
         sortBy: _filters.sortBy,
       );
 
@@ -802,6 +868,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         maxPrice: updatedFilters.maxPrice,
         isVerified: updatedFilters.isVerified,
         serviceIds: updatedFilters.serviceIds,
+        featureKeywords: updatedFilters.featureKeywords,
         sortBy: updatedFilters.sortBy,
         limit: 20,
         offset: 0,
@@ -841,6 +908,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         maxPrice: _filters.maxPrice,
         isVerified: _filters.isVerified,
         serviceIds: _filters.serviceIds,
+        featureKeywords: _filters.featureKeywords,
         sortBy: _filters.sortBy,
         limit: 20,
         offset: _currentOffset,
@@ -882,7 +950,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
   Future<void> _searchCategories(String query) async {
     try {
       final categories = await SearchService.searchCategories(query);
-      setState(() => _categories = categories);
+      setState(() => _categories = List<Category>.from(categories));
     } catch (e) {
       print('Error searching categories: $e');
     }
@@ -917,7 +985,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
            _filters.maxPrice != null ||
            _filters.isVerified != null ||
            _filters.maxDistance < 50.0 ||
-           _filters.sortBy != SortBy.relevance;
+           _filters.sortBy != SortBy.relevance ||
+           _selectedFeatures.isNotEmpty;
   }
 
   String _getSortDisplayName(SortBy sortBy) {

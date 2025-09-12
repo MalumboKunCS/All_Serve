@@ -8,6 +8,7 @@ import 'admin_verification_queue_screen.dart';
 import 'admin_providers_screen.dart';
 import 'admin_reviews_screen.dart';
 import 'admin_announcements_screen.dart';
+import 'database_setup_screen.dart';
 
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadDashboardData();
   }
 
@@ -164,6 +165,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Tab(text: 'Providers'),
                       Tab(text: 'Reviews'),
                       Tab(text: 'Announcements'),
+                      Tab(text: 'Database Setup'),
                     ],
                   ),
                 ),
@@ -178,6 +180,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       const AdminProvidersScreen(),
                       const AdminReviewsScreen(),
                       const AdminAnnouncementsScreen(),
+                      const DatabaseSetupScreen(),
                     ],
                   ),
                 ),

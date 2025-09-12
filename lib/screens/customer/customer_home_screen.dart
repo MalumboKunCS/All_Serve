@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 import '../../models/category.dart';
 import '../../models/provider.dart' as app_provider;
 import 'categories_screen.dart';
+import 'my_profile_screen.dart';
 import 'provider_detail_screen.dart';
 import 'advanced_search_screen.dart';
 import 'my_bookings_screen.dart';
@@ -23,17 +26,34 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
     try {
+      // Run Firestore queries in parallel and offload to a microtask
+      // to avoid blocking the initial frame
       // Load featured categories
-      final categoriesSnapshot = await FirebaseFirestore.instance
+      final categoriesFuture = FirebaseFirestore.instance
           .collection('categories')
           .where('isFeatured', isEqualTo: true)
           .limit(3)
           .get();
+
+      // Load nearby providers (for now, active verified providers)
+      final providersFuture = FirebaseFirestore.instance
+          .collection('providers')
+          .where('status', isEqualTo: 'active')
+          .where('verified', isEqualTo: true)
+          .orderBy('ratingAvg', descending: true)
+          .limit(5)
+          .get();
+
+      final results = await Future.wait([categoriesFuture, providersFuture]);
+      final categoriesSnapshot = results[0] as QuerySnapshot;
+      final providersSnapshot = results[1] as QuerySnapshot;
 
       _featuredCategories = categoriesSnapshot.docs
           .map((doc) => Category.fromFirestore(doc))
@@ -50,15 +70,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             .map((doc) => Category.fromFirestore(doc))
             .toList();
       }
-
-      // Load nearby providers (for now, just get active verified providers)
-      final providersSnapshot = await FirebaseFirestore.instance
-          .collection('providers')
-          .where('status', isEqualTo: 'active')
-          .where('verified', isEqualTo: true)
-          .orderBy('ratingAvg', descending: true)
-          .limit(5)
-          .get();
 
       _nearbyProviders = providersSnapshot.docs
           .map((doc) => app_provider.Provider.fromFirestore(doc))
@@ -91,11 +102,35 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               );
             },
           ),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.person),
-            onPressed: () {
-              // TODO: Navigate to profile
+            onSelected: (value) async {
+              if (value == 'profile') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const MyProfileScreen(),
+                  ),
+                );
+              } else if (value == 'logout') {
+                try {
+                  final authService = context.read<AuthService>();
+                  await authService.signOut();
+                } catch (e) {
+                  // ignore: avoid_print
+                  print('Logout error: $e');
+                }
+              }
             },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'profile',
+                child: Text('Profile'),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Text('Logout'),
+              ),
+            ],
           ),
         ],
       ),

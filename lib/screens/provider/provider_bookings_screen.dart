@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/booking.dart';
 import '../../models/user.dart' as app_user;
+import '../../services/booking_service_client.dart';
 
 class ProviderBookingsScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -459,13 +459,11 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
 
   Future<void> _updateBookingStatus(Booking booking, String action) async {
     try {
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('updateBookingStatus');
-      
-      await callable.call({
-        'bookingId': booking.bookingId,
-        'action': action,
-      });
+      final bookingService = BookingServiceClient();
+      await bookingService.updateBookingStatus(
+        bookingId: booking.bookingId,
+        status: action,
+      );
 
       if (mounted) {
         String message;

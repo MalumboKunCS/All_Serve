@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'dart:math' as math;
 import '../models/provider.dart' as app_provider;
 import '../models/category.dart';
@@ -18,6 +19,7 @@ class SearchService {
     double? maxPrice,
     bool? isVerified,
     List<String>? serviceIds,
+    List<String>? featureKeywords,
     SortBy sortBy = SortBy.relevance,
     int limit = 20,
     int offset = 0,
@@ -32,6 +34,7 @@ class SearchService {
         maxPrice: maxPrice,
         isVerified: isVerified,
         serviceIds: serviceIds,
+        featureKeywords: featureKeywords,
         sortBy: sortBy,
       );
 
@@ -213,10 +216,11 @@ class SearchService {
         query = query.where('isFeatured', isEqualTo: isFeatured);
       }
       final snapshot = await query.get();
-      return snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
+      final list = snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
+      return List<Category>.from(list);
         } catch (e) {
       print('Error getting categories: $e');
-      return [];
+      return <Category>[];
     }
   }
   
@@ -263,10 +267,10 @@ class SearchService {
         return bScore.compareTo(aScore);
       });
 
-      return categories;
+      return List<Category>.from(categories);
     } catch (e) {
       print('Error searching categories: $e');
-      return [];
+      return <Category>[];
     }
   }
   
@@ -364,127 +368,159 @@ class SearchService {
     List<app_provider.Provider> providers,
     SearchFilters filters,
   ) async {
-    final scoredProviders = <ScoredProvider>[];
+    // Prepare lightweight payload for isolate
+    final args = <String, dynamic>{
+      'providers': List<Map<String, dynamic>>.from(
+        providers.map(_providerToScoreMap),
+      ),
+      'filters': _filtersToMap(filters),
+    };
 
-    for (final provider in providers) {
-      // Calculate distance
-      double distance = 0.0;
-      if (filters.userLocation != null) {
-        distance = _calculateDistance(
-          filters.userLocation!.latitude,
-          filters.userLocation!.longitude,
-          provider.lat,
-          provider.lng,
-        );
+    // Attach index to each provider for mapping back after isolate
+    final indexed = (args['providers'] as List<Map<String, dynamic>>)
+        .asMap()
+        .entries
+        .map((e) => {...e.value, 'index': e.key})
+        .toList();
 
-        // Skip if outside max distance
-        if (distance > filters.maxDistance) continue;
-      }
+    final List<dynamic> scored = await compute(
+      _scoreAndFilterProvidersIsolate,
+      {'providers': indexed, 'filters': args['filters']},
+    );
 
-      // Calculate relevance score
-      final score = await _calculateProviderScore(provider, filters);
-
-      // Apply additional filters
-      if (!_passesAdditionalFilters(provider, filters)) continue;
-
-      scoredProviders.add(ScoredProvider(
-        provider: provider,
-        score: score,
-        distance: distance,
+    // Map back to original Provider objects using index
+    final result = <ScoredProvider>[];
+    for (final entry in scored) {
+      final map = entry as Map<String, dynamic>;
+      final int index = map['index'] as int;
+      result.add(ScoredProvider(
+        provider: providers[index],
+        score: (map['score'] as num).toDouble(),
+        distance: (map['distance'] as num).toDouble(),
       ));
     }
 
-    return scoredProviders;
+    return result;
   }
 
-  static Future<double> _calculateProviderScore(
-    app_provider.Provider provider,
-    SearchFilters filters,
-  ) async {
-    double score = 0.0;
+  // Legacy scorer no longer used directly; scoring moved to isolate
 
-    // Base score from rating and popularity
-    score += provider.ratingAvg / 5.0 * 0.3; // 30% weight for rating
-    score += math.min(provider.ratingCount / 100.0, 1.0) * 0.1; // 10% for review count
+  // ---------- Isolate helpers ----------
+  static Map<String, dynamic> _providerToScoreMap(app_provider.Provider p) => {
+        'index': -1, // will be overridden by map() with index
+        'businessName': p.businessName,
+        'description': p.description,
+        'ratingAvg': p.ratingAvg,
+        'ratingCount': p.ratingCount,
+        'verified': p.verified,
+        'createdAtMs': p.createdAt.millisecondsSinceEpoch,
+        'services': p.services
+            .map((s) => {
+                  'priceFrom': s.priceFrom,
+                  'priceTo': s.priceTo,
+                  'title': s.title,
+                  'serviceId': s.serviceId,
+                })
+            .toList(),
+        'keywords': p.keywords,
+        'lat': p.lat,
+        'lng': p.lng,
+      };
 
-    // Verification bonus
-    if (provider.verified) {
-      score += 0.2;
-    }
+  static Map<String, dynamic> _filtersToMap(SearchFilters f) => {
+        'query': f.query,
+        'maxDistance': f.maxDistance,
+        'minRating': f.minRating,
+        'maxPrice': f.maxPrice,
+        'isVerified': f.isVerified,
+        'serviceIds': f.serviceIds,
+        'featureKeywords': f.featureKeywords,
+        'userLat': f.userLocation?.latitude,
+        'userLng': f.userLocation?.longitude,
+        'sortBy': f.sortBy.name,
+      };
 
-    // Query relevance (if searching)
-    if (filters.query != null && filters.query!.isNotEmpty) {
-      final queryScore = _calculateQueryRelevance(provider, filters.query!);
-      score += queryScore * 0.4; // 40% weight for query relevance
-    }
+  static List<dynamic> _scoreAndFilterProvidersIsolate(Map<String, dynamic> args) {
+    final List<dynamic> rawProviders = args['providers'];
+    final Map<String, dynamic> filters = args['filters'];
 
-    // Recent activity bonus
-    final daysSinceCreated = DateTime.now().difference(provider.createdAt).inDays;
-    if (daysSinceCreated < 30) {
-      score += 0.1; // New provider bonus
-    }
+    final double? userLat = (filters['userLat'] as num?)?.toDouble();
+    final double? userLng = (filters['userLng'] as num?)?.toDouble();
+    final double maxDistance = (filters['maxDistance'] as num).toDouble();
+    final double? minRating = (filters['minRating'] as num?)?.toDouble();
+    final double? maxPrice = (filters['maxPrice'] as num?)?.toDouble();
+    final bool? isVerified = filters['isVerified'] as bool?;
+    // final List<dynamic>? serviceIds = filters['serviceIds'] as List<dynamic>?; // not used in isolate
+    final List<dynamic>? featureKeywords = filters['featureKeywords'] as List<dynamic>?;
+    final String? query = filters['query'] as String?;
 
-    // Service count bonus
-    score += math.min(provider.services.length / 10.0, 0.1);
+    final out = <Map<String, dynamic>>[];
 
-    return math.min(score, 1.0); // Cap at 1.0
-  }
+    for (int i = 0; i < rawProviders.length; i++) {
+      final p = rawProviders[i] as Map<String, dynamic>;
 
-  static double _calculateQueryRelevance(app_provider.Provider provider, String query) {
-    final queryLower = query.toLowerCase();
-    double relevance = 0.0;
+      // Basic filters
+      if (minRating != null && (p['ratingAvg'] as num).toDouble() < minRating) continue;
+      if (isVerified != null && (p['verified'] as bool) != isVerified) continue;
 
-    // Business name match
-    if (provider.businessName.toLowerCase().contains(queryLower)) {
-      relevance += 0.4;
-      if (provider.businessName.toLowerCase().startsWith(queryLower)) {
-        relevance += 0.2; // Prefix bonus
+      // Price filtering
+      if (maxPrice != null) {
+        final services = p['services'] as List<dynamic>;
+        final hasAffordable = services.any((s) => (s['priceFrom'] as num).toDouble() <= maxPrice);
+        if (!hasAffordable) continue;
       }
-    }
 
-    // Description match
-    if (provider.description.toLowerCase().contains(queryLower)) {
-      relevance += 0.2;
-    }
-
-    // Service titles match
-    for (final service in provider.services) {
-      if (service.title.toLowerCase().contains(queryLower)) {
-        relevance += 0.3;
-        break; // Only count once
+      // Feature keywords (AND of up to 3 features)
+      if (featureKeywords != null && featureKeywords.isNotEmpty) {
+        if (featureKeywords.length > 3) continue;
+        final keywords = (p['keywords'] as List<dynamic>).map((e) => e.toString().toLowerCase()).toSet();
+        final allPresent = featureKeywords.map((e) => e.toString().toLowerCase()).every(keywords.contains);
+        if (!allPresent) continue;
       }
+
+      // Distance
+      double distance = 0.0;
+      if (userLat != null && userLng != null) {
+        distance = _calculateDistance(userLat, userLng, (p['lat'] as num).toDouble(), (p['lng'] as num).toDouble());
+        if (distance > maxDistance) continue;
+      }
+
+      // Score
+      double score = 0.0;
+      score += ((p['ratingAvg'] as num).toDouble() / 5.0) * 0.3;
+      score += math.min(((p['ratingCount'] as num).toDouble() / 100.0), 1.0) * 0.1;
+      if (p['verified'] as bool) score += 0.2;
+
+      if (query != null && query.isNotEmpty) {
+        final q = query.toLowerCase();
+        final name = (p['businessName'] as String).toLowerCase();
+        final desc = (p['description'] as String).toLowerCase();
+        double rel = 0.0;
+        if (name.contains(q)) {
+          rel += 0.4;
+          if (name.startsWith(q)) rel += 0.2;
+        }
+        if (desc.contains(q)) rel += 0.2;
+        final services = p['services'] as List<dynamic>;
+        if (services.any((s) => (s['title'] as String).toLowerCase().contains(q))) rel += 0.3;
+        final keywords = (p['keywords'] as List<dynamic>).map((e) => e.toString().toLowerCase());
+        if (keywords.any((k) => k.contains(q))) rel += 0.1;
+        score += math.min(rel, 1.0) * 0.4;
+      }
+
+      // Recency + service count bonus
+      final createdAtMs = (p['createdAtMs'] as int);
+      if (DateTime.now().millisecondsSinceEpoch - createdAtMs < 30 * 86400000) score += 0.1;
+      final servicesCount = (p['services'] as List).length;
+      score += math.min(servicesCount / 10.0, 0.1);
+
+      out.add({'index': i, 'score': math.min(score, 1.0), 'distance': distance});
     }
 
-    // Keywords/tags match
-    if (provider.keywords.any((keyword) => 
-        keyword.toLowerCase().contains(queryLower))) {
-      relevance += 0.1;
-    }
-
-    return math.min(relevance, 1.0);
+    return out;
   }
 
-  static bool _passesAdditionalFilters(
-    app_provider.Provider provider,
-    SearchFilters filters,
-  ) {
-    // Price filtering (check services)
-    if (filters.maxPrice != null) {
-      final hasAffordableService = provider.services.any((service) {
-        return service.priceFrom <= filters.maxPrice!;
-      });
-      if (!hasAffordableService) return false;
-    }
-
-    // Service IDs filtering
-    if (filters.serviceIds != null && filters.serviceIds!.isNotEmpty) {
-      final hasRequiredService = provider.services.any((service) =>
-          filters.serviceIds!.contains(service.serviceId));
-      if (!hasRequiredService) return false;
-    }
-
-    return true;
-  }
+  // _passesAdditionalFilters merged into isolate logic
 
   static void _sortProviders(List<ScoredProvider> providers, SortBy sortBy) {
     switch (sortBy) {
@@ -685,6 +721,7 @@ class SearchFilters {
   final double? maxPrice;
   final bool? isVerified;
   final List<String>? serviceIds;
+  final List<String>? featureKeywords; // up to 3 features combined
   final SortBy sortBy;
 
   SearchFilters({
@@ -696,6 +733,7 @@ class SearchFilters {
     this.maxPrice,
     this.isVerified,
     this.serviceIds,
+    this.featureKeywords,
     this.sortBy = SortBy.relevance,
   });
 }
@@ -750,3 +788,5 @@ enum SuggestionType {
   provider,
   service,
 }
+
+

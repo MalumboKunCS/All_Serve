@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../services/auth_service.dart';
+import '../../services/booking_service_client.dart';
 
 import 'booking_status_screen.dart';
 
@@ -152,20 +152,16 @@ class _BookingScreenState extends State<BookingScreen> {
         };
       }
 
-      // Call createBooking Cloud Function
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('createBooking');
-      
-      final result = await callable.call({
-        'customerId': user.uid,
-        'providerId': widget.provider.providerId,
-        'serviceId': _selectedService!.serviceId,
-        'scheduledAt': scheduledAt.toIso8601String(),
-        'address': address,
-        'notes': _notesController.text.trim(),
-      });
-
-      final bookingId = result.data['bookingId'] as String;
+      // Create booking using client service
+      final bookingService = BookingServiceClient();
+      final bookingId = await bookingService.createBooking(
+        customerId: user.uid,
+        providerId: widget.provider.providerId,
+        serviceId: _selectedService!.serviceId,
+        scheduledAt: scheduledAt,
+        address: address,
+        notes: _notesController.text.trim(),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

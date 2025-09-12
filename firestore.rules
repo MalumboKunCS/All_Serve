@@ -1,77 +1,19 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users - each user can read/write own doc
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+    // This rule allows anyone with your Firestore database reference to view, edit,
+    // and delete all data in your Firestore database. It is useful for getting
+    // started, but it is configured to expire after 30 days because it
+    // leaves your app open to attackers. At that time, all client
+    // requests to your Firestore database will be denied.
+    //
+    // Make sure to write security rules for your app before that time, or else
+    // all client requests to your Firestore database will be denied until you Update
+    // your rules
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2025, 9, 13);
     }
-
-    // Providers - public read allowed for listing
-    match /providers/{providerId} {
-      allow read: if true;
-      allow create: if request.auth != null && 
-                     request.auth.token.email_verified == true && 
-                     request.auth.uid == request.resource.data.ownerUid;
-      // Only provider owner can edit profile fields
-      allow update: if request.auth != null && 
-                     request.auth.uid == resource.data.ownerUid;
-      // Only admin/CF should set verified
-      allow write: if false; // disallow generic writes (handle via more specific rules or functions)
-    }
-
-    // Categories - public read
-    match /categories/{categoryId} {
-      allow read: if true;
-      allow write: if request.auth != null && 
-                     request.auth.token.admin == true;
-    }
-
-    // Bookings
-    match /bookings/{bookingId} {
-      allow create: if request.auth != null && 
-                     request.resource.data.customerId == request.auth.uid;
-      allow read: if request.auth != null && 
-                   (request.auth.uid == resource.data.customerId || 
-                    request.auth.uid == resource.data.providerId);
-      allow update: if request.auth != null && (
-         // provider can accept/complete booking for their providerId
-         (request.auth.uid == resource.data.providerId) ||
-         // customer can cancel their own booking
-         (request.auth.uid == resource.data.customerId)
-      );
-    }
-
-    // Reviews: only Cloud Function should create reviews (or enforce booking completed check via rule)
-    match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if false; // created via callable function only
-      allow update, delete: if request.auth != null && 
-                             request.auth.token.admin == true;
-    }
-
-    // Admin logs - admin only
-    match /adminAuditLogs/{id} {
-      allow read, write: if request.auth != null && 
-                          request.auth.token.admin == true;
-    }
-
-    // Announcements - public read, admin write
-    match /announcements/{id} {
-      allow read: if true;
-      allow write: if request.auth != null && 
-                     request.auth.token.admin == true;
-    }
-
-    // Verification queue - admin only
-    match /verificationQueue/{id} {
-      allow read, write: if request.auth != null && 
-                          request.auth.token.admin == true;
-    }
-
   }
 }
-
-
-

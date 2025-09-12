@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import '../../theme/app_theme.dart';
 import '../../models/announcement.dart';
 import '../../services/auth_service.dart';
+import '../../services/admin_service_client.dart';
 
 class AdminAnnouncementsScreen extends StatefulWidget {
   const AdminAnnouncementsScreen({super.key});
@@ -608,25 +608,24 @@ class _CreateAnnouncementDialogState extends State<_CreateAnnouncementDialog> {
         throw Exception('Admin not authenticated');
       }
 
-      // Call Cloud Function to send announcement
-      final functions = FirebaseFunctions.instance;
-      final callable = functions.httpsCallable('sendAnnouncement');
-      
-      final result = await callable.call({
-        'title': _titleController.text.trim(),
-        'message': _messageController.text.trim(),
-        'audience': _audience,
-        'priority': _priority,
-        'type': _type,
-        'expiresAt': _expiresAt?.toIso8601String(),
-      });
+      // Send announcement using client service
+      final adminService = AdminServiceClient();
+      final success = await adminService.sendAnnouncement(
+        title: _titleController.text.trim(),
+        message: _messageController.text.trim(),
+        audience: _audience,
+        priority: _priority,
+        type: _type,
+        adminUid: adminUid,
+        expiresAt: _expiresAt,
+      );
 
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Announcement sent to ${result.data['recipientCount']} users'),
-            backgroundColor: AppTheme.success,
+            content: Text(success ? 'Announcement sent successfully!' : 'Failed to send announcement'),
+            backgroundColor: success ? AppTheme.success : AppTheme.error,
           ),
         );
       }

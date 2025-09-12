@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/user.dart' as app_user;
+import 'document_viewer_screen.dart';
 
 class AdminProvidersScreen extends StatefulWidget {
   const AdminProvidersScreen({super.key});
@@ -535,12 +536,211 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   }
 
   void _viewProviderDetails(app_provider.Provider provider) {
-    // TODO: Navigate to detailed provider view
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('View details: ${provider.businessName}'),
-        backgroundColor: AppTheme.info,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: Text(
+          'Provider Details',
+          style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Business Name', provider.businessName),
+              _buildDetailRow('Description', provider.description),
+              _buildDetailRow('Category ID', provider.categoryId),
+              _buildDetailRow('Status', provider.status),
+              _buildDetailRow('Verified', provider.verified ? 'Yes' : 'No'),
+              _buildDetailRow('Rating', '${provider.ratingAvg.toStringAsFixed(1)} (${provider.ratingCount} reviews)'),
+              _buildDetailRow('Services', '${provider.services.length} services'),
+              _buildDetailRow('Service Area', '${provider.serviceAreaKm.toStringAsFixed(1)} km'),
+              if (provider.websiteUrl?.isNotEmpty ?? false)
+                _buildDetailRow('Website', provider.websiteUrl!),
+              
+              const SizedBox(height: 16),
+              Text(
+                'Verification Documents',
+                style: AppTheme.bodyText.copyWith(
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...provider.documents.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.description, size: 16, color: AppTheme.textSecondary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _getDocumentDisplayName(entry.key),
+                          style: AppTheme.caption.copyWith(color: AppTheme.textSecondary),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _viewDocument(entry.value, _getDocumentDisplayName(entry.key)),
+                        child: Text(
+                          'View',
+                          style: TextStyle(color: AppTheme.accent),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: AppTheme.caption.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTheme.caption.copyWith(color: AppTheme.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getDocumentDisplayName(String key) {
+    switch (key) {
+      case 'nrcUrl':
+        return 'National Registration Card';
+      case 'businessLicenseUrl':
+        return 'Business License';
+      case 'certificatesUrl':
+        return 'Professional Certificates';
+      default:
+        return key.replaceAll('Url', '').replaceAllMapped(
+          RegExp(r'([A-Z])'),
+          (match) => ' ${match.group(1)!.toLowerCase()}',
+        ).trim();
+    }
+  }
+
+  Future<void> _viewDocument(String url, String title) async {
+    try {
+      // Check if it's a PDF
+      if (url.toLowerCase().contains('.pdf')) {
+        _showPdfOptions(url, title);
+      } else {
+        // For images and other documents, open in a full-screen viewer
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => DocumentViewerScreen(
+              documentUrl: url,
+              documentTitle: title,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+            content: Text('Error opening document: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showPdfOptions(String url, String title) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: Text(
+          title,
+          style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'This document is a PDF. You can view it by:',
+              style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _launchUrl(url);
+                    },
+                    style: AppTheme.primaryButtonStyle,
+                    icon: const Icon(Icons.open_in_browser),
+                    label: const Text('Open in Browser'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchUrl(String url) async {
+    try {
+      // For now, show a message. In production, use url_launcher
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Opening: $url'),
+            backgroundColor: AppTheme.info,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening URL: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 }

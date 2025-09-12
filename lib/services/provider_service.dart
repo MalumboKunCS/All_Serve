@@ -1,10 +1,10 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../models/provider.dart' as app_provider;
 import '../models/booking.dart';
 import 'package:flutter/foundation.dart';
+import 'cloudinary_storage_service.dart';
 
 import 'review_service.dart' as review_service;
 
@@ -50,14 +50,14 @@ class ServiceOffering {
 
 class ProviderService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final CloudinaryStorageService _cloudinary = CloudinaryStorageService();
 
   // Get provider profile
   static Future<app_provider.Provider?> getProvider(String providerId) async {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
       if (doc.exists) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data()!, id: doc.id);
       }
       return null;
     } catch (e) {
@@ -155,12 +155,15 @@ class ProviderService {
     }
   }
 
-  // Upload image to Firebase Storage (static version)
+  // Upload image to Cloudinary (static version)
   static Future<String> _uploadImageStatic(String providerId, String type, File imageFile) async {
-    final ref = _storage.ref().child('provider_images/$providerId/$type/${DateTime.now().millisecondsSinceEpoch}');
-    final uploadTask = ref.putFile(imageFile);
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    if (type == 'profile') {
+      return await _cloudinary.uploadProfileImage(imageFile);
+    } else if (type == 'logo') {
+      return await _cloudinary.uploadProviderLogo(imageFile);
+    } else {
+      return await _cloudinary.uploadProviderGalleryImage(imageFile);
+    }
   }
 
 
@@ -240,12 +243,9 @@ class ProviderService {
     }
   }
 
-  // Upload document to Firebase Storage
+  // Upload document to Cloudinary
   Future<String> _uploadDocument(String providerId, String docType, File file) async {
-    final ref = _storage.ref().child('provider_documents/$providerId/$docType/${DateTime.now().millisecondsSinceEpoch}');
-    final uploadTask = ref.putFile(file);
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    return await _cloudinary.uploadDocument(file);
   }
 
   // Get provider bookings
@@ -257,7 +257,7 @@ class ProviderService {
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        return Booking.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return Booking.fromMap(doc.data(), id: doc.id);
       }).toList();
     });
   }
@@ -277,7 +277,7 @@ class ProviderService {
       Map<String, double> monthlyEarnings = {};
       
       for (final doc in completedBookings.docs) {
-        final data = doc.data()! as Map<String, dynamic>;
+        final data = doc.data();
         final price = (data['finalPrice'] ?? data['estimatedPrice'] ?? 0).toDouble();
         totalEarnings += price;
 
@@ -338,7 +338,7 @@ class ProviderService {
       int pendingBookingsCount = pendingBookings.docs.length;
       
       int completedJobs = allBookings.docs
-          .where((doc) => (doc.data() as Map<String, dynamic>)['status'] == BookingStatus.completed.name)
+          .where((doc) => doc.data()['status'] == BookingStatus.completed.name)
           .length;
 
       return {
@@ -366,7 +366,7 @@ class ProviderService {
     double radiusKm = 50.0,
   }) async {
     try {
-      Query query = _firestore.collection('providers');
+      Query<Map<String, dynamic>> query = _firestore.collection('providers');
       
       query = query.where('status', isEqualTo: 'active');
       
@@ -376,7 +376,7 @@ class ProviderService {
 
       final snapshot = await query.get();
       List<app_provider.Provider> providers = snapshot.docs.map((doc) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
 
       // Filter by location if provided
@@ -447,7 +447,7 @@ class ProviderService {
     try {
       final doc = await _firestore.collection('providers').doc(providerId).get();
       if (doc.exists && doc.data() != null) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data()!, id: doc.id);
       }
       return null;
     } catch (e) {
@@ -463,7 +463,7 @@ class ProviderService {
     String? lastDocumentId,
   }) async {
     try {
-      Query query = _firestore
+      Query<Map<String, dynamic>> query = _firestore
           .collection('providers')
           .where('category', isEqualTo: category)
           .where('isActive', isEqualTo: true)
@@ -480,7 +480,7 @@ class ProviderService {
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting providers by category: $e');
@@ -505,7 +505,7 @@ class ProviderService {
           .get();
 
       final providers = querySnapshot.docs.map((doc) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
 
       // Filter by distance and sort
@@ -552,7 +552,7 @@ class ProviderService {
     String? category,
   }) async {
     try {
-      Query query = _firestore
+      Query<Map<String, dynamic>> query = _firestore
           .collection('providers')
           .where('isActive', isEqualTo: true)
           .orderBy('rating', descending: true)
@@ -564,7 +564,7 @@ class ProviderService {
 
       final querySnapshot = await query.get();
       return querySnapshot.docs.map((doc) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
     } catch (e) {
       debugPrint('Error getting top rated providers: $e');
@@ -580,7 +580,7 @@ class ProviderService {
     int limit = 20,
   }) async {
     try {
-      Query queryRef = _firestore
+      Query<Map<String, dynamic>> queryRef = _firestore
           .collection('providers')
           .where('isActive', isEqualTo: true);
 
@@ -594,7 +594,7 @@ class ProviderService {
 
       final querySnapshot = await queryRef.limit(limit).get();
       final providers = querySnapshot.docs.map((doc) {
-        return app_provider.Provider.fromMap(doc.data()! as Map<String, dynamic>, id: doc.id);
+        return app_provider.Provider.fromMap(doc.data(), id: doc.id);
       }).toList();
 
       // Filter by search query
@@ -792,7 +792,7 @@ class ProviderService {
           .get();
 
       return querySnapshot.docs.map((doc) {
-        final data = doc.data()! as Map<String, dynamic>;
+        final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();
@@ -814,7 +814,7 @@ class ProviderService {
           .get();
 
       return querySnapshot.docs.map((doc) {
-        final data = doc.data()! as Map<String, dynamic>;
+        final data = doc.data();
         data['id'] = doc.id;
         return data;
       }).toList();

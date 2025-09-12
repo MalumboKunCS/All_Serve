@@ -7,9 +7,10 @@
     <application
         android:label="all_server"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
         <activity
-            android:name=".MainActivity"
+            android:name="com.maluDev.all_server.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

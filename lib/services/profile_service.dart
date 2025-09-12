@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import 'package:flutter/foundation.dart';
+import 'cloudinary_storage_service.dart';
 
 class ProfileService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final CloudinaryStorageService _cloudinary = CloudinaryStorageService();
   final ImagePicker _imagePicker = ImagePicker();
 
   // Get user profile
@@ -87,12 +87,9 @@ class ProfileService {
     }
   }
 
-  // Upload profile image to Firebase Storage
+  // Upload profile image to Cloudinary
   Future<String> _uploadProfileImage(String uid, File imageFile) async {
-    final ref = _storage.ref().child('profile_images/$uid');
-    final uploadTask = ref.putFile(imageFile);
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    return await _cloudinary.uploadProfileImage(imageFile);
   }
 
   // Pick image from gallery or camera

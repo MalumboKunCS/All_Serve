@@ -1,20 +1,12 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'cloudinary_storage_service.dart';
 
 class FileUploadService {
-  static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final CloudinaryStorageService _cloudinary = CloudinaryStorageService();
   static final ImagePicker _imagePicker = ImagePicker();
-
-  // Upload types
-  static const String _documentsPath = 'documents';
-  static const String _imagesPath = 'images';
-  static const String _profileImagesPath = 'profile_images';
-  static const String _logoImagesPath = 'logo_images';
-  static const String _galleryImagesPath = 'gallery_images';
 
   // File size limits
   static const int _maxImageSizeBytes = 5 * 1024 * 1024; // 5MB
@@ -48,22 +40,10 @@ class FileUploadService {
         throw FileUploadException('Only JPG, PNG, and WebP images are allowed');
       }
 
-      final fileName = 'profile_$userId.${extension}';
-      final filePath = '$_profileImagesPath/$fileName';
-
       final file = File(image.path);
-      final uploadTask = _storage.ref().child(filePath).putFile(file);
+      final uploadUrl = await _cloudinary.uploadProfileImage(file);
       
-      // Monitor upload progress
-      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
-        final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        print('Upload progress: ${(progress * 100).toStringAsFixed(1)}%');
-      });
-
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      
-      return downloadUrl;
+      return uploadUrl;
     } catch (e) {
       throw FileUploadException('Failed to upload profile image: $e');
     }
@@ -84,12 +64,10 @@ class FileUploadService {
       // Validate file
       await _validateImageFile(image);
 
-      final extension = path.extension(image.path).toLowerCase().substring(1);
-      final fileName = 'logo_$providerId.${extension}';
-      final filePath = '$_logoImagesPath/$fileName';
-
-      final downloadUrl = await _uploadFile(image.path, filePath);
-      return downloadUrl;
+      final file = File(image.path);
+      final uploadUrl = await _cloudinary.uploadProviderLogo(file);
+      
+      return uploadUrl;
     } catch (e) {
       throw FileUploadException('Failed to upload logo: $e');
     }
@@ -118,12 +96,9 @@ class FileUploadService {
         // Validate each image
         await _validateImageFile(image);
 
-        final extension = path.extension(image.path).toLowerCase().substring(1);
-        final fileName = 'gallery_${providerId}_${DateTime.now().millisecondsSinceEpoch}_$i.$extension';
-        final filePath = '$_galleryImagesPath/$fileName';
-
-        final downloadUrl = await _uploadFile(image.path, filePath);
-        downloadUrls.add(downloadUrl);
+        final file = File(image.path);
+        final uploadUrl = await _cloudinary.uploadProviderGalleryImage(file);
+        downloadUrls.add(uploadUrl);
       }
 
       return downloadUrls;
@@ -156,6 +131,7 @@ class FileUploadService {
           type: FileType.custom,
           allowedExtensions: _allowedDocumentTypes,
           allowMultiple: false,
+          withData: true,
         );
 
         if (result != null && result.files.isNotEmpty) {
@@ -164,11 +140,22 @@ class FileUploadService {
           // Validate document
           await _validateDocumentFile(file);
 
-          final fileName = '${docType}_$providerId.${file.extension}';
-          final filePath = '$_documentsPath/$fileName';
-
-          final downloadUrl = await _uploadFileBytes(file.bytes!, filePath);
-          uploadedDocs['${docType}Url'] = downloadUrl;
+          if (file.bytes != null) {
+            // Create temporary file from bytes
+            final tempFile = File('${Directory.systemTemp.path}/${file.name}');
+            await tempFile.writeAsBytes(file.bytes!);
+            
+            final uploadUrl = await _cloudinary.uploadDocument(tempFile);
+            uploadedDocs['${docType}Url'] = uploadUrl;
+            
+            // Clean up temp file
+            await tempFile.delete();
+          } else if (file.path != null) {
+            final uploadUrl = await _cloudinary.uploadDocument(File(file.path!));
+            uploadedDocs['${docType}Url'] = uploadUrl;
+          } else {
+            throw FileUploadException('Failed to read selected file');
+          }
         }
       }
 
@@ -185,6 +172,7 @@ class FileUploadService {
         type: FileType.custom,
         allowedExtensions: _allowedDocumentTypes,
         allowMultiple: false,
+        withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
@@ -193,11 +181,23 @@ class FileUploadService {
         // Validate document
         await _validateDocumentFile(file);
 
-        final sanitizedFileName = _sanitizeFileName(fileName);
-        final filePath = '$_documentsPath/$category/${sanitizedFileName}.${file.extension}';
-
-        final downloadUrl = await _uploadFileBytes(file.bytes!, filePath);
-        return downloadUrl;
+        if (file.bytes != null) {
+          // Create temporary file from bytes
+          final tempFile = File('${Directory.systemTemp.path}/${file.name}');
+          await tempFile.writeAsBytes(file.bytes!);
+          
+          final uploadUrl = await _cloudinary.uploadDocument(tempFile);
+          
+          // Clean up temp file
+          await tempFile.delete();
+          
+          return uploadUrl;
+        } else if (file.path != null) {
+          final uploadUrl = await _cloudinary.uploadDocument(File(file.path!));
+          return uploadUrl;
+        } else {
+          throw FileUploadException('Failed to read selected file');
+        }
       }
 
       return null;
@@ -221,12 +221,10 @@ class FileUploadService {
       // Validate image
       await _validateImageFile(image);
 
-      final extension = path.extension(image.path).toLowerCase().substring(1);
-      final sanitizedFileName = _sanitizeFileName(fileName);
-      final filePath = '$_imagesPath/$category/${sanitizedFileName}.$extension';
-
-      final downloadUrl = await _uploadFile(image.path, filePath);
-      return downloadUrl;
+      final file = File(image.path);
+      final uploadUrl = await _cloudinary.uploadProviderGalleryImage(file);
+      
+      return uploadUrl;
     } catch (e) {
       throw FileUploadException('Failed to upload image: $e');
     }
@@ -235,8 +233,11 @@ class FileUploadService {
   /// Delete file from storage
   static Future<void> deleteFile(String downloadUrl) async {
     try {
-      final ref = _storage.refFromURL(downloadUrl);
-      await ref.delete();
+      // Extract public ID from Cloudinary URL
+      final publicId = _extractPublicIdFromUrl(downloadUrl);
+      if (publicId != null) {
+        await _cloudinary.deleteImage(publicId);
+      }
     } catch (e) {
       print('Failed to delete file: $e');
       // Don't throw error for file deletion failures
@@ -251,10 +252,13 @@ class FileUploadService {
   }
 
   /// Get file metadata
-  static Future<FullMetadata?> getFileMetadata(String downloadUrl) async {
+  static Future<Map<String, dynamic>?> getFileMetadata(String downloadUrl) async {
     try {
-      final ref = _storage.refFromURL(downloadUrl);
-      return await ref.getMetadata();
+      final publicId = _extractPublicIdFromUrl(downloadUrl);
+      if (publicId != null) {
+        return await _cloudinary.getImageInfo(publicId);
+      }
+      return null;
     } catch (e) {
       print('Failed to get file metadata: $e');
       return null;
@@ -262,23 +266,6 @@ class FileUploadService {
   }
 
   // Private helper methods
-
-  /// Upload file from path
-  static Future<String> _uploadFile(String filePath, String storagePath) async {
-    final file = File(filePath);
-    final uploadTask = _storage.ref().child(storagePath).putFile(file);
-    
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
-  }
-
-  /// Upload file from bytes
-  static Future<String> _uploadFileBytes(Uint8List bytes, String storagePath) async {
-    final uploadTask = _storage.ref().child(storagePath).putData(bytes);
-    
-    final snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
-  }
 
   /// Validate image file
   static Future<void> _validateImageFile(XFile image) async {
@@ -309,13 +296,6 @@ class FileUploadService {
     }
   }
 
-  /// Sanitize file name
-  static String _sanitizeFileName(String fileName) {
-    return fileName
-        .replaceAll(RegExp(r'[^\w\s-]'), '')
-        .replaceAll(RegExp(r'\s+'), '_')
-        .toLowerCase();
-  }
 
   /// Confirm document upload (placeholder - implement with proper UI dialog)
   static Future<bool> _confirmDocumentUpload(String documentType) async {
@@ -324,19 +304,24 @@ class FileUploadService {
     return true;
   }
 
-  /// Create upload progress stream
-  static Stream<double> uploadWithProgress(String filePath, String storagePath) {
-    final file = File(filePath);
-    final uploadTask = _storage.ref().child(storagePath).putFile(file);
-    
-    return uploadTask.snapshotEvents.map((snapshot) {
-      return snapshot.bytesTransferred / snapshot.totalBytes;
-    });
-  }
-
-  /// Get storage reference
-  static Reference getStorageRef(String path) {
-    return _storage.ref().child(path);
+  /// Extract public ID from Cloudinary URL
+  static String? _extractPublicIdFromUrl(String url) {
+    try {
+      // Cloudinary URL format: https://res.cloudinary.com/cloud_name/image/upload/v1234567890/folder/public_id.ext
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      
+      // Find the upload segment and get everything after it
+      final uploadIndex = pathSegments.indexOf('upload');
+      if (uploadIndex != -1 && uploadIndex + 1 < pathSegments.length) {
+        // Skip version if present, get the rest
+        final startIndex = pathSegments[uploadIndex + 1].startsWith('v') ? uploadIndex + 2 : uploadIndex + 1;
+        return pathSegments.sublist(startIndex).join('/').split('.')[0];
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 }
 
