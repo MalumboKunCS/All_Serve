@@ -5,7 +5,7 @@ import '../../theme/app_theme.dart';
 import '../../models/booking.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/review.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../services/review_service_client.dart';
 
 class ReviewScreen extends StatefulWidget {
@@ -44,7 +44,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _checkExistingReview() async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
       
       if (currentUser == null) return;
@@ -328,7 +328,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) {

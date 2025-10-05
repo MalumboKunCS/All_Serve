@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import 'provider_profile_screen.dart';
 import 'provider_documents_screen.dart';
 import 'provider_gallery_screen.dart';
@@ -376,7 +376,7 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       await authService.signOut();
       
       if (mounted) {

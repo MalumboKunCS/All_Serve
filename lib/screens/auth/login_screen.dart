@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../theme/app_theme.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'two_fa_verification_screen.dart';
 import '../customer/customer_home_screen.dart';
 import '../provider/provider_dashboard_screen.dart';
+import '../provider/provider_registration_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
+import '../../services/provider_registration_service.dart';
 // Post-login navigation is handled by SplashScreen via auth state listener
 
 class LoginScreen extends StatefulWidget {
@@ -38,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       print('LoginScreen: Starting login process for ${_emailController.text.trim()}');
-      final authService = context.read<AuthService>();
+      final authService = context.read<shared.AuthService>();
       
       final credential = await authService.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -60,9 +62,16 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final role = (userWithData.role).toLowerCase();
       Widget destination;
+      
       switch (role) {
         case 'provider':
-          destination = const ProviderDashboardScreen();
+          // Check if provider needs to complete registration
+          final needsRegistration = await ProviderRegistrationService.needsRegistrationCompletion(userWithData.uid);
+          if (needsRegistration) {
+            destination = const ProviderRegistrationScreen();
+          } else {
+            destination = const ProviderDashboardScreen();
+          }
           break;
         case 'admin':
           destination = const AdminDashboardScreen();

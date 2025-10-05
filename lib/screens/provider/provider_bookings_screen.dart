@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/booking.dart';
-import '../../models/user.dart' as app_user;
-import '../../services/booking_service_client.dart';
+import '../../services/enhanced_booking_service.dart';
 
 class ProviderBookingsScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -73,23 +71,39 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildBookingsList(['requested']),
+          _buildBookingsList(['pending']),
           _buildBookingsList(['accepted']),
           _buildBookingsList(['completed']),
-          _buildBookingsList(['requested', 'accepted', 'rejected', 'completed', 'cancelled']),
+          _buildBookingsList(['pending', 'accepted', 'rejected', 'completed', 'cancelled']),
         ],
       ),
     );
   }
 
   Widget _buildBookingsList(List<String> statuses) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('providerId', isEqualTo: widget.provider!.providerId)
-          .where('status', whereIn: statuses)
-          .orderBy('scheduledAt', descending: false)
-          .snapshots(),
+    if (widget.provider == null) {
+      return const Center(
+        child: Text(
+          'No provider data available',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+      );
+    }
+
+    // Convert string statuses to BookingStatus enum
+    final bookingStatuses = statuses.map((status) {
+      return BookingStatus.values.firstWhere(
+        (e) => e.name == status,
+        orElse: () => BookingStatus.pending,
+      );
+    }).toList();
+
+    return StreamBuilder<List<Booking>>(
+      stream: EnhancedBookingService.getBookingsStream(
+        userId: widget.provider!.providerId,
+        userType: UserType.provider,
+        status: bookingStatuses.length == 1 ? bookingStatuses.first : null,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(
@@ -99,51 +113,37 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
 
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: AppTheme.error,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Error loading bookings',
-                  style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Please try again later',
-                  style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
-                ),
-              ],
+            child: Text(
+              'Error loading bookings: ${snapshot.error}',
+              style: const TextStyle(color: AppTheme.error),
             ),
           );
         }
 
-        final bookings = snapshot.data?.docs ?? [];
-
+        final bookings = snapshot.data ?? [];
+        
         if (bookings.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.assignment_outlined,
+                  Icons.calendar_today_outlined,
                   size: 64,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.textTertiary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'No bookings found',
-                  style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+                  style: AppTheme.bodyLarge.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
-                const SizedBox(height: 8),
                 Text(
-                  'Bookings will appear here when customers book your services',
-                  style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
-                  textAlign: TextAlign.center,
+                  'Your bookings will appear here',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -154,8 +154,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
           padding: const EdgeInsets.all(16),
           itemCount: bookings.length,
           itemBuilder: (context, index) {
-            final bookingDoc = bookings[index];
-            final booking = Booking.fromFirestore(bookingDoc);
+            final booking = bookings[index];
             return _buildBookingCard(booking);
           },
         );
@@ -165,326 +164,142 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
 
   Widget _buildBookingCard(Booking booking) {
     return Card(
-      color: AppTheme.surfaceDark,
+      color: AppTheme.cardDark,
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with status
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Booking #${booking.bookingId.substring(0, 8)}',
-                  style: AppTheme.heading3.copyWith(
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                _buildStatusChip(booking.status),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Customer info
-            FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(booking.customerId)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final customer = app_user.User.fromFirestore(snapshot.data!);
-                  return Row(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppTheme.primary,
-                        backgroundImage: (customer.profileImageUrl?.isNotEmpty ?? false)
-                            ? NetworkImage(customer.profileImageUrl!)
-                            : null,
-                        child: (customer.profileImageUrl?.isEmpty ?? true)
-                            ? const Icon(Icons.person, color: Colors.white)
-                            : null,
+                      Text(
+                        booking.serviceTitle,
+                        style: AppTheme.bodyLarge.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              customer.name,
-                              style: AppTheme.bodyText.copyWith(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              customer.phone,
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                          ],
+                      const SizedBox(height: 4),
+                      Text(
+                        booking.serviceCategory,
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                     ],
-                  );
-                }
-                return Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppTheme.primary,
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Loading customer info...',
-                      style: AppTheme.bodyText.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            // Service and timing details
-            Row(
-              children: [
-                Icon(
-                  Icons.work,
-                  size: 16,
-                  color: AppTheme.textSecondary,
+                  ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(booking.status).withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Text(
-                    'Service ID: ${booking.serviceId}',
+                    booking.statusDisplayName,
                     style: AppTheme.caption.copyWith(
-                      color: AppTheme.textSecondary,
+                      color: _getStatusColor(booking.status),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 4),
-
+            const SizedBox(height: 12),
             Row(
               children: [
                 Icon(
-                  Icons.schedule,
+                  Icons.calendar_today,
                   size: 16,
                   color: AppTheme.textSecondary,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'Scheduled: ${_formatDateTime(booking.scheduledAt)}',
-                  style: AppTheme.caption.copyWith(
+                  booking.formattedScheduledDate,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Icon(
+                  Icons.access_time,
+                  size: 16,
+                  color: AppTheme.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  booking.formattedScheduledTime,
+                  style: AppTheme.bodyMedium.copyWith(
                     color: AppTheme.textSecondary,
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 4),
-
+            const SizedBox(height: 8),
             Row(
               children: [
                 Icon(
-                  Icons.location_on,
+                  Icons.attach_money,
                   size: 16,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.success,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    booking.address['address'] ?? 'No address provided',
-                    style: AppTheme.caption.copyWith(
-                      color: AppTheme.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                Text(
+                  'K${booking.totalPrice.toStringAsFixed(0)}',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.success,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+                const Spacer(),
+                if (booking.canBeAccepted)
+                  ElevatedButton(
+                    onPressed: () => _acceptBooking(booking),
+                    style: AppTheme.primaryButtonStyle.copyWith(
+                      minimumSize: MaterialStateProperty.all(const Size(80, 32)),
+                    ),
+                    child: const Text('Accept'),
+                  ),
+                if (booking.canBeRejected)
+                  OutlinedButton(
+                    onPressed: () => _rejectBooking(booking),
+                    style: AppTheme.outlineButtonStyle.copyWith(
+                      minimumSize: MaterialStateProperty.all(const Size(80, 32)),
+                    ),
+                    child: const Text('Reject'),
+                  ),
               ],
             ),
-
-            if (booking.notes?.isNotEmpty ?? false) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundDark.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.note,
-                      size: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        booking.notes!,
-                        style: AppTheme.caption.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 12),
-
-            // Action buttons
-            _buildActionButtons(booking),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    Color color;
-    IconData icon;
-
-    switch (status.toLowerCase()) {
-      case 'requested':
-        color = AppTheme.warning;
-        icon = Icons.pending;
-        break;
-      case 'accepted':
-        color = AppTheme.info;
-        icon = Icons.check_circle;
-        break;
-      case 'completed':
-        color = AppTheme.success;
-        icon = Icons.task_alt;
-        break;
-      case 'rejected':
-        color = AppTheme.error;
-        icon = Icons.cancel;
-        break;
-      case 'cancelled':
-        color = AppTheme.textSecondary;
-        icon = Icons.block;
-        break;
-      default:
-        color = AppTheme.textSecondary;
-        icon = Icons.help;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            status.toUpperCase(),
-            style: AppTheme.caption.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(Booking booking) {
-    List<Widget> buttons = [];
-
-    if (booking.isRequested) {
-      buttons.addAll([
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => _updateBookingStatus(booking, 'reject'),
-            style: AppTheme.secondaryButtonStyle.copyWith(
-              foregroundColor: MaterialStateProperty.all(AppTheme.error),
-              side: MaterialStateProperty.all(BorderSide(color: AppTheme.error)),
-            ),
-            child: const Text('Reject'),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => _updateBookingStatus(booking, 'accept'),
-            style: AppTheme.primaryButtonStyle,
-            child: const Text('Accept'),
-          ),
-        ),
-      ]);
-    }
-
-    if (booking.isAccepted) {
-      buttons.add(
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => _updateBookingStatus(booking, 'complete'),
-            style: AppTheme.primaryButtonStyle.copyWith(
-              backgroundColor: MaterialStateProperty.all(AppTheme.success),
-            ),
-            child: const Text('Mark Completed'),
-          ),
-        ),
-      );
-    }
-
-    if (buttons.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Row(children: buttons);
-  }
-
-  Future<void> _updateBookingStatus(Booking booking, String action) async {
+  Future<void> _acceptBooking(Booking booking) async {
     try {
-      final bookingService = BookingServiceClient();
-      await bookingService.updateBookingStatus(
+      final success = await EnhancedBookingService.updateBookingStatus(
         bookingId: booking.bookingId,
-        status: action,
+        newStatus: BookingStatus.accepted,
       );
 
-      if (mounted) {
-        String message;
-        switch (action) {
-          case 'accept':
-            message = 'Booking accepted successfully';
-            break;
-          case 'reject':
-            message = 'Booking rejected';
-            break;
-          case 'complete':
-            message = 'Booking marked as completed';
-            break;
-          default:
-            message = 'Booking updated';
-        }
-        
+      if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
+          const SnackBar(
+            content: Text('Booking accepted successfully'),
             backgroundColor: AppTheme.success,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to accept booking'),
+            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -492,7 +307,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update booking: $e'),
+            content: Text('Error accepting booking: $e'),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -500,7 +315,108 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
     }
   }
 
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  Future<void> _rejectBooking(Booking booking) async {
+    final reason = await _showRejectDialog();
+    if (reason == null) return;
+
+    try {
+      final success = await EnhancedBookingService.updateBookingStatus(
+        bookingId: booking.bookingId,
+        newStatus: BookingStatus.rejected,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking rejected successfully'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to reject booking'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error rejecting booking: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _showRejectDialog() async {
+    final reasonController = TextEditingController();
+    
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Reject Booking'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please provide a reason for rejecting this booking:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: InputDecoration(
+                hintText: 'Enter rejection reason...',
+                hintStyle: TextStyle(color: AppTheme.textTertiary),
+                filled: true,
+                fillColor: AppTheme.cardDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: TextStyle(color: AppTheme.textPrimary),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(reasonController.text.trim());
+              }
+            },
+            style: AppTheme.primaryButtonStyle,
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(BookingStatus status) {
+    switch (status) {
+      case BookingStatus.pending:
+        return AppTheme.warning;
+      case BookingStatus.accepted:
+        return AppTheme.success;
+      case BookingStatus.inProgress:
+        return AppTheme.primaryPurple;
+      case BookingStatus.completed:
+        return AppTheme.success;
+      case BookingStatus.cancelled:
+        return AppTheme.error;
+      case BookingStatus.rejected:
+        return AppTheme.error;
+      case BookingStatus.rescheduled:
+        return AppTheme.warning;
+    }
   }
 }

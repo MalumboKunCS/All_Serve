@@ -211,4 +211,17 @@ class CloudinaryStorageService {
       quality: 85,
     );
   }
+
+
+  // Upload service image
+  Future<String> uploadServiceImage(File imageFile) async {
+    return await uploadImage(
+      imageFile: imageFile,
+      folder: 'all-serve/services',
+      preset: CloudinaryConfig.serviceImagePreset,
+      width: 400,
+      height: 300,
+      quality: 85,
+    );
+  }
 }

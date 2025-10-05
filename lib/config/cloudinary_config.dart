@@ -16,4 +16,6 @@ class CloudinaryConfig {
   static const String providerGalleryPreset = 'all_serve_provider_gallery';
   static const String documentPreset = 'all_serve_documents';
   static const String categoryIconPreset = 'all_serve_category_icons';
+  static const String serviceImagePreset = 'all_serve_service_images';
+  static const String unsignedPreset = 'all_serve_unsigned';
 }

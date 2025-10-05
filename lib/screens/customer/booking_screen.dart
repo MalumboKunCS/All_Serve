@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
-import '../../services/auth_service.dart';
-import '../../services/booking_service_client.dart';
-
+import 'package:shared/shared.dart' as shared;
+import '../../services/enhanced_booking_service.dart';
+import 'service_selection_dialog.dart';
 import 'booking_status_screen.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -31,6 +31,9 @@ class _BookingScreenState extends State<BookingScreen> {
   bool _isLoading = false;
   bool _useCurrentLocation = false;
   Map<String, dynamic>? _currentLocation;
+  List<String> _availableTimeSlots = [];
+  bool _isCheckingAvailability = false;
+  String? _selectedTimeSlot;
 
   @override
   void initState() {
@@ -41,7 +44,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _loadUserDefaultAddress() async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final user = authService.currentUser;
       if (user?.defaultAddress != null) {
         final address = user!.defaultAddress!;
@@ -49,6 +52,71 @@ class _BookingScreenState extends State<BookingScreen> {
       }
     } catch (e) {
       print('Error loading default address: $e');
+    }
+  }
+
+  Future<void> _selectService() async {
+    final selectedService = await showDialog<app_provider.Service>(
+      context: context,
+      builder: (context) => ServiceSelectionDialog(
+        provider: widget.provider,
+        selectedService: _selectedService,
+      ),
+    );
+
+    if (selectedService != null) {
+      setState(() {
+        _selectedService = selectedService;
+        _selectedDate = null;
+        _selectedTime = null;
+        _selectedTimeSlot = null;
+        _availableTimeSlots.clear();
+      });
+    }
+  }
+
+  Future<void> _checkAvailability() async {
+    if (_selectedService == null || _selectedDate == null) return;
+
+    setState(() {
+      _isCheckingAvailability = true;
+    });
+
+    try {
+      final timeSlots = await EnhancedBookingService.getAvailableTimeSlots(
+        providerId: widget.provider.providerId,
+        date: _selectedDate!,
+        durationMinutes: _selectedService!.durationMin,
+      );
+
+      setState(() {
+        _availableTimeSlots = timeSlots.map((slot) => slot.formattedTime).toList();
+        _isCheckingAvailability = false;
+      });
+
+      if (_availableTimeSlots.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('No available time slots for the selected date'),
+              backgroundColor: AppTheme.warning,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isCheckingAvailability = false;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking availability: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
     }
   }
 
@@ -82,7 +150,17 @@ class _BookingScreenState extends State<BookingScreen> {
       },
     );
     if (picked != null) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _selectedTime = null;
+        _selectedTimeSlot = null;
+        _availableTimeSlots.clear();
+      });
+      
+      // Check availability for the selected date
+      if (_selectedService != null) {
+        _checkAvailability();
+      }
     }
   }
 
@@ -111,10 +189,21 @@ class _BookingScreenState extends State<BookingScreen> {
 
   Future<void> _submitBooking() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedDate == null || _selectedTime == null || _selectedService == null) {
+    if (_selectedDate == null || _selectedService == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill in all required fields'),
+          content: Text('Please select a service and date'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // If time slots are available, require selection
+    if (_availableTimeSlots.isNotEmpty && _selectedTimeSlot == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an available time slot'),
           backgroundColor: Colors.red,
         ),
       );
@@ -124,21 +213,37 @@ class _BookingScreenState extends State<BookingScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = context.read<AuthService>();
+      final authService = context.read<shared.AuthService>();
       final user = authService.currentUser;
       
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
-      // Combine date and time
-      final scheduledAt = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
+      // Determine scheduled time
+      DateTime scheduledAt;
+      if (_selectedTimeSlot != null) {
+        // Use selected time slot
+        final timeParts = _selectedTimeSlot!.split(' - ')[0].split(':');
+        scheduledAt = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          int.parse(timeParts[0]),
+          int.parse(timeParts[1]),
+        );
+      } else if (_selectedTime != null) {
+        // Use manually selected time
+        scheduledAt = DateTime(
+          _selectedDate!.year,
+          _selectedDate!.month,
+          _selectedDate!.day,
+          _selectedTime!.hour,
+          _selectedTime!.minute,
+        );
+      } else {
+        throw Exception('Please select a time');
+      }
 
       // Prepare address
       Map<String, dynamic> address;
@@ -152,15 +257,19 @@ class _BookingScreenState extends State<BookingScreen> {
         };
       }
 
-      // Create booking using client service
-      final bookingService = BookingServiceClient();
-      final bookingId = await bookingService.createBooking(
+      // Create booking using enhanced service
+      final bookingId = await EnhancedBookingService.createBooking(
         customerId: user.uid,
         providerId: widget.provider.providerId,
         serviceId: _selectedService!.serviceId,
+        serviceTitle: _selectedService!.title,
+        serviceCategory: _selectedService!.category,
+        estimatedPrice: _selectedService!.priceFrom,
+        durationMinutes: _selectedService!.durationMin,
         scheduledAt: scheduledAt,
         address: address,
-        notes: _notesController.text.trim(),
+        customerNotes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
+        timeSlot: _selectedTimeSlot,
       );
 
       if (mounted) {
@@ -174,7 +283,7 @@ class _BookingScreenState extends State<BookingScreen> {
         // Navigate to booking status screen
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => BookingStatusScreen(bookingId: bookingId),
+            builder: (_) => BookingStatusScreen(bookingId: bookingId!),
           ),
         );
       }
@@ -218,10 +327,10 @@ class _BookingScreenState extends State<BookingScreen> {
                     children: [
                       CircleAvatar(
                         radius: 25,
-                        backgroundImage: widget.provider.logoUrl != null
+                        backgroundImage: (widget.provider.logoUrl != null && widget.provider.logoUrl!.isNotEmpty)
                             ? NetworkImage(widget.provider.logoUrl!)
                             : null,
-                        child: widget.provider.logoUrl == null
+                        child: (widget.provider.logoUrl == null || widget.provider.logoUrl!.isEmpty)
                             ? Icon(
                                 Icons.business,
                                 size: 25,
@@ -314,9 +423,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     ],
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () {
-                        // TODO: Show service selection dialog
-                      },
+                      onPressed: _selectService,
                       style: AppTheme.outlineButtonStyle,
                       child: Text(
                         _selectedService != null ? 'Change Service' : 'Select Service',
@@ -336,22 +443,31 @@ class _BookingScreenState extends State<BookingScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: _selectDate,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardDark,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _selectedDate != null
-                                ? AppTheme.primaryPurple
-                                : AppTheme.textTertiary,
-                          ),
-                        ),
+              
+              // Date Selection
+              InkWell(
+                onTap: _selectDate,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.cardDark,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedDate != null
+                          ? AppTheme.primaryPurple
+                          : AppTheme.textTertiary,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        color: _selectedDate != null
+                            ? AppTheme.primaryPurple
+                            : AppTheme.textSecondary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -375,50 +491,187 @@ class _BookingScreenState extends State<BookingScreen> {
                           ],
                         ),
                       ),
-                    ),
+                      if (_selectedDate != null)
+                        Icon(
+                          Icons.check_circle,
+                          color: AppTheme.primaryPurple,
+                          size: 20,
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: _selectTime,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.cardDark,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _selectedTime != null
-                                ? AppTheme.primaryPurple
-                                : AppTheme.textTertiary,
+                ),
+              ),
+
+              // Time Slot Selection (if available)
+              if (_selectedDate != null && _selectedService != null) ...[
+                const SizedBox(height: 16),
+                
+                if (_isCheckingAvailability)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardDark,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPurple),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Time',
-                              style: AppTheme.caption.copyWith(
-                                color: AppTheme.textSecondary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedTime != null
-                                  ? _selectedTime!.format(context)
-                                  : 'Select Time',
-                              style: AppTheme.bodyMedium.copyWith(
-                                color: _selectedTime != null
-                                    ? AppTheme.textPrimary
-                                    : AppTheme.textTertiary,
-                              ),
-                            ),
-                          ],
+                        const SizedBox(width: 12),
+                        Text(
+                          'Checking availability...',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                         ),
-                      ),
+                      ],
+                    ),
+                  )
+                else if (_availableTimeSlots.isNotEmpty) ...[
+                  Text(
+                    'Available Time Slots',
+                    style: AppTheme.bodyLarge.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _availableTimeSlots.map((slot) {
+                      final isSelected = _selectedTimeSlot == slot;
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedTimeSlot = slot;
+                            _selectedTime = null; // Clear manual time selection
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected 
+                                ? AppTheme.primaryPurple 
+                                : AppTheme.cardDark,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected 
+                                  ? AppTheme.primaryPurple 
+                                  : AppTheme.textTertiary,
+                            ),
+                          ),
+                          child: Text(
+                            slot,
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: isSelected 
+                                  ? Colors.white 
+                                  : AppTheme.textPrimary,
+                              fontWeight: isSelected 
+                                  ? FontWeight.w600 
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ] else if (_availableTimeSlots.isEmpty && !_isCheckingAvailability) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.schedule,
+                          color: AppTheme.warning,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No available time slots for this date. Please select another date.',
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppTheme.warning,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+              ],
+
+              // Manual Time Selection (fallback)
+              if (_selectedDate != null && _availableTimeSlots.isEmpty && !_isCheckingAvailability) ...[
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: _selectTime,
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.cardDark,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _selectedTime != null
+                            ? AppTheme.primaryPurple
+                            : AppTheme.textTertiary,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          color: _selectedTime != null
+                              ? AppTheme.primaryPurple
+                              : AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Time',
+                                style: AppTheme.caption.copyWith(
+                                  color: AppTheme.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _selectedTime != null
+                                    ? _selectedTime!.format(context)
+                                    : 'Select Time',
+                                style: AppTheme.bodyMedium.copyWith(
+                                  color: _selectedTime != null
+                                      ? AppTheme.textPrimary
+                                      : AppTheme.textTertiary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_selectedTime != null)
+                          Icon(
+                            Icons.check_circle,
+                            color: AppTheme.primaryPurple,
+                            size: 20,
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
               
               const SizedBox(height: 24),
               

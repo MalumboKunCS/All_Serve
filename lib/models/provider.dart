@@ -3,25 +3,50 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class Service {
   final String serviceId;
   final String title;
+  final String category;
+  final String? description;
   final double priceFrom;
   final double priceTo;
   final int durationMin;
+  final String? imageUrl;
+  final List<String> availability; // e.g., ['monday', 'tuesday', 'wednesday']
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   Service({
     required this.serviceId,
     required this.title,
+    required this.category,
+    this.description,
     required this.priceFrom,
     required this.priceTo,
     required this.durationMin,
+    this.imageUrl,
+    this.availability = const [],
+    this.isActive = true,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   factory Service.fromMap(Map<String, dynamic> map) {
     return Service(
       serviceId: map['serviceId'] ?? '',
       title: map['title'] ?? '',
+      category: map['category'] ?? 'general',
+      description: map['description'],
       priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
       priceTo: (map['priceTo'] ?? 0.0).toDouble(),
       durationMin: map['durationMin'] ?? 0,
+      imageUrl: map['imageUrl'],
+      availability: List<String>.from(map['availability'] ?? []),
+      isActive: map['isActive'] ?? true,
+      createdAt: map['createdAt'] != null 
+          ? (map['createdAt'] as Timestamp).toDate() 
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null 
+          ? (map['updatedAt'] as Timestamp).toDate() 
+          : DateTime.now(),
     );
   }
 
@@ -29,10 +54,45 @@ class Service {
     return {
       'serviceId': serviceId,
       'title': title,
+      'category': category,
+      'description': description,
       'priceFrom': priceFrom,
       'priceTo': priceTo,
       'durationMin': durationMin,
+      'imageUrl': imageUrl,
+      'availability': availability,
+      'isActive': isActive,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
+  }
+
+  Service copyWith({
+    String? title,
+    String? category,
+    String? description,
+    double? priceFrom,
+    double? priceTo,
+    int? durationMin,
+    String? imageUrl,
+    List<String>? availability,
+    bool? isActive,
+    DateTime? updatedAt,
+  }) {
+    return Service(
+      serviceId: serviceId,
+      title: title ?? this.title,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      priceFrom: priceFrom ?? this.priceFrom,
+      priceTo: priceTo ?? this.priceTo,
+      durationMin: durationMin ?? this.durationMin,
+      imageUrl: imageUrl ?? this.imageUrl,
+      availability: availability ?? this.availability,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }
 

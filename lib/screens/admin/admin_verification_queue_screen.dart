@@ -6,7 +6,7 @@ import '../../models/verification_queue.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/user.dart' as app_user;
 import 'document_viewer_screen.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../services/admin_service_client.dart';
 
 class AdminVerificationQueueScreen extends StatefulWidget {
@@ -594,7 +594,7 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
 
   Future<void> _approveVerification(VerificationQueue verification) async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final adminUid = authService.currentUser?.uid;
 
       if (adminUid == null) {
@@ -692,7 +692,7 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
     }
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final adminUid = authService.currentUser?.uid;
 
       if (adminUid == null) {

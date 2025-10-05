@@ -1,0 +1,26 @@
+{
+  "name": "all-serve-admin-setup",
+  "version": "1.0.0",
+  "description": "Setup script for All-Serve admin system",
+  "main": "setup-admin.js",
+  "scripts": {
+    "setup": "node setup-admin.js",
+    "install-deps": "npm install firebase-admin"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "keywords": [
+    "firebase",
+    "admin",
+    "setup",
+    "all-serve"
+  ],
+  "author": "All-Serve Team",
+  "license": "MIT"
+}
+
+
+
+
+

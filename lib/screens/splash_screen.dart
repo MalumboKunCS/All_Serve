@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
-import '../theme/app_theme.dart';
-import '../models/user.dart' as app_user;
+import 'package:shared/shared.dart' as shared;
 import 'auth/login_screen.dart';
 import 'customer/customer_home_screen.dart';
 import 'provider/provider_dashboard_screen.dart';
+import 'provider/provider_registration_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
+import '../services/provider_registration_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   late AnimationController _fadeController;
   late Animation<double> _logoAnimation;
   late Animation<double> _fadeAnimation;
-  StreamSubscription<app_user.User?>? _authSub;
+  StreamSubscription<shared.User?>? _authSub;
 
   @override
   void initState() {
@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   }
 
   void _checkAuthState() async {
-    final authService = context.read<AuthService>();
+    final authService = context.read<shared.AuthService>();
     
     try {
       // Check current auth state immediately
@@ -103,7 +103,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     }
   }
 
-  void _navigateBasedOnUser(app_user.User? user) {
+  void _navigateBasedOnUser(shared.User? user) async {
+    // Check if widget is still mounted before navigation
+    if (!mounted) return;
+    
     if (user == null) {
       // Navigate to login screen
       Navigator.of(context).pushReplacement(
@@ -121,9 +124,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           );
           break;
         case 'provider':
+          // Check if provider needs to complete registration
+          final needsRegistration = await ProviderRegistrationService.needsRegistrationCompletion(user.uid);
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => const ProviderDashboardScreen(),
+              builder: (_) => needsRegistration 
+                ? const ProviderRegistrationScreen()
+                : const ProviderDashboardScreen(),
             ),
           );
           break;
@@ -156,10 +163,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: shared.AppTheme.backgroundDark,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+          gradient: shared.AppTheme.primaryGradient,
         ),
         child: Center(
           child: Column(
@@ -185,7 +192,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   child: const Icon(
                     Icons.build_circle,
                     size: 80,
-                    color: AppTheme.primaryPurple,
+                    color: shared.AppTheme.primaryPurple,
                   ),
                 ),
               ),
@@ -199,7 +206,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   children: [
                     Text(
                       'All-Serve',
-                      style: AppTheme.heading1.copyWith(
+                      style: shared.AppTheme.heading1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -207,7 +214,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     const SizedBox(height: 8),
                     Text(
                       'Your Local Service Marketplace',
-                      style: AppTheme.bodyLarge.copyWith(
+                      style: shared.AppTheme.bodyLarge.copyWith(
                         color: Colors.white.withOpacity(0.9),
                       ),
                     ),

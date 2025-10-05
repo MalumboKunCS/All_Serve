@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 
 class TwoFAVerificationScreen extends StatefulWidget {
   final String email;
@@ -51,7 +51,7 @@ class _TwoFAVerificationScreenState extends State<TwoFAVerificationScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       
       final userCredential = await authService.verify2FACode(
         code,

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/announcement.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../services/admin_service_client.dart';
 
 class AdminAnnouncementsScreen extends StatefulWidget {
@@ -601,7 +601,7 @@ class _CreateAnnouncementDialogState extends State<_CreateAnnouncementDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final adminUid = authService.currentUser?.uid;
 
       if (adminUid == null) {

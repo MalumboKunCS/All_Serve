@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Shared package
+  shared:
+    path: packages/shared
+
   # Core Flutter
   cupertino_icons: ^1.0.8
   

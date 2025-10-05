@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import 'package:provider/provider.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../models/category.dart';
 import '../../models/provider.dart' as app_provider;
 import 'categories_screen.dart';
@@ -10,6 +10,7 @@ import 'my_profile_screen.dart';
 import 'provider_detail_screen.dart';
 import 'advanced_search_screen.dart';
 import 'my_bookings_screen.dart';
+import '../auth/login_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -113,11 +114,29 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 );
               } else if (value == 'logout') {
                 try {
-                  final authService = context.read<AuthService>();
+                  final authService = context.read<shared.AuthService>();
                   await authService.signOut();
+                  
+                  // Navigate to login screen and clear navigation stack
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const LoginScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  }
                 } catch (e) {
                   // ignore: avoid_print
                   print('Logout error: $e');
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error logging out: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               }
             },
@@ -265,10 +284,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           color: AppTheme.cardDark,
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundImage: provider.logoUrl != null
+                              backgroundImage: (provider.logoUrl != null && provider.logoUrl!.isNotEmpty)
                                   ? NetworkImage(provider.logoUrl!)
                                   : null,
-                              child: provider.logoUrl == null
+                              child: (provider.logoUrl == null || provider.logoUrl!.isEmpty)
                                   ? Icon(
                                       Icons.business,
                                       color: AppTheme.primaryPurple,

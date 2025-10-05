@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import 'login_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -29,7 +29,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       await authService.forgotPassword(_emailController.text.trim());
 
       setState(() => _emailSent = true);

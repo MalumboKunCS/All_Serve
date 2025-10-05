@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../services/file_upload_service.dart';
 import '../../models/provider.dart' as app_provider;
 
@@ -372,7 +372,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
     try {
       setState(() => _isUploading = true);
 
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) {
@@ -426,7 +426,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
     try {
       setState(() => _isUploading = true);
 
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) {
@@ -548,7 +548,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
 
   Future<String?> _getProviderId() async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) return null;

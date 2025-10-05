@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../services/file_upload_service.dart';
 import '../../models/provider.dart' as app_provider;
 
@@ -453,7 +453,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
 
   Future<void> _saveDocumentUrl(String docKey, String downloadUrl) async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) return;
@@ -493,7 +493,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
     // Show loading state
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
 
       if (currentUser == null) throw Exception('User not authenticated');

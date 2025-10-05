@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
+import 'enhanced_service_dialog.dart';
 
 class ProviderServicesScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -70,7 +71,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   void _showAddServiceDialog() {
     showDialog(
       context: context,
-      builder: (context) => _ServiceDialog(
+      builder: (context) => EnhancedServiceDialog(
         onSave: (service) {
           setState(() {
             _services.add(service);
@@ -84,7 +85,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   void _showEditServiceDialog(int index) {
     showDialog(
       context: context,
-      builder: (context) => _ServiceDialog(
+      builder: (context) => EnhancedServiceDialog(
         service: _services[index],
         onSave: (service) {
           setState(() {
@@ -159,7 +160,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                       ElevatedButton.icon(
                         onPressed: _showAddServiceDialog,
                         style: AppTheme.primaryButtonStyle,
-                        icon: const Icon(Icons.add),
+                        icon: const Icon(Icons.add_circle),
                         label: const Text('Add Service'),
                       ),
                     ],
@@ -209,8 +210,8 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           ElevatedButton.icon(
             onPressed: _showAddServiceDialog,
             style: AppTheme.primaryButtonStyle,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Service'),
+            icon: const Icon(Icons.add_circle),
+            label: const Text('Add New Service'),
           ),
         ],
       ),
@@ -228,10 +229,69 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           children: [
             Row(
               children: [
+                // Service Image
+                if (service.imageUrl != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      service.imageUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.image,
+                          color: AppTheme.primary,
+                          size: 30,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.image,
+                      color: AppTheme.primary,
+                      size: 30,
+                    ),
+                  ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    service.title,
-                    style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.title,
+                        style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          service.category.toUpperCase(),
+                          style: AppTheme.caption.copyWith(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 PopupMenuButton(
@@ -269,18 +329,31 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            
+            // Description
+            if (service.description != null && service.description!.isNotEmpty) ...[
+              Text(
+                service.description!,
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 12),
+            ],
+            
+            // Price and Duration
             Row(
               children: [
                 Icon(
                   Icons.attach_money,
                   size: 16,
-                  color: AppTheme.textSecondary,
+                  color: AppTheme.success,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   'K${service.priceFrom.toStringAsFixed(0)} - K${service.priceTo.toStringAsFixed(0)}',
                   style: AppTheme.bodyText.copyWith(
-                    color: AppTheme.textPrimary,
+                    color: AppTheme.success,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -297,6 +370,33 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 ),
               ],
             ),
+            
+            // Availability
+            if (service.availability.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: service.availability.map((day) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      day.isNotEmpty 
+                        ? day.substring(0, 1).toUpperCase() + (day.length > 1 ? day.substring(1) : '')
+                        : day,
+                      style: AppTheme.caption.copyWith(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -309,6 +409,7 @@ class _ServiceDialog extends StatefulWidget {
   final Function(app_provider.Service) onSave;
 
   const _ServiceDialog({
+    super.key,
     this.service,
     required this.onSave,
   });
@@ -350,9 +451,12 @@ class _ServiceDialogState extends State<_ServiceDialog> {
     final service = app_provider.Service(
       serviceId: widget.service?.serviceId ?? DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
+      category: 'general',
       priceFrom: double.parse(_priceFromController.text),
       priceTo: double.parse(_priceToController.text),
       durationMin: int.parse(_durationController.text),
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
     );
 
     widget.onSave(service);

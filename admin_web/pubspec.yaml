@@ -1,0 +1,37 @@
+name: admin_web
+description: "All-Serve Admin Web Dashboard"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Shared package
+  shared:
+    path: ../packages/shared
+
+  # Web-specific dependencies
+  responsive_framework: ^1.1.1
+  data_table_2: ^2.5.11
+
+  # Firebase (already configured)
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+
+  # UI
+  google_fonts: ^6.3.1
+  provider: ^6.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking.dart';
 import 'notification_service.dart';
 
-enum BookingStatus { pending, accepted, inProgress, completed, cancelled, rejected }
+// Note: This file is deprecated. Use EnhancedBookingService instead.
+// Keeping for backward compatibility during migration.
 
 class BookingService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;

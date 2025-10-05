@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import 'login_screen.dart';
+import '../provider/provider_registration_screen.dart';
+import '../customer/customer_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -41,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       
       await authService.signUpWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -61,9 +63,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+        // Redirect based on role
+        if (_selectedRole == 'provider') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const ProviderRegistrationScreen()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {

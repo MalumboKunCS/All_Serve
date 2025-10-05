@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 
 import 'admin_verification_queue_screen.dart';
 import 'admin_providers_screen.dart';
@@ -93,7 +93,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              final authService = Provider.of<AuthService>(context, listen: false);
+              final authService = Provider.of<shared.AuthService>(context, listen: false);
               await authService.signOut();
               if (mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
@@ -325,6 +325,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             style: AppTheme.heading2.copyWith(
               color: AppTheme.textPrimary,
             ),
+
           ),
           const SizedBox(height: 16),
           

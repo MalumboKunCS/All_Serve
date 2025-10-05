@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
-import '../../services/auth_service.dart';
+import 'package:shared/shared.dart' as shared;
 import '../../models/provider.dart' as app_provider;
 import '../../models/booking.dart';
+import '../../services/enhanced_booking_service.dart';
 import 'provider_profile_screen.dart';
 import 'provider_services_screen.dart';
 import 'provider_bookings_screen.dart';
 import 'provider_reviews_screen.dart';
 import 'provider_settings_screen.dart';
+import '../../widgets/provider_registration_status_widget.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -23,6 +25,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
   late TabController _tabController;
   app_provider.Provider? _provider;
   List<Booking> _recentBookings = [];
+  List<Booking> _allBookings = [];
   bool _isLoading = true;
 
   @override
@@ -40,7 +43,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
 
   Future<void> _loadDashboardData() async {
     try {
-      final authService = Provider.of<AuthService>(context, listen: false);
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
       
       if (currentUser == null) {
@@ -57,17 +60,18 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
       if (providerQuery.docs.isNotEmpty) {
         _provider = app_provider.Provider.fromFirestore(providerQuery.docs.first);
         
-        // Load recent bookings for this provider
-        final bookingsQuery = await FirebaseFirestore.instance
-            .collection('bookings')
-            .where('providerId', isEqualTo: _provider!.providerId)
-            .orderBy('createdAt', descending: true)
-            .limit(10)
-            .get();
-
-        _recentBookings = bookingsQuery.docs
-            .map((doc) => Booking.fromFirestore(doc))
-            .toList();
+        // Load recent bookings for this provider using enhanced service
+        final bookingsStream = EnhancedBookingService.getBookingsStream(
+          userId: _provider!.providerId,
+          userType: UserType.provider,
+        );
+        
+        // Get all bookings from the stream for stats calculation
+        await for (final bookings in bookingsStream) {
+          _allBookings = bookings;
+          _recentBookings = bookings.take(10).toList();
+          break; // Only take the first batch
+        }
       }
 
       if (mounted) {
@@ -119,7 +123,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                       Expanded(
                         child: _buildStatCard(
                           'Total Bookings',
-                          '${_recentBookings.length}',
+                          '${_allBookings.length}',
                           Icons.bookmark,
                           AppTheme.primaryPurple,
                         ),
@@ -127,19 +131,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildStatCard(
-                          'Rating',
-                          '${_provider?.ratingAvg.toStringAsFixed(1) ?? '0.0'}',
-                          Icons.star,
+                          'Pending',
+                          '${_getBookingsByStatus(BookingStatus.pending).length}',
+                          Icons.schedule,
                           AppTheme.warning,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildStatCard(
-                          'Reviews',
-                          '${_provider?.ratingCount ?? 0}',
-                          Icons.rate_review,
-                          AppTheme.accentBlue,
+                          'Completed',
+                          '${_getBookingsByStatus(BookingStatus.completed).length}',
+                          Icons.done_all,
+                          AppTheme.success,
                         ),
                       ),
                     ],
@@ -244,6 +248,11 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
           
           const SizedBox(height: 24),
           
+          // Registration Status Widget
+          const ProviderRegistrationStatusWidget(),
+          
+          const SizedBox(height: 24),
+          
           // Verification Status Card
           if (_provider != null) _buildVerificationStatusCard(),
           
@@ -309,14 +318,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                       ),
                     ),
                     title: Text(
-                      'Booking #${booking.bookingId.substring(0, 8)}',
+                      'Booking #${booking.bookingId.length >= 8 ? booking.bookingId.substring(0, 8) : booking.bookingId}',
                       style: AppTheme.bodyLarge.copyWith(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     subtitle: Text(
-                      '${booking.status} • ${_formatDate(booking.scheduledAt)}',
+                      '${booking.statusDisplayName} • ${_formatDate(booking.scheduledAt)}',
                       style: AppTheme.bodyMedium.copyWith(
                         color: AppTheme.textSecondary,
                       ),
@@ -511,38 +520,50 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
     );
   }
 
-  Color _getStatusColor(String status) {
+  Color _getStatusColor(BookingStatus status) {
     switch (status) {
-      case 'requested':
-        return AppTheme.info;
-      case 'accepted':
+      case BookingStatus.pending:
         return AppTheme.warning;
-      case 'completed':
+      case BookingStatus.accepted:
         return AppTheme.success;
-      case 'cancelled':
+      case BookingStatus.inProgress:
+        return AppTheme.primaryPurple;
+      case BookingStatus.completed:
+        return AppTheme.success;
+      case BookingStatus.cancelled:
         return AppTheme.error;
-      default:
-        return AppTheme.textTertiary;
+      case BookingStatus.rejected:
+        return AppTheme.error;
+      case BookingStatus.rescheduled:
+        return AppTheme.warning;
     }
   }
 
-  IconData _getStatusIcon(String status) {
+  IconData _getStatusIcon(BookingStatus status) {
     switch (status) {
-      case 'requested':
+      case BookingStatus.pending:
         return Icons.schedule;
-      case 'accepted':
+      case BookingStatus.accepted:
         return Icons.check_circle;
-      case 'completed':
+      case BookingStatus.inProgress:
+        return Icons.play_circle;
+      case BookingStatus.completed:
         return Icons.done_all;
-      case 'cancelled':
+      case BookingStatus.cancelled:
         return Icons.cancel;
-      default:
-        return Icons.help;
+      case BookingStatus.rejected:
+        return Icons.close;
+      case BookingStatus.rescheduled:
+        return Icons.schedule;
     }
   }
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  List<Booking> _getBookingsByStatus(BookingStatus status) {
+    return _allBookings.where((booking) => booking.status == status).toList();
   }
 }
 

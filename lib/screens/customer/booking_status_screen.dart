@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../models/booking.dart';
 import '../../models/provider.dart' as app_provider;
+import '../../services/enhanced_booking_service.dart';
+import 'package:shared/shared.dart' as shared;
 import 'my_bookings_screen.dart';
 import 'review_screen.dart';
 
@@ -30,6 +33,100 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
         .doc(widget.bookingId)
         .snapshots();
     _loadProviderData();
+  }
+
+  Future<void> _cancelBooking(Booking booking) async {
+    final reason = await _showCancelDialog();
+    if (reason == null) return;
+
+    try {
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
+      final user = authService.currentUser;
+      
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final success = await EnhancedBookingService.cancelBooking(
+        bookingId: booking.bookingId,
+        userId: user.uid,
+        reason: reason,
+      );
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking cancelled successfully'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to cancel booking'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error cancelling booking: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _showCancelDialog() async {
+    final reasonController = TextEditingController();
+    
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Cancel Booking'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Please provide a reason for cancelling this booking:'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: InputDecoration(
+                hintText: 'Enter cancellation reason...',
+                hintStyle: TextStyle(color: AppTheme.textTertiary),
+                filled: true,
+                fillColor: AppTheme.cardDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              style: TextStyle(color: AppTheme.textPrimary),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.trim().isNotEmpty) {
+                Navigator.of(context).pop(reasonController.text.trim());
+              }
+            },
+            style: AppTheme.primaryButtonStyle,
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadProviderData() async {
@@ -172,42 +269,49 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
     String statusMessage;
     String statusSubtitle;
 
-    switch (booking.status.toLowerCase()) {
-      case 'requested':
+    switch (booking.status) {
+      case BookingStatus.pending:
         statusColor = AppTheme.warning;
         statusIcon = Icons.schedule;
         statusMessage = 'Booking Requested';
         statusSubtitle = 'Waiting for provider confirmation';
         break;
-      case 'accepted':
+      case BookingStatus.accepted:
         statusColor = AppTheme.info;
         statusIcon = Icons.check_circle;
         statusMessage = 'Booking Confirmed';
         statusSubtitle = 'Provider has accepted your booking';
         break;
-      case 'completed':
+      case BookingStatus.completed:
         statusColor = AppTheme.success;
         statusIcon = Icons.task_alt;
         statusMessage = 'Service Completed';
         statusSubtitle = 'How was your experience?';
         break;
-      case 'rejected':
+      case BookingStatus.rejected:
         statusColor = AppTheme.error;
         statusIcon = Icons.cancel;
         statusMessage = 'Booking Rejected';
         statusSubtitle = 'Provider is not available';
         break;
-      case 'cancelled':
+      case BookingStatus.cancelled:
         statusColor = AppTheme.textSecondary;
         statusIcon = Icons.block;
         statusMessage = 'Booking Cancelled';
         statusSubtitle = 'This booking was cancelled';
         break;
-      default:
-        statusColor = AppTheme.textSecondary;
-        statusIcon = Icons.help;
-        statusMessage = 'Unknown Status';
-        statusSubtitle = '';
+      case BookingStatus.rescheduled:
+        statusColor = AppTheme.warning;
+        statusIcon = Icons.schedule;
+        statusMessage = 'Booking Rescheduled';
+        statusSubtitle = 'This booking has been rescheduled';
+        break;
+      case BookingStatus.inProgress:
+        statusColor = AppTheme.primaryPurple;
+        statusIcon = Icons.play_circle;
+        statusMessage = 'Service In Progress';
+        statusSubtitle = 'Your service is being provided';
+        break;
     }
 
     return Card(
@@ -264,12 +368,12 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
               style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
             ),
             const SizedBox(height: 16),
-            _buildDetailRow('Booking ID', '#${booking.bookingId.substring(0, 8)}'),
+            _buildDetailRow('Booking ID', '#${booking.bookingId.length >= 8 ? booking.bookingId.substring(0, 8) : booking.bookingId}'),
             _buildDetailRow('Scheduled Date', _formatDateTime(booking.scheduledAt)),
             _buildDetailRow('Requested On', _formatDateTime(booking.requestedAt)),
             _buildDetailRow('Service Location', booking.address['address'] ?? 'Not specified'),
-            if (booking.notes?.isNotEmpty ?? false)
-              _buildDetailRow('Notes', booking.notes!),
+            if (booking.customerNotes?.isNotEmpty ?? false)
+              _buildDetailRow('Notes', booking.customerNotes!),
           ],
         ),
       ),
@@ -294,10 +398,10 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
                 CircleAvatar(
                   radius: 25,
                   backgroundColor: AppTheme.primary,
-                  backgroundImage: (provider.logoUrl?.isNotEmpty ?? false)
+                  backgroundImage: (provider.logoUrl != null && provider.logoUrl!.isNotEmpty)
                       ? NetworkImage(provider.logoUrl!)
                       : null,
-                  child: (provider.logoUrl?.isEmpty ?? true)
+                  child: (provider.logoUrl == null || provider.logoUrl!.isEmpty)
                       ? const Icon(Icons.business, color: Colors.white)
                       : null,
                 ),
@@ -449,11 +553,9 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (booking.isRequested)
+        if (booking.canBeCancelled)
           OutlinedButton.icon(
-            onPressed: () {
-              // TODO: Implement cancel booking
-            },
+            onPressed: () => _cancelBooking(booking),
             style: AppTheme.outlineButtonStyle.copyWith(
               foregroundColor: MaterialStateProperty.all(AppTheme.error),
               side: MaterialStateProperty.all(BorderSide(color: AppTheme.error)),

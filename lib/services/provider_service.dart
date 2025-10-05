@@ -15,25 +15,46 @@ enum BookingStatus { pending, accepted, inProgress, completed, cancelled, reject
 class ServiceOffering {
   final String serviceId;
   final String title;
+  final String category;
+  final String? description;
   final double priceFrom;
   final double priceTo;
   final int durationMin;
+  final String? imageUrl;
+  final List<String> availability;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   ServiceOffering({
     required this.serviceId,
     required this.title,
+    required this.category,
+    this.description,
     required this.priceFrom,
     required this.priceTo,
     required this.durationMin,
+    this.imageUrl,
+    this.availability = const [],
+    this.isActive = true,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'serviceId': serviceId,
       'title': title,
+      'category': category,
+      'description': description,
       'priceFrom': priceFrom,
       'priceTo': priceTo,
       'durationMin': durationMin,
+      'imageUrl': imageUrl,
+      'availability': availability,
+      'isActive': isActive,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
   }
 
@@ -41,9 +62,20 @@ class ServiceOffering {
     return ServiceOffering(
       serviceId: map['serviceId'] ?? '',
       title: map['title'] ?? '',
+      category: map['category'] ?? 'general',
+      description: map['description'],
       priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
       priceTo: (map['priceTo'] ?? 0.0).toDouble(),
       durationMin: map['durationMin'] ?? 0,
+      imageUrl: map['imageUrl'],
+      availability: List<String>.from(map['availability'] ?? []),
+      isActive: map['isActive'] ?? true,
+      createdAt: map['createdAt'] != null 
+          ? (map['createdAt'] as Timestamp).toDate() 
+          : DateTime.now(),
+      updatedAt: map['updatedAt'] != null 
+          ? (map['updatedAt'] as Timestamp).toDate() 
+          : DateTime.now(),
     );
   }
 }
@@ -732,9 +764,16 @@ class ProviderService {
           return app_provider.Service(
             serviceId: service.serviceId,
             title: updates['title'] ?? service.title,
+            category: updates['category'] ?? service.category,
+            description: updates['description'] ?? service.description,
             priceFrom: updates['priceFrom'] ?? service.priceFrom,
             priceTo: updates['priceTo'] ?? service.priceTo,
             durationMin: updates['durationMin'] ?? service.durationMin,
+            imageUrl: updates['imageUrl'] ?? service.imageUrl,
+            availability: updates['availability'] ?? service.availability,
+            isActive: updates['isActive'] ?? service.isActive,
+            createdAt: service.createdAt,
+            updatedAt: DateTime.now(),
           );
         }
         return service;

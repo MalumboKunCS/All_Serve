@@ -144,7 +144,9 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                             CircleAvatar(
                               radius: 30,
                               backgroundImage: widget.provider.logoUrl != null
-                                  ? NetworkImage(widget.provider.logoUrl!)
+                                  ? (widget.provider.logoUrl != null && widget.provider.logoUrl!.isNotEmpty)
+                                    ? NetworkImage(widget.provider.logoUrl!)
+                                    : null
                                   : null,
                               child: widget.provider.logoUrl == null
                                   ? Icon(
