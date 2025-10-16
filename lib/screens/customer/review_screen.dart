@@ -7,6 +7,7 @@ import '../../models/provider.dart' as app_provider;
 import '../../models/review.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../services/review_service_client.dart';
+import '../../utils/app_logger.dart';
 
 class ReviewScreen extends StatefulWidget {
   final Booking booking;
@@ -66,7 +67,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
         });
       }
     } catch (e) {
-      print('Error checking existing review: $e');
+      AppLogger.error('Error checking existing review: $e');
     }
   }
 
@@ -125,7 +126,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 margin: const EdgeInsets.only(top: 8),
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.success.withOpacity(0.2),
+                                  color: AppTheme.success.withValues(alpha:0.2),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(color: AppTheme.success),
                                 ),
@@ -261,9 +262,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.info.withOpacity(0.1),
+                  color: AppTheme.info.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.info.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.info.withValues(alpha:0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

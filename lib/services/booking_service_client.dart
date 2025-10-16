@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking.dart';
+import '../utils/app_logger.dart';
 
 class BookingServiceClient {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,7 +15,7 @@ class BookingServiceClient {
     String? notes,
   }) async {
     try {
-      print('BookingServiceClient: Creating booking for provider: $providerId');
+      AppLogger.info('BookingServiceClient: Creating booking for provider: $providerId');
       
       // 1. Validate provider exists and is active
       final providerDoc = await _firestore
@@ -31,7 +32,7 @@ class BookingServiceClient {
         throw Exception('Provider is not available');
       }
 
-      print('BookingServiceClient: Provider validation passed');
+      AppLogger.info('BookingServiceClient: Provider validation passed');
 
       // 2. Validate service exists
       final services = List<Map<String, dynamic>>.from(providerData['services'] ?? []);
@@ -40,7 +41,7 @@ class BookingServiceClient {
         throw Exception('Service not found');
       }
 
-      print('BookingServiceClient: Service validation passed');
+      AppLogger.info('BookingServiceClient: Service validation passed');
 
       // 3. Check for conflicting bookings
       final conflictingBookings = await _checkBookingConflicts(
@@ -52,7 +53,7 @@ class BookingServiceClient {
         throw Exception('Time slot is not available');
       }
 
-      print('BookingServiceClient: No conflicts found');
+      AppLogger.info('BookingServiceClient: No conflicts found');
 
       // 4. Create booking document
       final bookingId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -72,10 +73,10 @@ class BookingServiceClient {
 
       await _firestore.collection('bookings').doc(bookingId).set(booking);
       
-      print('BookingServiceClient: Booking created successfully with ID: $bookingId');
+      AppLogger.info('BookingServiceClient: Booking created successfully with ID: $bookingId');
       return bookingId;
     } catch (e) {
-      print('BookingServiceClient: Error creating booking: $e');
+      AppLogger.info('BookingServiceClient: Error creating booking: $e');
       rethrow;
     }
   }
@@ -98,10 +99,10 @@ class BookingServiceClient {
           .where('scheduledAt', isLessThanOrEqualTo: Timestamp.fromDate(endTime))
           .get();
 
-      print('BookingServiceClient: Found ${query.docs.length} conflicting bookings');
+      AppLogger.info('BookingServiceClient: Found ${query.docs.length} conflicting bookings');
       return query.docs;
     } catch (e) {
-      print('BookingServiceClient: Error checking conflicts: $e');
+      AppLogger.info('BookingServiceClient: Error checking conflicts: $e');
       return [];
     }
   }
@@ -113,7 +114,7 @@ class BookingServiceClient {
     String? notes,
   }) async {
     try {
-      print('BookingServiceClient: Updating booking $bookingId to status: $status');
+      AppLogger.info('BookingServiceClient: Updating booking $bookingId to status: $status');
       
       final updateData = <String, dynamic>{
         'status': status,
@@ -133,10 +134,10 @@ class BookingServiceClient {
           .doc(bookingId)
           .update(updateData);
 
-      print('BookingServiceClient: Booking status updated successfully');
+      AppLogger.info('BookingServiceClient: Booking status updated successfully');
       return true;
     } catch (e) {
-      print('BookingServiceClient: Error updating booking status: $e');
+      AppLogger.info('BookingServiceClient: Error updating booking status: $e');
       return false;
     }
   }
@@ -148,7 +149,7 @@ class BookingServiceClient {
     int limit = 20,
   }) async {
     try {
-      print('BookingServiceClient: Fetching bookings for user: $userId');
+      AppLogger.info('BookingServiceClient: Fetching bookings for user: $userId');
       
       var query = _firestore
           .collection('bookings')
@@ -167,10 +168,10 @@ class BookingServiceClient {
         return Booking.fromMap(data, id: doc.id);
       }).toList();
 
-      print('BookingServiceClient: Found ${bookings.length} bookings');
+      AppLogger.info('BookingServiceClient: Found ${bookings.length} bookings');
       return bookings;
     } catch (e) {
-      print('BookingServiceClient: Error fetching user bookings: $e');
+      AppLogger.info('BookingServiceClient: Error fetching user bookings: $e');
       return [];
     }
   }
@@ -182,7 +183,7 @@ class BookingServiceClient {
     int limit = 20,
   }) async {
     try {
-      print('BookingServiceClient: Fetching bookings for provider: $providerId');
+      AppLogger.info('BookingServiceClient: Fetching bookings for provider: $providerId');
       
       var query = _firestore
           .collection('bookings')
@@ -201,10 +202,10 @@ class BookingServiceClient {
         return Booking.fromMap(data, id: doc.id);
       }).toList();
 
-      print('BookingServiceClient: Found ${bookings.length} provider bookings');
+      AppLogger.info('BookingServiceClient: Found ${bookings.length} provider bookings');
       return bookings;
     } catch (e) {
-      print('BookingServiceClient: Error fetching provider bookings: $e');
+      AppLogger.info('BookingServiceClient: Error fetching provider bookings: $e');
       return [];
     }
   }
@@ -216,7 +217,7 @@ class BookingServiceClient {
     String? reason,
   }) async {
     try {
-      print('BookingServiceClient: Cancelling booking: $bookingId');
+      AppLogger.info('BookingServiceClient: Cancelling booking: $bookingId');
       
       // Verify user owns the booking
       final bookingDoc = await _firestore
@@ -253,10 +254,10 @@ class BookingServiceClient {
           .doc(bookingId)
           .update(updateData);
 
-      print('BookingServiceClient: Booking cancelled successfully');
+      AppLogger.info('BookingServiceClient: Booking cancelled successfully');
       return true;
     } catch (e) {
-      print('BookingServiceClient: Error cancelling booking: $e');
+      AppLogger.info('BookingServiceClient: Error cancelling booking: $e');
       return false;
     }
   }

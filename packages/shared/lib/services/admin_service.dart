@@ -3,7 +3,9 @@ import '../models/provider.dart' as app_provider;
 import '../models/user.dart';
 import '../models/booking.dart';
 import '../models/review.dart';
+import '../models/announcement.dart';
 import 'notification_service.dart';
+import 'auth_service.dart';
 import 'package:flutter/foundation.dart';
 
 enum VerificationStatus { pending, approved, rejected }
@@ -41,23 +43,47 @@ class AdminService {
   // Approve provider verification
   static Future<bool> approveProvider(String providerId, String adminNotes) async {
     try {
+      // Update provider to be visible to customers
       await _firestore.collection('providers').doc(providerId).update({
         'verificationStatus': VerificationStatus.approved.name,
-        'status': ProviderStatus.verified.name,
+        'visibleToCustomers': true,
         'verifiedAt': FieldValue.serverTimestamp(),
         'adminNotes': adminNotes,
         'verifiedBy': 'admin', // In real app, use admin user ID
       });
 
-      // Send notification to provider
-      await NotificationService.sendNotificationToUser(
-        userId: providerId,
-        title: 'Verification Approved',
-        body: 'Congratulations! Your provider account has been verified. You can now receive bookings.',
-        data: {
-          'type': 'verification_approved',
-        },
-      );
+      // Update verification queue
+      final queueQuery = await _firestore
+          .collection('verification_queue')
+          .where('providerId', isEqualTo: providerId)
+          .limit(1)
+          .get();
+
+      if (queueQuery.docs.isNotEmpty) {
+        await queueQuery.docs.first.reference.update({
+          'status': 'approved',
+          'reviewedAt': FieldValue.serverTimestamp(),
+          'reviewedBy': 'admin', // In real app, use admin user ID
+          'adminRemarks': adminNotes,
+        });
+      }
+
+      // Get provider data for notification
+      final providerDoc = await _firestore.collection('providers').doc(providerId).get();
+      if (providerDoc.exists) {
+        final providerData = providerDoc.data()!;
+        final ownerUid = providerData['ownerUid'] as String;
+
+        // Send notification to provider
+        await NotificationService.sendNotificationToUser(
+          userId: ownerUid,
+          title: 'Business Registration Approved',
+          body: 'Congratulations! Your business registration has been approved. You are now visible to customers.',
+          data: {
+            'type': 'admin',
+          },
+        );
+      }
 
       return true;
     } catch (e) {
@@ -70,24 +96,47 @@ class AdminService {
   // Reject provider verification
   static Future<bool> rejectProvider(String providerId, String reason) async {
     try {
+      // Keep provider hidden from customers
       await _firestore.collection('providers').doc(providerId).update({
         'verificationStatus': VerificationStatus.rejected.name,
-        'status': ProviderStatus.rejected.name,
+        'visibleToCustomers': false,
         'rejectedAt': FieldValue.serverTimestamp(),
         'rejectionReason': reason,
         'rejectedBy': 'admin', // In real app, use admin user ID
       });
 
-      // Send notification to provider
-      await NotificationService.sendNotificationToUser(
-        userId: providerId,
-        title: 'Verification Rejected',
-        body: 'Your verification has been rejected. Please check the reason and resubmit valid documents.',
-        data: {
-          'type': 'verification_rejected',
-          'reason': reason,
-        },
-      );
+      // Update verification queue
+      final queueQuery = await _firestore
+          .collection('verification_queue')
+          .where('providerId', isEqualTo: providerId)
+          .limit(1)
+          .get();
+
+      if (queueQuery.docs.isNotEmpty) {
+        await queueQuery.docs.first.reference.update({
+          'status': 'rejected',
+          'reviewedAt': FieldValue.serverTimestamp(),
+          'reviewedBy': 'admin', // In real app, use admin user ID
+          'adminRemarks': reason,
+        });
+      }
+
+      // Get provider data for notification
+      final providerDoc = await _firestore.collection('providers').doc(providerId).get();
+      if (providerDoc.exists) {
+        final providerData = providerDoc.data()!;
+        final ownerUid = providerData['ownerUid'] as String;
+
+        // Send notification to provider
+        await NotificationService.sendNotificationToUser(
+          userId: ownerUid,
+          title: 'Business Registration Rejected',
+          body: 'Your business registration has been rejected. Please review the feedback and resubmit.',
+          data: {
+            'type': 'admin',
+          },
+        );
+      }
 
       return true;
     } catch (e) {
@@ -415,60 +464,203 @@ class AdminService {
     }
   }
 
-  // Send announcement to all users
+  // Send announcement to all users (legacy method)
   static Future<bool> sendAnnouncement(String title, String message) async {
+    return await sendTargetedAnnouncement(
+      title: title,
+      message: message,
+      audience: 'all',
+      priority: 'medium',
+      type: 'info',
+    );
+  }
+
+  // Send targeted announcement
+  static Future<bool> sendTargetedAnnouncement({
+    required String title,
+    required String message,
+    String audience = 'all', // 'all', 'customers', 'providers', 'specific'
+    List<String> specificUserIds = const [],
+    List<String> targetCategories = const [],
+    String priority = 'medium', // 'low', 'medium', 'high', 'urgent'
+    String type = 'info', // 'info', 'warning', 'promotion', 'maintenance', 'update'
+    DateTime? expiresAt,
+  }) async {
     try {
+      final currentUser = AuthService().currentUser;
+      if (currentUser == null) {
+        debugPrint('No current user found');
+        return false;
+      }
+
       final announcementData = {
         'title': title,
         'message': message,
         'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': _firestore.collection('users').doc(), // Current admin user
+        'createdBy': currentUser.uid,
         'isActive': true,
-        'priority': 'normal', // normal, high, urgent
-        'targetAudience': 'all', // all, customers, providers, specific
+        'priority': priority,
+        'type': type,
+        'audience': audience,
+        'specificUserIds': specificUserIds,
+        'targetCategories': targetCategories,
+        'expiresAt': expiresAt != null ? Timestamp.fromDate(expiresAt) : null,
+        'sentCount': 0, // Will be updated after sending
       };
 
       // Save announcement to database
-      await _firestore.collection('announcements').add(announcementData);
+      final docRef = await _firestore.collection('announcements').add(announcementData);
 
-      // Send push notifications to all users
-      await _sendAnnouncementNotifications(title, message);
+      // Send push notifications to targeted users
+      final sentCount = await _sendTargetedAnnouncementNotifications(
+        docRef.id,
+        title,
+        message,
+        audience,
+        specificUserIds,
+        targetCategories,
+      );
+
+      // Update sent count
+      await docRef.update({'sentCount': sentCount});
 
       return true;
     } catch (e) {
-      debugPrint('Error sending announcement: $e');
+      debugPrint('Error sending targeted announcement: $e');
       return false;
     }
   }
 
-  // Send push notifications for announcement
-  static Future<void> _sendAnnouncementNotifications(String title, String message) async {
+  // Send targeted push notifications for announcement
+  static Future<int> _sendTargetedAnnouncementNotifications(
+    String announcementId,
+    String title,
+    String message,
+    String audience,
+    List<String> specificUserIds,
+    List<String> targetCategories,
+  ) async {
     try {
-      // Get all users with device tokens
-      final usersSnapshot = await _firestore.collection('users').get();
-      
       List<String> deviceTokens = [];
-      for (final doc in usersSnapshot.docs) {
-        final data = doc.data();
-        final tokens = List<String>.from(data['deviceTokens'] ?? []);
-        deviceTokens.addAll(tokens);
+      int recipientCount = 0;
+
+      if (audience == 'specific' && specificUserIds.isNotEmpty) {
+        // Send to specific users
+        for (final userId in specificUserIds) {
+          final userDoc = await _firestore.collection('users').doc(userId).get();
+          if (userDoc.exists) {
+            final data = userDoc.data()!;
+            final tokens = List<String>.from(data['deviceTokens'] ?? []);
+            deviceTokens.addAll(tokens);
+            recipientCount++;
+          }
+        }
+      } else {
+        // Send based on audience
+        Query query = _firestore.collection('users');
+        
+        switch (audience) {
+          case 'customers':
+            query = query.where('role', isEqualTo: 'customer');
+            break;
+          case 'providers':
+            query = query.where('role', isEqualTo: 'provider');
+            break;
+          case 'admins':
+            query = query.where('role', isEqualTo: 'admin');
+            break;
+          case 'all':
+          default:
+            // No filter needed for all users
+            break;
+        }
+
+        final usersSnapshot = await query.get();
+        
+        for (final doc in usersSnapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final tokens = List<String>.from(data['deviceTokens'] ?? []);
+          deviceTokens.addAll(tokens);
+          recipientCount++;
+        }
       }
 
       if (deviceTokens.isNotEmpty) {
-        // Send notification to all users
+        // Send notification to targeted users
         await NotificationService.sendNotificationToMultipleUsers(
           deviceTokens: deviceTokens,
           title: '📢 $title',
           body: message,
           data: {
             'type': 'announcement',
+            'announcementId': announcementId,
+            'audience': audience,
             'title': title,
             'message': message,
           },
         );
       }
+
+      return recipientCount;
     } catch (e) {
-      debugPrint('Error sending announcement notifications: $e');
+      debugPrint('Error sending targeted announcement notifications: $e');
+      return 0;
+    }
+  }
+
+  // Get all announcements
+  static Stream<List<Announcement>> getAnnouncementsStream() {
+    return _firestore
+        .collection('announcements')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Announcement.fromFirestore(doc)).toList());
+  }
+
+  // Get announcements for specific audience
+  static Stream<List<Announcement>> getAnnouncementsForAudience(String audience) {
+    return _firestore
+        .collection('announcements')
+        .where('audience', whereIn: [audience, 'all'])
+        .where('isActive', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Announcement.fromFirestore(doc)).toList());
+  }
+
+  // Update announcement status
+  static Future<bool> updateAnnouncementStatus(String announcementId, bool isActive) async {
+    try {
+      await _firestore.collection('announcements').doc(announcementId).update({
+        'isActive': isActive,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      debugPrint('Error updating announcement status: $e');
+      return false;
+    }
+  }
+
+  // Delete announcement
+  static Future<bool> deleteAnnouncement(String announcementId) async {
+    try {
+      await _firestore.collection('announcements').doc(announcementId).delete();
+      return true;
+    } catch (e) {
+      debugPrint('Error deleting announcement: $e');
+      return false;
+    }
+  }
+
+  // Get users for specific targeting
+  static Future<List<User>> getUsersForTargeting() async {
+    try {
+      final usersSnapshot = await _firestore.collection('users').get();
+      return usersSnapshot.docs.map((doc) => User.fromFirestore(doc)).toList();
+    } catch (e) {
+      debugPrint('Error getting users for targeting: $e');
+      return [];
     }
   }
 }

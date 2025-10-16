@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
+import '../utils/app_logger.dart';
 
 class AdminManagementService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,7 +16,7 @@ class AdminManagementService {
       final data = doc.data()!;
       return data['isSuperAdmin'] == true;
     } catch (e) {
-      print('Error checking super admin status: $e');
+      AppLogger.info('Error checking super admin status: $e');
       return false;
     }
   }
@@ -26,7 +27,7 @@ class AdminManagementService {
       final doc = await _firestore.collection('admins').doc(uid).get();
       return doc.exists;
     } catch (e) {
-      print('Error checking admin status: $e');
+      AppLogger.info('Error checking admin status: $e');
       return false;
     }
   }
@@ -108,7 +109,7 @@ class AdminManagementService {
         'message': 'Admin created successfully',
       };
     } catch (e) {
-      print('Error creating admin: $e');
+      AppLogger.info('Error creating admin: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -132,7 +133,7 @@ class AdminManagementService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting admins: $e');
+      AppLogger.info('Error getting admins: $e');
       return [];
     }
   }
@@ -164,7 +165,7 @@ class AdminManagementService {
         'message': 'Admin permissions updated successfully',
       };
     } catch (e) {
-      print('Error updating admin permissions: $e');
+      AppLogger.info('Error updating admin permissions: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -200,7 +201,7 @@ class AdminManagementService {
         'message': 'Admin deactivated successfully',
       };
     } catch (e) {
-      print('Error deactivating admin: $e');
+      AppLogger.info('Error deactivating admin: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -235,7 +236,7 @@ class AdminManagementService {
         'message': 'Admin reactivated successfully',
       };
     } catch (e) {
-      print('Error reactivating admin: $e');
+      AppLogger.info('Error reactivating admin: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -271,7 +272,7 @@ class AdminManagementService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting admin audit logs: $e');
+      AppLogger.info('Error getting admin audit logs: $e');
       return [];
     }
   }

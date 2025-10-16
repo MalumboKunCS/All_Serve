@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_theme.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../services/file_upload_service.dart';
+import '../../services/verification_service.dart';
 import '../../models/provider.dart' as app_provider;
 
 class ProviderDocumentsScreen extends StatefulWidget {
@@ -71,9 +72,9 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.info.withOpacity(0.1),
+                color: AppTheme.info.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.info.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.info.withValues(alpha: 0.3)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,9 +290,9 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
+        color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,6 +492,13 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
     }
 
     // Show loading state
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
 
     try {
       final authService = Provider.of<shared.AuthService>(context, listen: false);
@@ -508,32 +516,39 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
         final providerDoc = providerQuery.docs.first;
         final providerId = providerDoc.id;
 
-        // Update provider verification status
-        await providerDoc.reference.update({
-          'verificationStatus': 'pending',
-          'submittedAt': FieldValue.serverTimestamp(),
-        });
+        // Submit for verification using the new service
+        print('ProviderDocumentsScreen: Submitting with providerId: $providerId, ownerUid: ${currentUser.uid}');
+        final success = await VerificationService.submitForVerification(
+          providerId: providerId,
+          ownerUid: currentUser.uid,
+          documents: _uploadedDocuments,
+        );
 
-        // Create verification queue entry
-        await FirebaseFirestore.instance.collection('verificationQueue').add({
-          'providerId': providerId,
-          'ownerUid': currentUser.uid,
-          'submittedAt': FieldValue.serverTimestamp(),
-          'status': 'pending',
-          'docs': _uploadedDocuments,
-        });
+        if (success) {
+          // Close loading dialog
+          if (mounted) Navigator.of(context).pop();
 
-        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Documents submitted for verification!'),
+              content: const Text('Documents submitted for verification successfully!'),
               backgroundColor: AppTheme.success,
             ),
           );
-          Navigator.of(context).pop();
+
+          // Navigate back or to dashboard
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        } else {
+          throw Exception('Failed to submit for verification');
         }
+      } else {
+        throw Exception('Provider not found');
       }
     } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -541,10 +556,6 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
             backgroundColor: AppTheme.error,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
-        // Hide loading state
       }
     }
   }

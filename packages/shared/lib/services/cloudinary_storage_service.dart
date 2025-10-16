@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../utils/app_logger.dart';
 import '../config/cloudinary_config.dart';
 
 class CloudinaryStorageService {
@@ -16,7 +17,7 @@ class CloudinaryStorageService {
     int quality = 80,
   }) async {
     try {
-      print('CloudinaryStorageService: Uploading image to folder: $folder');
+      AppLogger.info('CloudinaryStorageService: Uploading image to folder: $folder');
       
       // Create upload request
       final request = http.MultipartRequest(
@@ -47,13 +48,13 @@ class CloudinaryStorageService {
 
       if (response.statusCode == 200) {
         final imageUrl = jsonData['secure_url'] as String;
-        print('CloudinaryStorageService: Image uploaded successfully: $imageUrl');
+        AppLogger.info('CloudinaryStorageService: Image uploaded successfully: $imageUrl');
         return imageUrl;
       } else {
         throw Exception('Upload failed: ${jsonData['error']['message']}');
       }
     } catch (e) {
-      print('CloudinaryStorageService: Error uploading image: $e');
+      AppLogger.info('CloudinaryStorageService: Error uploading image: $e');
       rethrow;
     }
   }
@@ -140,7 +141,7 @@ class CloudinaryStorageService {
   // Delete image
   Future<bool> deleteImage(String publicId) async {
     try {
-      print('CloudinaryStorageService: Deleting image: $publicId');
+      AppLogger.info('CloudinaryStorageService: Deleting image: $publicId');
       
       final url = 'https://api.cloudinary.com/v1_1/${CloudinaryConfig.cloudName}/image/destroy';
       final response = await http.post(
@@ -154,14 +155,14 @@ class CloudinaryStorageService {
       );
 
       if (response.statusCode == 200) {
-        print('CloudinaryStorageService: Image deleted successfully');
+        AppLogger.info('CloudinaryStorageService: Image deleted successfully');
         return true;
       } else {
-        print('CloudinaryStorageService: Failed to delete image: ${response.body}');
+        AppLogger.info('CloudinaryStorageService: Failed to delete image: ${response.body}');
         return false;
       }
     } catch (e) {
-      print('CloudinaryStorageService: Error deleting image: $e');
+      AppLogger.info('CloudinaryStorageService: Error deleting image: $e');
       return false;
     }
   }
@@ -175,11 +176,11 @@ class CloudinaryStorageService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        print('CloudinaryStorageService: Failed to get image info: ${response.body}');
+        AppLogger.info('CloudinaryStorageService: Failed to get image info: ${response.body}');
         return null;
       }
     } catch (e) {
-      print('CloudinaryStorageService: Error getting image info: $e');
+      AppLogger.info('CloudinaryStorageService: Error getting image info: $e');
       return null;
     }
   }
@@ -212,6 +213,13 @@ class CloudinaryStorageService {
     );
   }
 }
+
+
+
+
+
+
+
 
 
 

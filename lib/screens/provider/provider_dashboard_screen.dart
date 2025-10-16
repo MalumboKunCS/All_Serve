@@ -6,12 +6,20 @@ import 'package:shared/shared.dart' as shared;
 import '../../models/provider.dart' as app_provider;
 import '../../models/booking.dart';
 import '../../services/enhanced_booking_service.dart';
+import '../../services/verification_service.dart';
+import '../../services/app_notification_service.dart';
 import 'provider_profile_screen.dart';
 import 'provider_services_screen.dart';
 import 'provider_bookings_screen.dart';
 import 'provider_reviews_screen.dart';
 import 'provider_settings_screen.dart';
+import 'notifications_screen.dart';
+import 'provider_registration_screen.dart';
 import '../../widgets/provider_registration_status_widget.dart';
+import '../../widgets/registration_tracker_card.dart';
+import '../../utils/firestore_debug_utils.dart';
+import '../../services/provider_creation_service.dart';
+import '../../utils/app_logger.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -32,6 +40,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      setState(() {}); // Rebuild when tab changes
+      // Reload data when switching to Overview tab (index 0) or Services tab (index 2)
+      if ((_tabController.index == 0 || _tabController.index == 2) && !_isLoading) {
+        _loadDashboardData();
+      }
+    });
     _loadDashboardData();
   }
 
@@ -51,16 +66,39 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
       }
 
       // Load provider data
+      AppLogger.debug('ProviderDashboardScreen: Loading provider for ownerUid: ${currentUser.uid}');
       final providerQuery = await FirebaseFirestore.instance
           .collection('providers')
           .where('ownerUid', isEqualTo: currentUser.uid)
           .limit(1)
           .get();
 
+      AppLogger.debug('ProviderDashboardScreen: Found ${providerQuery.docs.length} provider documents');
       if (providerQuery.docs.isNotEmpty) {
         _provider = app_provider.Provider.fromFirestore(providerQuery.docs.first);
+        AppLogger.debug('ProviderDashboardScreen: Loaded provider with ${_provider!.services.length} services');
+        AppLogger.debug('ProviderDashboardScreen: Provider ID: ${_provider!.providerId}');
+        AppLogger.debug('ProviderDashboardScreen: Provider business name: ${_provider!.businessName}');
+      } else {
+        AppLogger.debug('ProviderDashboardScreen: No provider document found for ownerUid: ${currentUser.uid}');
         
-        // Load recent bookings for this provider using enhanced service
+        // Debug: Check if there are any provider documents at all
+        await FirestoreDebugUtils.debugUserProviders(currentUser.uid);
+        
+        // Try to create a provider document if it doesn't exist
+        AppLogger.debug('ProviderDashboardScreen: Attempting to create provider document...');
+        _provider = await ProviderCreationService.createProviderIfNotExists();
+        
+        if (_provider != null) {
+          AppLogger.debug('ProviderDashboardScreen: Successfully created provider document');
+        } else {
+          AppLogger.debug('ProviderDashboardScreen: Failed to create provider document');
+          _provider = null;
+        }
+      }
+
+      // Load recent bookings for this provider using enhanced service (only if provider exists)
+      if (_provider != null) {
         final bookingsStream = EnhancedBookingService.getBookingsStream(
           userId: _provider!.providerId,
           userType: UserType.provider,
@@ -69,7 +107,11 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         // Get all bookings from the stream for stats calculation
         await for (final bookings in bookingsStream) {
           _allBookings = bookings;
-          _recentBookings = bookings.take(10).toList();
+          // Only show pending bookings in Recent Activity
+          _recentBookings = bookings
+              .where((booking) => booking.status == BookingStatus.pending)
+              .take(5)
+            .toList();
           break; // Only take the first batch
         }
       }
@@ -78,7 +120,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
+      AppLogger.debug('Error loading dashboard data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,6 +133,17 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
     }
   }
 
+  Stream<int> _getUnreadNotificationCount() {
+    final authService = Provider.of<shared.AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    
+    if (currentUser == null) {
+      return Stream.value(0);
+    }
+    
+    return AppNotificationService.getUnreadCountStream(currentUser.uid);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,6 +152,52 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         title: const Text('Provider Dashboard'),
         backgroundColor: AppTheme.surfaceDark,
         actions: [
+          // Notification Bell with Badge
+          StreamBuilder<int>(
+            stream: _getUnreadNotificationCount(),
+            builder: (context, snapshot) {
+              final unreadCount = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.error,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -115,54 +214,118 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Stats Cards
+                // Status Banner
+                _buildStatusBanner(),
+                // Stats Cards - Enhanced Design with Progress
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppTheme.surfaceDark,
+                        AppTheme.backgroundDark,
+                      ],
+                    ),
+                  ),
                   child: Row(
                     children: [
                       Expanded(
                         child: _buildStatCard(
-                          'Total Bookings',
-                          '${_allBookings.length}',
-                          Icons.bookmark,
-                          AppTheme.primaryPurple,
+                          title: 'Total\nBookings',
+                          value: '${_allBookings.length}',
+                          icon: Icons.calendar_today_rounded,
+                          color: AppTheme.primaryPurple,
+                          tooltip: 'Total number of bookings received',
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _buildStatCard(
-                          'Pending',
-                          '${_getBookingsByStatus(BookingStatus.pending).length}',
-                          Icons.schedule,
-                          AppTheme.warning,
+                          title: 'Pending',
+                          value: '${_getBookingsByStatus(BookingStatus.pending).length}',
+                          icon: Icons.schedule_rounded,
+                          color: AppTheme.warning,
+                          tooltip: 'Bookings awaiting your response',
+                          progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.pending).length / _allBookings.length,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _buildStatCard(
-                          'Completed',
-                          '${_getBookingsByStatus(BookingStatus.completed).length}',
-                          Icons.done_all,
-                          AppTheme.success,
+                          title: 'Completed',
+                          value: '${_getBookingsByStatus(BookingStatus.completed).length}',
+                          icon: Icons.check_circle_rounded,
+                          color: AppTheme.success,
+                          tooltip: 'Successfully completed bookings',
+                          progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.completed).length / _allBookings.length,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard(
+                          title: 'Rating',
+                          value: _provider?.ratingAvg.toStringAsFixed(1) ?? '0.0',
+                          icon: Icons.star_rounded,
+                          color: const Color(0xFFFFB800),
+                          tooltip: 'Your average customer rating',
+                          subtitle: '${_provider?.ratingCount ?? 0} reviews',
+                          showProgress: false,
                         ),
                       ),
                     ],
                   ),
                 ),
                 
-                // Tab Bar
+                // Tab Bar - Enhanced with Icons and Better Styling
                 Container(
+                  decoration: BoxDecoration(
                   color: AppTheme.surfaceDark,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: TabBar(
                     controller: _tabController,
                     labelColor: AppTheme.primaryPurple,
                     unselectedLabelColor: AppTheme.textTertiary,
+                    labelStyle: AppTheme.bodyLarge.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    unselectedLabelStyle: AppTheme.bodyLarge.copyWith(
+                      fontWeight: FontWeight.normal,
+                      fontSize: 16,
+                    ),
                     indicatorColor: AppTheme.primaryPurple,
+                    indicatorWeight: 3,
+                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 16),
                     tabs: const [
-                      Tab(text: 'Overview'),
-                      Tab(text: 'Bookings'),
-                      Tab(text: 'Services'),
-                      Tab(text: 'Profile'),
+                      Tab(
+                        icon: Icon(Icons.dashboard_rounded, size: 22),
+                        text: 'Overview',
+                        iconMargin: EdgeInsets.only(bottom: 4),
+                      ),
+                      Tab(
+                        icon: Icon(Icons.event_note_rounded, size: 22),
+                        text: 'Bookings',
+                        iconMargin: EdgeInsets.only(bottom: 4),
+                      ),
+                      Tab(
+                        icon: Icon(Icons.work_rounded, size: 22),
+                        text: 'Services',
+                        iconMargin: EdgeInsets.only(bottom: 4),
+                      ),
+                      Tab(
+                        icon: Icon(Icons.person_rounded, size: 22),
+                        text: 'Profile',
+                        iconMargin: EdgeInsets.only(bottom: 4),
+                      ),
                     ],
                   ),
                 ),
@@ -174,55 +337,278 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                     children: [
                       _buildOverviewTab(),
                       ProviderBookingsScreen(provider: _provider),
-                      ProviderServicesScreen(provider: _provider),
+                      ProviderServicesScreen(
+                        provider: _provider,
+                        onServiceUpdated: () {
+                          // Reload provider data when services are updated
+                          AppLogger.debug('ProviderDashboardScreen: onServiceUpdated callback triggered');
+                          _loadDashboardData();
+                        },
+                      ),
                       ProviderProfileScreen(provider: _provider),
                     ],
                   ),
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ProviderServicesScreen(provider: _provider),
+      // Removed floating action button to avoid duplicate "Add Service" buttons
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    String? subtitle,
+    double? progress,
+    bool showProgress = true,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 800),
+        curve: Curves.easeOutCubic,
+        builder: (context, animValue, child) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.12),
+                  color.withValues(alpha: 0.04),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: color.withValues(alpha: 0.25),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon with optional progress ring
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (showProgress && progress != null)
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: progress * animValue),
+                          duration: const Duration(milliseconds: 1200),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return CircularProgressIndicator(
+                              value: value,
+                              strokeWidth: 3,
+                              backgroundColor: color.withValues(alpha: 0.2),
+                              valueColor: AlwaysStoppedAnimation<Color>(color),
+                            );
+                          },
+                        ),
+                      ),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: color, size: 22),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                
+                // Animated value
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.0, end: double.tryParse(value) ?? 0.0),
+                  duration: const Duration(milliseconds: 1000),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, animatedValue, child) {
+                    // Check if value has decimal point (for rating)
+                    final displayValue = value.contains('.')
+                        ? animatedValue.toStringAsFixed(1)
+                        : animatedValue.toInt().toString();
+                    
+                    return Text(
+                      displayValue,
+                      style: AppTheme.heading2.copyWith(
+                        color: AppTheme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 4),
+                
+                // Title
+                Text(
+                  title,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                
+                // Optional subtitle
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: AppTheme.caption.copyWith(
+                      color: AppTheme.textTertiary,
+                      fontSize: 10,
+                      height: 1.1,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
             ),
           );
         },
-        backgroundColor: AppTheme.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Service', style: TextStyle(color: Colors.white)),
       ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatusBanner() {
+    final authService = Provider.of<shared.AuthService>(context, listen: false);
+    final currentUser = authService.currentUser;
+    
+    if (currentUser == null) return const SizedBox.shrink();
+    
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: VerificationService.getVerificationStatusStream(currentUser.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SizedBox.shrink();
+        }
+        
+        final verificationStatus = snapshot.data;
+        if (verificationStatus == null) return const SizedBox.shrink();
+        
+        final status = verificationStatus['status'] as String;
+        final adminRemarks = verificationStatus['adminRemarks'] as String?;
+        
+        if (status == 'pending') {
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.warning.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.warning.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.schedule,
+                  color: AppTheme.warning,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '⏳ Your business registration is under review. You can still add services while waiting for approval.',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (status == 'rejected') {
     return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+              color: AppTheme.error.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.error.withValues(alpha: 0.3),
+              ),
       ),
       child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: AppTheme.heading2.copyWith(
+                    Icon(
+                      Icons.cancel,
+                      color: AppTheme.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Your business registration has been rejected.',
+                        style: AppTheme.bodyMedium.copyWith(
               color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
+                        ),
             ),
           ),
+                  ],
+                ),
+                if (adminRemarks != null && adminRemarks.isNotEmpty) ...[
+                  const SizedBox(height: 8),
           Text(
-            title,
+                    'Feedback: $adminRemarks',
             style: AppTheme.caption.copyWith(
               color: AppTheme.textSecondary,
             ),
-            textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ProviderRegistrationScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Resubmit Details'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
           ),
         ],
       ),
+          );
+        }
+        
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -233,18 +619,27 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Welcome Back!',
+            _provider != null 
+                ? 'Welcome back, ${_provider!.businessName}'
+                : 'Welcome back!',
             style: AppTheme.heading1.copyWith(
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Here\'s what\'s happening with your business today',
+            _provider != null
+                ? 'Here\'s what\'s happening with your business today'
+                : 'Complete your provider registration to get started',
             style: AppTheme.bodyLarge.copyWith(
               color: AppTheme.textSecondary,
             ),
           ),
+          
+          const SizedBox(height: 24),
+          
+          // Registration Tracker Card
+          const RegistrationTrackerCard(),
           
           const SizedBox(height: 24),
           
@@ -263,75 +658,180 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
           
           const SizedBox(height: 24),
           
-          // Recent Activity
+          // Recent Activity - Enhanced Design
+          Card(
+            color: AppTheme.cardDark,
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.history_rounded,
+                          color: AppTheme.primaryPurple,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
           Text(
             'Recent Activity',
-            style: AppTheme.heading2.copyWith(
+                        style: AppTheme.heading3.copyWith(
               color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
           
           if (_recentBookings.isEmpty)
             Container(
-              padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceDark.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.primaryPurple.withValues(alpha: 0.2),
+                          width: 2,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
               child: Column(
                 children: [
-                  Icon(
-                    Icons.bookmark_border,
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryPurple.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.check_circle_outline_rounded,
                     size: 64,
-                    color: AppTheme.textTertiary,
-                  ),
-                  const SizedBox(height: 16),
+                              color: AppTheme.success.withValues(alpha: 0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            '✨ All caught up!',
+                            style: AppTheme.heading3.copyWith(
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                   Text(
-                    'No recent bookings',
-                    style: AppTheme.bodyLarge.copyWith(
+                            'You have no pending bookings at the moment.\nNew bookings will appear here for you to review.',
+                            style: AppTheme.bodyMedium.copyWith(
                       color: AppTheme.textSecondary,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          ),
+          
+          if (_recentBookings.isNotEmpty)
+            Card(
+              color: AppTheme.cardDark,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warning.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.pending_actions_rounded,
+                            color: AppTheme.warning,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
                   Text(
-                    'New bookings will appear here',
-                    style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.textTertiary,
+                          'Pending Bookings',
+                          style: AppTheme.heading3.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-            )
-          else
+                    const SizedBox(height: 16),
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _recentBookings.take(5).length,
               itemBuilder: (context, index) {
                 final booking = _recentBookings[index];
-                return Card(
+                        return Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  color: AppTheme.cardDark,
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceDark,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _getStatusColor(booking.status).withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
                   child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _getStatusColor(booking.status),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(booking.status).withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _getStatusColor(booking.status).withValues(alpha: 0.5),
+                                  width: 2,
+                                ),
+                              ),
                       child: Icon(
                         _getStatusIcon(booking.status),
-                        color: Colors.white,
+                                color: _getStatusColor(booking.status),
+                                size: 22,
                       ),
                     ),
                     title: Text(
-                      'Booking #${booking.bookingId.length >= 8 ? booking.bookingId.substring(0, 8) : booking.bookingId}',
+                              'Booking #${booking.bookingId.length >= 8 ? booking.bookingId.substring(0, 8) : booking.bookingId}',
                       style: AppTheme.bodyLarge.copyWith(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    subtitle: Text(
-                      '${booking.statusDisplayName} • ${_formatDate(booking.scheduledAt)}',
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                '${booking.statusDisplayName} • ${_formatDate(booking.scheduledAt)}',
                       style: AppTheme.bodyMedium.copyWith(
                         color: AppTheme.textSecondary,
+                                ),
                       ),
                     ),
                     trailing: Icon(
-                      Icons.arrow_forward_ios,
+                              Icons.arrow_forward_ios_rounded,
                       color: AppTheme.textTertiary,
                       size: 16,
                     ),
@@ -341,6 +841,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                   ),
                 );
               },
+                    ),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
@@ -384,7 +888,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
     }
 
     return Card(
-      color: statusColor.withOpacity(0.1),
+      color: statusColor.withValues(alpha: 0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -393,7 +897,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
+                color: statusColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(statusIcon, color: statusColor, size: 20),
@@ -426,22 +930,48 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
   }
 
   Widget _buildQuickActions() {
-    return Column(
+    return Card(
+      color: AppTheme.cardDark,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryPurple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.bolt_rounded,
+                    color: AppTheme.primaryPurple,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
         Text(
           'Quick Actions',
-          style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
-        ),
-        const SizedBox(height: 16),
+                  style: AppTheme.heading3.copyWith(
+                    color: AppTheme.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
         Row(
           children: [
             Expanded(
               child: _buildActionCard(
-                'Manage Services',
-                'Add or edit your services',
-                Icons.work,
-                AppTheme.primary,
+                    '+ Add / Edit Services',
+                    'Manage your service offerings',
+                    Icons.shopping_bag_rounded,
+                    [AppTheme.primaryPurple, const Color(0xFF9D50FF)],
                 () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ProviderServicesScreen(provider: _provider),
@@ -449,13 +979,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+                const SizedBox(width: 16),
             Expanded(
               child: _buildActionCard(
-                'View Reviews',
-                'Check customer feedback',
-                Icons.star,
-                AppTheme.warning,
+                    '⭐ View Customer Reviews',
+                    'Check feedback and ratings',
+                    Icons.star_rounded,
+                    [const Color(0xFFFFB800), const Color(0xFFFF8C00)],
                 () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => ProviderReviewsScreen(provider: _provider),
@@ -466,6 +996,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
           ],
         ),
       ],
+        ),
+      ),
     );
   }
 
@@ -473,47 +1005,68 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
     String title,
     String subtitle,
     IconData icon,
-    Color color,
+    List<Color> gradientColors,
     VoidCallback onTap,
   ) {
-    return Card(
-      color: AppTheme.surfaceDark,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: gradientColors,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
           child: Column(
+              mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                  padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: Colors.white, size: 36),
               ),
-              const SizedBox(height: 12),
+                const SizedBox(height: 16),
               Text(
                 title,
-                style: AppTheme.bodyText.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w600,
+                  style: AppTheme.heading3.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 4),
+                const SizedBox(height: 8),
               Text(
                 subtitle,
-                style: AppTheme.caption.copyWith(
-                  color: AppTheme.textSecondary,
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
+            ),
           ),
         ),
       ),

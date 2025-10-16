@@ -153,7 +153,7 @@ class _TwoFAVerificationScreenState extends State<TwoFAVerificationScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: !_useBackupCode 
-                                ? AppTheme.primary.withOpacity(0.2)
+                                ? AppTheme.primary.withValues(alpha:0.2)
                                 : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
@@ -183,7 +183,7 @@ class _TwoFAVerificationScreenState extends State<TwoFAVerificationScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: _useBackupCode 
-                                ? AppTheme.primary.withOpacity(0.2)
+                                ? AppTheme.primary.withValues(alpha:0.2)
                                 : Colors.transparent,
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
@@ -283,7 +283,7 @@ class _TwoFAVerificationScreenState extends State<TwoFAVerificationScreen> {
               // Help Section
               if (!_useBackupCode) ...[
                 Card(
-                  color: AppTheme.surfaceDark.withOpacity(0.5),
+                  color: AppTheme.surfaceDark.withValues(alpha:0.5),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(

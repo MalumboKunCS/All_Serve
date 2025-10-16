@@ -231,7 +231,7 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                     child: ElevatedButton(
                       onPressed: _selectedService != null ? _confirmSelection : null,
                       style: AppTheme.primaryButtonStyle,
-                      child: const Text('Select Service'),
+                      child: Text(_selectedService?.serviceType == 'contact' ? 'Contact Provider' : 'Select Service'),
                     ),
                   ),
                 ],
@@ -255,7 +255,7 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
           _filterServices();
         });
       },
-      selectedColor: AppTheme.primaryPurple.withOpacity(0.3),
+      selectedColor: AppTheme.primaryPurple.withValues(alpha:0.3),
       checkmarkColor: AppTheme.textPrimary,
       labelStyle: AppTheme.bodyMedium.copyWith(
         color: isSelected ? AppTheme.textPrimary : AppTheme.textSecondary,
@@ -268,10 +268,10 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected ? AppTheme.primaryPurple.withOpacity(0.1) : AppTheme.cardDark,
+        color: isSelected ? AppTheme.primaryPurple.withValues(alpha:0.1) : AppTheme.cardDark,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryPurple : AppTheme.textTertiary.withOpacity(0.3),
+          color: isSelected ? AppTheme.primaryPurple : AppTheme.textTertiary.withValues(alpha:0.3),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -289,7 +289,7 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryPurple.withOpacity(0.1),
+                    color: AppTheme.primaryPurple.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: service.imageUrl != null
@@ -331,13 +331,34 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryPurple.withOpacity(0.2),
+                          color: AppTheme.primaryPurple.withValues(alpha:0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           service.category.toUpperCase(),
                           style: AppTheme.caption.copyWith(
                             color: AppTheme.primaryPurple,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Service Type Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: service.serviceType == 'bookable' 
+                              ? AppTheme.success.withValues(alpha: 0.2)
+                              : AppTheme.warning.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          service.serviceType == 'bookable' ? 'BOOKABLE' : 'CONTACT',
+                          style: AppTheme.caption.copyWith(
+                            color: service.serviceType == 'bookable' 
+                                ? AppTheme.success
+                                : AppTheme.warning,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -360,19 +381,49 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                       // Price and Duration
                       Row(
                         children: [
-                          Icon(
-                            Icons.attach_money,
-                            size: 16,
-                            color: AppTheme.success,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'K${service.priceFrom.toStringAsFixed(0)} - K${service.priceTo.toStringAsFixed(0)}',
-                            style: AppTheme.bodyMedium.copyWith(
+                          if (service.type == 'priced' && service.priceFrom != null && service.priceTo != null) ...[
+                            Icon(
+                              Icons.attach_money,
+                              size: 16,
                               color: AppTheme.success,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'K${service.priceFrom!.toStringAsFixed(0)} - K${service.priceTo!.toStringAsFixed(0)}',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ] else if (service.type == 'negotiable') ...[
+                            Icon(
+                              Icons.handshake,
+                              size: 16,
+                              color: AppTheme.warning,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Negotiable',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.warning,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ] else if (service.type == 'free') ...[
+                            Icon(
+                              Icons.volunteer_activism,
+                              size: 16,
+                              color: AppTheme.success,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Free',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.success,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                           const SizedBox(width: 16),
                           Icon(
                             Icons.schedule,
@@ -381,7 +432,7 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${service.durationMin} min',
+                            service.duration ?? 'Not specified',
                             style: AppTheme.bodyMedium.copyWith(
                               color: AppTheme.textSecondary,
                             ),
@@ -399,7 +450,7 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppTheme.primaryPurple.withOpacity(0.1),
+                                color: AppTheme.primaryPurple.withValues(alpha:0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(

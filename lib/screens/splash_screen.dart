@@ -8,6 +8,7 @@ import 'provider/provider_dashboard_screen.dart';
 import 'provider/provider_registration_screen.dart';
 import 'admin/admin_dashboard_screen.dart';
 import '../services/provider_registration_service.dart';
+import '../utils/app_logger.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -71,18 +72,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     try {
       // Check current auth state immediately
       final currentUser = authService.currentUser;
-      print('SplashScreen: Current user: ${currentUser?.uid}');
+      AppLogger.info('SplashScreen: Current user: ${currentUser?.uid}');
       
       if (currentUser != null) {
         // User is already signed in, get their full data
         final userWithData = await authService.getCurrentUserWithData();
-        print('SplashScreen: User data from Firestore: ${userWithData?.uid}, role: ${userWithData?.role}');
+        AppLogger.info('SplashScreen: User data from Firestore: ${userWithData?.uid}, role: ${userWithData?.role}');
         if (mounted) {
           _navigateBasedOnUser(userWithData);
         }
       } else {
         // No user signed in, go to login
-        print('SplashScreen: No current user, navigating to login');
+        AppLogger.info('SplashScreen: No current user, navigating to login');
         if (mounted) {
           _navigateBasedOnUser(null);
         }
@@ -90,13 +91,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       
       // Also listen to future auth state changes
       _authSub = authService.userStream.listen((user) {
-        print('SplashScreen: Auth state changed - User: ${user?.uid}, role: ${user?.role}');
+        AppLogger.info('SplashScreen: Auth state changed - User: ${user?.uid}, role: ${user?.role}');
         if (mounted) {
           _navigateBasedOnUser(user);
         }
       });
     } catch (e) {
-      print('SplashScreen: Error checking auth state: $e');
+      AppLogger.error('SplashScreen: Error checking auth state: $e');
       if (mounted) {
         _navigateBasedOnUser(null);
       }
@@ -183,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha:0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -215,7 +216,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     Text(
                       'Your Local Service Marketplace',
                       style: shared.AppTheme.bodyLarge.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha:0.9),
                       ),
                     ),
                   ],

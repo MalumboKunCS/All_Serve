@@ -4,41 +4,70 @@ class Service {
   final String serviceId;
   final String title;
   final String category;
+  final String type; // 'priced', 'negotiable', 'free'
+  final String serviceType; // NEW: 'bookable' or 'contact' - determines if service can be booked or requires contact
   final String? description;
-  final double priceFrom;
-  final double priceTo;
-  final int durationMin;
-  final String? imageUrl;
+  final double? priceFrom; // Nullable for non-priced services
+  final double? priceTo; // Nullable for non-priced services
+  final String? duration; // Changed from int durationMin to String duration for flexibility
+  final String? imageUrl; // Deprecated - use imageUrls instead
+  final List<String> imageUrls; // New: supports multiple images
   final List<String> availability; // e.g., ['monday', 'tuesday', 'wednesday']
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final Map<String, dynamic>? contactInfo; // NEW: Contact information for contact-type services
 
   Service({
     required this.serviceId,
     required this.title,
     required this.category,
+    required this.type,
+    this.serviceType = 'bookable', // Default to bookable for backward compatibility
     this.description,
-    required this.priceFrom,
-    required this.priceTo,
-    required this.durationMin,
+    this.priceFrom,
+    this.priceTo,
+    this.duration,
     this.imageUrl,
+    this.imageUrls = const [],
     this.availability = const [],
     this.isActive = true,
     required this.createdAt,
     required this.updatedAt,
+    this.contactInfo, // Nullable for contact services
   });
 
   factory Service.fromMap(Map<String, dynamic> map) {
+    // Handle both old (imageUrl) and new (imageUrls) formats for backward compatibility
+    List<String> imageUrls = [];
+    if (map['imageUrls'] != null) {
+      imageUrls = List<String>.from(map['imageUrls']);
+    } else if (map['imageUrl'] != null && map['imageUrl'].toString().isNotEmpty) {
+      // Migrate old single imageUrl to new imageUrls list
+      imageUrls = [map['imageUrl']];
+    }
+    
+    // Handle backward compatibility for duration field
+    String? duration;
+    if (map['duration'] != null) {
+      duration = map['duration'] as String;
+    } else if (map['durationMin'] != null) {
+      // Convert old durationMin to duration string
+      duration = '${map['durationMin']} minutes';
+    }
+    
     return Service(
       serviceId: map['serviceId'] ?? '',
       title: map['title'] ?? '',
       category: map['category'] ?? 'general',
+      type: map['type'] ?? 'priced', // Default to 'priced' for backward compatibility
+      serviceType: map['serviceType'] ?? 'bookable', // Default to 'bookable' for backward compatibility
       description: map['description'],
-      priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
-      priceTo: (map['priceTo'] ?? 0.0).toDouble(),
-      durationMin: map['durationMin'] ?? 0,
-      imageUrl: map['imageUrl'],
+      priceFrom: map['priceFrom'] != null ? (map['priceFrom'] as num).toDouble() : null,
+      priceTo: map['priceTo'] != null ? (map['priceTo'] as num).toDouble() : null,
+      duration: duration,
+      imageUrl: map['imageUrl'], // Keep for backward compatibility
+      imageUrls: imageUrls, // New field
       availability: List<String>.from(map['availability'] ?? []),
       isActive: map['isActive'] ?? true,
       createdAt: map['createdAt'] != null 
@@ -47,6 +76,7 @@ class Service {
       updatedAt: map['updatedAt'] != null 
           ? (map['updatedAt'] as Timestamp).toDate() 
           : DateTime.now(),
+      contactInfo: map['contactInfo'] as Map<String, dynamic>?, // NEW: Contact information
     );
   }
 
@@ -55,43 +85,53 @@ class Service {
       'serviceId': serviceId,
       'title': title,
       'category': category,
+      'type': type,
+      'serviceType': serviceType, // NEW: Service type for booking/contact
       'description': description,
       'priceFrom': priceFrom,
       'priceTo': priceTo,
-      'durationMin': durationMin,
+      'duration': duration,
+      'imageUrls': imageUrls, // New field - store multiple image URLs
       'imageUrl': imageUrl,
       'availability': availability,
       'isActive': isActive,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      if (contactInfo != null) 'contactInfo': contactInfo, // NEW: Conditional contact info
     };
   }
 
   Service copyWith({
     String? title,
     String? category,
+    String? type,
+    String? serviceType,
     String? description,
     double? priceFrom,
     double? priceTo,
-    int? durationMin,
+    String? duration,
     String? imageUrl,
     List<String>? availability,
     bool? isActive,
     DateTime? updatedAt,
+    Map<String, dynamic>? contactInfo,
   }) {
     return Service(
       serviceId: serviceId,
       title: title ?? this.title,
       category: category ?? this.category,
+      type: type ?? this.type,
+      serviceType: serviceType ?? this.serviceType,
       description: description ?? this.description,
       priceFrom: priceFrom ?? this.priceFrom,
       priceTo: priceTo ?? this.priceTo,
-      durationMin: durationMin ?? this.durationMin,
+      duration: duration ?? this.duration,
       imageUrl: imageUrl ?? this.imageUrl,
       availability: availability ?? this.availability,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      contactInfo: contactInfo ?? this.contactInfo,
     );
   }
 }
@@ -102,6 +142,8 @@ class Provider {
   final String businessName;
   final String description;
   final String categoryId;
+  final String? customCategoryName; // NEW: Name of custom category if isCustomCategory is true
+  final bool isCustomCategory; // NEW: Whether this provider uses a custom category
   final List<Service> services;
   final String? logoUrl;
   final List<String> images;
@@ -127,6 +169,8 @@ class Provider {
     required this.businessName,
     required this.description,
     required this.categoryId,
+    this.customCategoryName,
+    this.isCustomCategory = false, // Default to false for existing providers
     required this.services,
     this.logoUrl,
     required this.images,
@@ -155,6 +199,8 @@ class Provider {
       businessName: data['businessName'] ?? '',
       description: data['description'] ?? '',
       categoryId: data['categoryId'] ?? '',
+      customCategoryName: data['customCategoryName'],
+      isCustomCategory: data['isCustomCategory'] ?? false,
       services: (data['services'] as List<dynamic>?)
               ?.map((e) => Service.fromMap(e as Map<String, dynamic>))
               .toList() ??
@@ -186,6 +232,8 @@ class Provider {
       businessName: data['businessName'] ?? '',
       description: data['description'] ?? '',
       categoryId: data['categoryId'] ?? '',
+      customCategoryName: data['customCategoryName'],
+      isCustomCategory: data['isCustomCategory'] ?? false,
       services: (data['services'] as List<dynamic>?)
               ?.map((e) => Service.fromMap(e as Map<String, dynamic>))
               .toList() ??
@@ -218,6 +266,8 @@ class Provider {
       'businessName': businessName,
       'description': description,
       'categoryId': categoryId,
+      'customCategoryName': customCategoryName,
+      'isCustomCategory': isCustomCategory,
       'services': services.map((e) => e.toMap()).toList(),
       'logoUrl': logoUrl,
       'images': images,

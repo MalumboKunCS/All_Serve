@@ -120,7 +120,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         }
 
         final bookings = snapshot.data ?? [];
-        
+
         if (bookings.isEmpty) {
           return Center(
             child: Column(
@@ -180,32 +180,32 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
                           booking.serviceTitle,
                           style: AppTheme.bodyLarge.copyWith(
-                            color: AppTheme.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                                  color: AppTheme.textPrimary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                         const SizedBox(height: 4),
-                        Text(
+                                    Text(
                           booking.serviceCategory,
                           style: AppTheme.bodyMedium.copyWith(
                             color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _getStatusColor(booking.status).withOpacity(0.2),
+                      color: _getStatusColor(booking.status).withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -214,9 +214,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                         color: _getStatusColor(booking.status),
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                  ),
-                ],
+                        ),
+                      ),
+                    ],
               ),
               const SizedBox(height: 12),
               Row(
@@ -243,20 +243,20 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                   Text(
                     booking.formattedScheduledTime,
                     style: AppTheme.bodyMedium.copyWith(
-                      color: AppTheme.textSecondary,
+                        color: AppTheme.textSecondary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
               Row(
-                children: [
-                  Icon(
+                    children: [
+                      Icon(
                     Icons.attach_money,
-                    size: 16,
+                        size: 16,
                     color: AppTheme.success,
-                  ),
-                  const SizedBox(width: 8),
+                      ),
+                      const SizedBox(width: 8),
                   Text(
                     'K${booking.totalPrice.toStringAsFixed(0)}',
                     style: AppTheme.bodyMedium.copyWith(

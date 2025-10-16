@@ -230,3 +230,11 @@ class ProviderReport {
   @override
   int get hashCode => reportId.hashCode;
 }
+
+
+
+
+
+
+
+

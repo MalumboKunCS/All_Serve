@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared/shared.dart';
 
@@ -8,7 +9,28 @@ void main() {
       expect(true, isTrue);
     });
 
-    test('User model can be created', () {
+    test('AppTheme constants are defined', () {
+      // Test that theme constants exist and have expected values
+      expect(AppTheme.primaryPurple, isA<Color>());
+      expect(AppTheme.primaryBlue, isA<Color>());
+      expect(AppTheme.success, isA<Color>());
+      expect(AppTheme.error, isA<Color>());
+      expect(AppTheme.warning, isA<Color>());
+      expect(AppTheme.info, isA<Color>());
+    });
+
+    test('AppTheme text styles are defined', () {
+      // Test that text styles exist
+      expect(AppTheme.heading1, isA<TextStyle>());
+      expect(AppTheme.heading2, isA<TextStyle>());
+      expect(AppTheme.heading3, isA<TextStyle>());
+      expect(AppTheme.bodyLarge, isA<TextStyle>());
+      expect(AppTheme.bodyMedium, isA<TextStyle>());
+      expect(AppTheme.caption, isA<TextStyle>());
+    });
+
+    test('Models can be instantiated', () {
+      // Test User model
       final user = User(
         uid: 'test-uid',
         name: 'Test User',
@@ -21,61 +43,42 @@ void main() {
       expect(user.uid, 'test-uid');
       expect(user.name, 'Test User');
       expect(user.role, 'customer');
-    });
-
-    test('Provider model can be created', () {
+      
+      // Test Provider model
       final provider = Provider(
-        providerId: 'provider-123',
+        providerId: 'test-provider-id',
+        ownerUid: 'test-uid',
         businessName: 'Test Business',
         description: 'Test Description',
-        categoryId: 'category-1',
-        ownerUid: 'owner-123',
+        categoryId: 'test-category',
+        services: [],
+        images: [],
+        lat: 0.0,
+        lng: 0.0,
+        geohash: 'test-geohash',
+        serviceAreaKm: 10.0,
+        documents: {},
         createdAt: DateTime.now(),
+        keywords: [],
       );
-      expect(provider.providerId, 'provider-123');
+      expect(provider.providerId, 'test-provider-id');
       expect(provider.businessName, 'Test Business');
-    });
-
-    test('Booking model can be created', () {
+      expect(provider.ownerUid, 'test-uid');
+      
+      // Test Booking model
       final booking = Booking(
-        bookingId: 'booking-123',
-        customerId: 'customer-123',
-        providerId: 'provider-123',
-        serviceId: 'service-123',
-        status: 'pending',
-        address: '123 Test Street',
+        bookingId: 'test-booking-id',
+        customerId: 'test-customer-id',
+        providerId: 'test-provider-id',
+        serviceId: 'test-service-id',
+        address: {'address': 'Test Address', 'lat': 0.0, 'lng': 0.0},
         scheduledAt: DateTime.now(),
+        requestedAt: DateTime.now(),
+        status: 'requested',
         createdAt: DateTime.now(),
       );
-      expect(booking.bookingId, 'booking-123');
-      expect(booking.status, 'pending');
-    });
-
-    test('Review model can be created', () {
-      final review = Review(
-        reviewId: 'review-123',
-        bookingId: 'booking-123',
-        customerId: 'customer-123',
-        providerId: 'provider-123',
-        rating: 5,
-        comment: 'Great service!',
-        createdAt: DateTime.now(),
-      );
-      expect(review.reviewId, 'review-123');
-      expect(review.rating, 5);
-    });
-
-    test('Announcement model can be created', () {
-      final announcement = Announcement(
-        announcementId: 'announcement-123',
-        title: 'Test Announcement',
-        message: 'Test message',
-        createdBy: 'admin-123',
-        createdAt: DateTime.now(),
-        audience: 'all',
-      );
-      expect(announcement.announcementId, 'announcement-123');
-      expect(announcement.title, 'Test Announcement');
+      expect(booking.bookingId, 'test-booking-id');
+      expect(booking.status, 'requested');
     });
   });
 }

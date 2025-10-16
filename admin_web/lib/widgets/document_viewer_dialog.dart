@@ -184,7 +184,7 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
               color: shared.AppTheme.backgroundDark,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: shared.AppTheme.primaryPurple.withOpacity(0.3),
+                color: shared.AppTheme.primaryPurple.withValues(alpha:0.3),
               ),
             ),
             child: _buildDocumentPreview(),
@@ -308,3 +308,11 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
     );
   }
 }
+
+
+
+
+
+
+
+

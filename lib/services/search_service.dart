@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show compute;
 import 'dart:math' as math;
 import '../models/provider.dart' as app_provider;
 import '../models/category.dart';
+import '../utils/app_logger.dart';
 
 
 class SearchService {
@@ -61,7 +62,7 @@ class SearchService {
         filters: searchFilters,
       );
     } catch (e) {
-      print('Error in advanced search: $e');
+      AppLogger.info('Error in advanced search: $e');
       return SearchResult(
         providers: [],
         totalCount: 0,
@@ -110,7 +111,7 @@ class SearchService {
 
       return providers.take(limit).toList();
         } catch (e) {
-      print('Error getting trending providers: $e');
+      AppLogger.info('Error getting trending providers: $e');
       return [];
     }
   }
@@ -144,7 +145,7 @@ class SearchService {
 
       return suggestions.take(limit).toList();
     } catch (e) {
-      print('Error getting search suggestions: $e');
+      AppLogger.info('Error getting search suggestions: $e');
       return [];
     }
   }
@@ -203,7 +204,7 @@ class SearchService {
       
       return providers.take(limit).toList();
     } catch (e) {
-      print('Error getting providers in area: $e');
+      AppLogger.info('Error getting providers in area: $e');
       return [];
     }
   }
@@ -219,7 +220,7 @@ class SearchService {
       final list = snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
       return List<Category>.from(list);
         } catch (e) {
-      print('Error getting categories: $e');
+      AppLogger.info('Error getting categories: $e');
       return <Category>[];
     }
   }
@@ -269,7 +270,7 @@ class SearchService {
 
       return List<Category>.from(categories);
     } catch (e) {
-      print('Error searching categories: $e');
+      AppLogger.info('Error searching categories: $e');
       return <Category>[];
     }
   }
@@ -330,7 +331,7 @@ class SearchService {
           .map((sp) => sp.provider)
           .toList();
     } catch (e) {
-      print('Error getting similar providers: $e');
+      AppLogger.info('Error getting similar providers: $e');
       return [];
     }
   }
@@ -358,6 +359,12 @@ class SearchService {
     }
 
     final snapshot = await query.limit(limit * 2).get(); // Get extra for filtering
+    
+    AppLogger.debug('Firestore query returned ${snapshot.docs.length} providers');
+    for (int i = 0; i < snapshot.docs.length && i < 3; i++) {
+      final doc = snapshot.docs[i];
+      AppLogger.debug('Provider from Firestore: ${doc['businessName']}');
+    }
 
     return snapshot.docs
         .map((doc) => app_provider.Provider.fromFirestore(doc))
@@ -420,6 +427,7 @@ class SearchService {
                   'priceTo': s.priceTo,
                   'title': s.title,
                   'serviceId': s.serviceId,
+                  'type': s.type,
                 })
             .toList(),
         'keywords': p.keywords,
@@ -466,7 +474,11 @@ class SearchService {
       // Price filtering
       if (maxPrice != null) {
         final services = p['services'] as List<dynamic>;
-        final hasAffordable = services.any((s) => (s['priceFrom'] as num).toDouble() <= maxPrice);
+        final hasAffordable = services.any((s) {
+          final priceFrom = s['priceFrom'];
+          if (priceFrom == null) return false; // Skip services without pricing
+          return (priceFrom as num).toDouble() <= maxPrice;
+        });
         if (!hasAffordable) continue;
       }
 
@@ -496,6 +508,12 @@ class SearchService {
         final name = (p['businessName'] as String).toLowerCase();
         final desc = (p['description'] as String).toLowerCase();
         double rel = 0.0;
+        
+        // Debug logging for search matching
+        if (name.contains(q) || desc.contains(q)) {
+          // This will help us see which providers are matching
+        }
+        
         if (name.contains(q)) {
           rel += 0.4;
           if (name.startsWith(q)) rel += 0.2;
@@ -506,6 +524,11 @@ class SearchService {
         final keywords = (p['keywords'] as List<dynamic>).map((e) => e.toString().toLowerCase());
         if (keywords.any((k) => k.contains(q))) rel += 0.1;
         score += math.min(rel, 1.0) * 0.4;
+        
+        // Only include providers that have some relevance to the query
+        if (rel == 0.0) {
+          continue; // Skip providers that don't match the query at all
+        }
       }
 
       // Recency + service count bonus
@@ -535,23 +558,27 @@ class SearchService {
         break;
       case SortBy.priceAsc:
         providers.sort((a, b) {
-          final aMin = a.provider.services.isNotEmpty 
-              ? a.provider.services.map((s) => s.priceFrom).reduce(math.min)
-              : 0.0;
-          final bMin = b.provider.services.isNotEmpty 
-              ? b.provider.services.map((s) => s.priceFrom).reduce(math.min)
-              : 0.0;
+          final aMin = a.provider.services
+              .where((s) => s.priceFrom != null)
+              .map((s) => s.priceFrom!)
+              .fold<double>(double.infinity, math.min);
+          final bMin = b.provider.services
+              .where((s) => s.priceFrom != null)
+              .map((s) => s.priceFrom!)
+              .fold<double>(double.infinity, math.min);
           return aMin.compareTo(bMin);
         });
         break;
       case SortBy.priceDesc:
         providers.sort((a, b) {
-          final aMax = a.provider.services.isNotEmpty 
-              ? a.provider.services.map((s) => s.priceTo).reduce(math.max)
-              : 0.0;
-          final bMax = b.provider.services.isNotEmpty 
-              ? b.provider.services.map((s) => s.priceTo).reduce(math.max)
-              : 0.0;
+          final aMax = a.provider.services
+              .where((s) => s.priceTo != null)
+              .map((s) => s.priceTo!)
+              .fold<double>(0.0, math.max);
+          final bMax = b.provider.services
+              .where((s) => s.priceTo != null)
+              .map((s) => s.priceTo!)
+              .fold<double>(0.0, math.max);
           return bMax.compareTo(aMax);
         });
         break;

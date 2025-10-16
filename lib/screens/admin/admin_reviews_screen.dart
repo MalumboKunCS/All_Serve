@@ -156,7 +156,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.error.withOpacity(0.2),
+                      color: AppTheme.error.withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppTheme.error),
                     ),
@@ -185,7 +185,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.backgroundDark.withOpacity(0.5),
+                  color: AppTheme.backgroundDark.withValues(alpha:0.5),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -259,7 +259,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                   return Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary.withOpacity(0.1),
+                      color: AppTheme.primary.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
@@ -287,9 +287,9 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.1),
+                  color: AppTheme.warning.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.warning.withValues(alpha:0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

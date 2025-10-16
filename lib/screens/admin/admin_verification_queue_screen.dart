@@ -192,12 +192,37 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  provider.businessName,
-                                  style: AppTheme.bodyText.copyWith(
-                                    color: AppTheme.textPrimary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        provider.businessName,
+                                        style: AppTheme.bodyText.copyWith(
+                                          color: AppTheme.textPrimary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                    if (provider.isCustomCategory) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.warning.withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: AppTheme.warning.withValues(alpha: 0.5)),
+                                        ),
+                                        child: Text(
+                                          'NEW CATEGORY',
+                                          style: AppTheme.caption.copyWith(
+                                            color: AppTheme.warning,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 10,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 Text(
                                   provider.description,
@@ -207,6 +232,22 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
+                                if (provider.isCustomCategory && provider.customCategoryName != null) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.category, size: 12, color: AppTheme.warning),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Custom Category: ${provider.customCategoryName}',
+                                        style: AppTheme.caption.copyWith(
+                                          color: AppTheme.warning,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -227,7 +268,7 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
                             return Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: AppTheme.backgroundDark.withOpacity(0.5),
+                                color: AppTheme.backgroundDark.withValues(alpha:0.5),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
@@ -266,9 +307,9 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.1),
+                  color: AppTheme.warning.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.warning.withValues(alpha:0.3)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,9 +365,9 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha:0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -362,7 +403,7 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.error.withOpacity(0.1),
+              color: AppTheme.error.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -408,7 +449,7 @@ class _AdminVerificationQueueScreenState extends State<AdminVerificationQueueScr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.warning.withOpacity(0.1),
+              color: AppTheme.warning.withValues(alpha:0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Column(

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/app_logger.dart';
 
 class AdminServiceClient {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -10,7 +11,7 @@ class AdminServiceClient {
     String? notes,
   }) async {
     try {
-      print('AdminServiceClient: Approving provider: $providerId');
+      AppLogger.info('AdminServiceClient: Approving provider: $providerId');
       
       // Update provider verification status
       await _firestore.collection('providers').doc(providerId).update({
@@ -38,10 +39,10 @@ class AdminServiceClient {
         });
       }
 
-      print('AdminServiceClient: Provider approved successfully');
+      AppLogger.info('AdminServiceClient: Provider approved successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error approving provider: $e');
+      AppLogger.info('AdminServiceClient: Error approving provider: $e');
       return false;
     }
   }
@@ -53,7 +54,7 @@ class AdminServiceClient {
     required String reason,
   }) async {
     try {
-      print('AdminServiceClient: Rejecting provider: $providerId');
+      AppLogger.info('AdminServiceClient: Rejecting provider: $providerId');
       
       // Update provider verification status
       await _firestore.collection('providers').doc(providerId).update({
@@ -81,10 +82,10 @@ class AdminServiceClient {
         });
       }
 
-      print('AdminServiceClient: Provider rejected successfully');
+      AppLogger.info('AdminServiceClient: Provider rejected successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error rejecting provider: $e');
+      AppLogger.info('AdminServiceClient: Error rejecting provider: $e');
       return false;
     }
   }
@@ -100,7 +101,7 @@ class AdminServiceClient {
     DateTime? expiresAt,
   }) async {
     try {
-      print('AdminServiceClient: Sending announcement: $title');
+      AppLogger.info('AdminServiceClient: Sending announcement: $title');
       
       final announcementId = DateTime.now().millisecondsSinceEpoch.toString();
       
@@ -118,10 +119,10 @@ class AdminServiceClient {
         'sentCount': 0,
       });
 
-      print('AdminServiceClient: Announcement sent successfully');
+      AppLogger.info('AdminServiceClient: Announcement sent successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error sending announcement: $e');
+      AppLogger.info('AdminServiceClient: Error sending announcement: $e');
       return false;
     }
   }
@@ -129,7 +130,7 @@ class AdminServiceClient {
   // Get verification queue
   Future<List<Map<String, dynamic>>> getVerificationQueue() async {
     try {
-      print('AdminServiceClient: Fetching verification queue');
+      AppLogger.info('AdminServiceClient: Fetching verification queue');
       
       final query = await _firestore
           .collection('verificationQueue')
@@ -143,10 +144,10 @@ class AdminServiceClient {
         return data;
       }).toList();
 
-      print('AdminServiceClient: Found ${queue.length} pending verifications');
+      AppLogger.info('AdminServiceClient: Found ${queue.length} pending verifications');
       return queue;
     } catch (e) {
-      print('AdminServiceClient: Error fetching verification queue: $e');
+      AppLogger.info('AdminServiceClient: Error fetching verification queue: $e');
       return [];
     }
   }
@@ -154,7 +155,7 @@ class AdminServiceClient {
   // Get all providers
   Future<List<Map<String, dynamic>>> getAllProviders() async {
     try {
-      print('AdminServiceClient: Fetching all providers');
+      AppLogger.info('AdminServiceClient: Fetching all providers');
       
       final query = await _firestore
           .collection('providers')
@@ -167,10 +168,10 @@ class AdminServiceClient {
         return data;
       }).toList();
 
-      print('AdminServiceClient: Found ${providers.length} providers');
+      AppLogger.info('AdminServiceClient: Found ${providers.length} providers');
       return providers;
     } catch (e) {
-      print('AdminServiceClient: Error fetching providers: $e');
+      AppLogger.info('AdminServiceClient: Error fetching providers: $e');
       return [];
     }
   }
@@ -178,7 +179,7 @@ class AdminServiceClient {
   // Get all users
   Future<List<Map<String, dynamic>>> getAllUsers() async {
     try {
-      print('AdminServiceClient: Fetching all users');
+      AppLogger.info('AdminServiceClient: Fetching all users');
       
       final query = await _firestore
           .collection('users')
@@ -191,10 +192,10 @@ class AdminServiceClient {
         return data;
       }).toList();
 
-      print('AdminServiceClient: Found ${users.length} users');
+      AppLogger.info('AdminServiceClient: Found ${users.length} users');
       return users;
     } catch (e) {
-      print('AdminServiceClient: Error fetching users: $e');
+      AppLogger.info('AdminServiceClient: Error fetching users: $e');
       return [];
     }
   }
@@ -202,7 +203,7 @@ class AdminServiceClient {
   // Get all bookings
   Future<List<Map<String, dynamic>>> getAllBookings() async {
     try {
-      print('AdminServiceClient: Fetching all bookings');
+      AppLogger.info('AdminServiceClient: Fetching all bookings');
       
       final query = await _firestore
           .collection('bookings')
@@ -215,10 +216,10 @@ class AdminServiceClient {
         return data;
       }).toList();
 
-      print('AdminServiceClient: Found ${bookings.length} bookings');
+      AppLogger.info('AdminServiceClient: Found ${bookings.length} bookings');
       return bookings;
     } catch (e) {
-      print('AdminServiceClient: Error fetching bookings: $e');
+      AppLogger.info('AdminServiceClient: Error fetching bookings: $e');
       return [];
     }
   }
@@ -226,7 +227,7 @@ class AdminServiceClient {
   // Get all reviews
   Future<List<Map<String, dynamic>>> getAllReviews() async {
     try {
-      print('AdminServiceClient: Fetching all reviews');
+      AppLogger.info('AdminServiceClient: Fetching all reviews');
       
       final query = await _firestore
           .collection('reviews')
@@ -239,10 +240,10 @@ class AdminServiceClient {
         return data;
       }).toList();
 
-      print('AdminServiceClient: Found ${reviews.length} reviews');
+      AppLogger.info('AdminServiceClient: Found ${reviews.length} reviews');
       return reviews;
     } catch (e) {
-      print('AdminServiceClient: Error fetching reviews: $e');
+      AppLogger.info('AdminServiceClient: Error fetching reviews: $e');
       return [];
     }
   }
@@ -254,7 +255,7 @@ class AdminServiceClient {
     required String adminUid,
   }) async {
     try {
-      print('AdminServiceClient: Flagging review: $reviewId');
+      AppLogger.info('AdminServiceClient: Flagging review: $reviewId');
       
       await _firestore.collection('reviews').doc(reviewId).update({
         'flagged': true,
@@ -263,10 +264,10 @@ class AdminServiceClient {
         'flaggedBy': adminUid,
       });
 
-      print('AdminServiceClient: Review flagged successfully');
+      AppLogger.info('AdminServiceClient: Review flagged successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error flagging review: $e');
+      AppLogger.info('AdminServiceClient: Error flagging review: $e');
       return false;
     }
   }
@@ -278,7 +279,7 @@ class AdminServiceClient {
     required String adminUid,
   }) async {
     try {
-      print('AdminServiceClient: Suspending provider: $providerId');
+      AppLogger.info('AdminServiceClient: Suspending provider: $providerId');
       
       await _firestore.collection('providers').doc(providerId).update({
         'status': 'suspended',
@@ -288,10 +289,10 @@ class AdminServiceClient {
         'updatedAt': Timestamp.now(),
       });
 
-      print('AdminServiceClient: Provider suspended successfully');
+      AppLogger.info('AdminServiceClient: Provider suspended successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error suspending provider: $e');
+      AppLogger.info('AdminServiceClient: Error suspending provider: $e');
       return false;
     }
   }
@@ -302,7 +303,7 @@ class AdminServiceClient {
     required String adminUid,
   }) async {
     try {
-      print('AdminServiceClient: Reactivating provider: $providerId');
+      AppLogger.info('AdminServiceClient: Reactivating provider: $providerId');
       
       await _firestore.collection('providers').doc(providerId).update({
         'status': 'active',
@@ -311,10 +312,10 @@ class AdminServiceClient {
         'updatedAt': Timestamp.now(),
       });
 
-      print('AdminServiceClient: Provider reactivated successfully');
+      AppLogger.info('AdminServiceClient: Provider reactivated successfully');
       return true;
     } catch (e) {
-      print('AdminServiceClient: Error reactivating provider: $e');
+      AppLogger.info('AdminServiceClient: Error reactivating provider: $e');
       return false;
     }
   }

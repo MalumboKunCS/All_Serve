@@ -10,6 +10,7 @@ import '../provider/provider_dashboard_screen.dart';
 import '../provider/provider_registration_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import '../../services/provider_registration_service.dart';
+import '../../utils/app_logger.dart';
 // Post-login navigation is handled by SplashScreen via auth state listener
 
 class LoginScreen extends StatefulWidget {
@@ -39,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      print('LoginScreen: Starting login process for ${_emailController.text.trim()}');
+      AppLogger.info('LoginScreen: Starting login process for ${_emailController.text.trim()}');
       final authService = context.read<shared.AuthService>();
       
       final credential = await authService.signInWithEmailAndPassword(
@@ -47,18 +48,18 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       
-      print('LoginScreen: Login successful, credential: ${credential.user?.uid}');
+      AppLogger.info('LoginScreen: Login successful, credential: ${credential.user?.uid}');
       
       // Check if user document exists in Firestore
       final userWithData = await authService.getCurrentUserWithData();
-      print('LoginScreen: User data from Firestore: ${userWithData?.uid}, role: ${userWithData?.role}');
+      AppLogger.info('LoginScreen: User data from Firestore: ${userWithData?.uid}, role: ${userWithData?.role}');
       
       if (userWithData == null) {
         throw Exception('User profile not found. Please contact support.');
       }
       
       // Navigate based on role immediately so we leave the login page
-      print('LoginScreen: Login completed successfully');
+      AppLogger.info('LoginScreen: Login completed successfully');
       if (!mounted) return;
       final role = (userWithData.role).toLowerCase();
       Widget destination;
@@ -86,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       
     } catch (e) {
-      print('LoginScreen: Login error: $e');
+      AppLogger.error('LoginScreen: Login error: $e');
       setState(() => _isLoading = false);
       
       if (e.toString().contains('2FA_REQUIRED')) {
@@ -151,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -179,7 +180,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'Sign in to continue to All-Serve',
                     style: AppTheme.bodyLarge.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ),
                   
@@ -193,7 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -308,17 +309,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Divider
                           Row(
                             children: [
-                              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+                              Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'OR',
                                   style: AppTheme.bodyMedium.copyWith(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ),
-                              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+                              Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
                             ],
                           ),
                           
@@ -331,7 +332,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               Text(
                                 "Don't have an account? ",
                                 style: AppTheme.bodyMedium.copyWith(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                 ),
                               ),
                               TextButton(

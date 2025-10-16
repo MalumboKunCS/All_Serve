@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user.dart';
+import '../utils/app_logger.dart';
 
 class AuthService {
   final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
@@ -11,16 +12,16 @@ class AuthService {
   // Current user stream
   Stream<User?> get userStream => _auth.authStateChanges().asyncMap((firebaseUser) async {
     try {
-      print('AuthService: Auth state changed - Firebase user: ${firebaseUser?.uid}');
+      AppLogger.info('AuthService: Auth state changed - Firebase user: ${firebaseUser?.uid}');
       if (firebaseUser != null) {
         final user = await _getUserFromFirestore(firebaseUser.uid);
-        print('AuthService: Fetched user from Firestore: ${user?.uid}, role: ${user?.role}');
+        AppLogger.info('AuthService: Fetched user from Firestore: ${user?.uid}, role: ${user?.role}');
         return user;
       }
-      print('AuthService: No Firebase user, returning null');
+      AppLogger.info('AuthService: No Firebase user, returning null');
       return null;
     } catch (e) {
-      print('AuthService: Error in userStream: $e');
+      AppLogger.info('AuthService: Error in userStream: $e');
       return null;
     }
   });
@@ -134,7 +135,7 @@ class AuthService {
           .doc(uid)
           .set(providerData);
     } catch (e) {
-      print('Error creating pending provider record: $e');
+      AppLogger.info('Error creating pending provider record: $e');
       // Don't rethrow - user creation should still succeed
     }
   }
@@ -145,14 +146,14 @@ class AuthService {
     required String password,
   }) async {
     try {
-      print('AuthService: Attempting sign in for email: $email');
+      AppLogger.info('AuthService: Attempting sign in for email: $email');
       
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      print('AuthService: Firebase sign in successful for uid: ${credential.user?.uid}');
+      AppLogger.info('AuthService: Firebase sign in successful for uid: ${credential.user?.uid}');
 
       // Check if 2FA is enabled
       final userDoc = await _firestore
@@ -160,12 +161,12 @@ class AuthService {
           .doc(credential.user!.uid)
           .get();
 
-      print('AuthService: Checking user document exists: ${userDoc.exists}');
+      AppLogger.info('AuthService: Checking user document exists: ${userDoc.exists}');
 
       if (userDoc.exists) {
         final userData = userDoc.data()!;
         final is2FAEnabled = userData['is2FAEnabled'] == true;
-        print('AuthService: 2FA enabled: $is2FAEnabled');
+        AppLogger.info('AuthService: 2FA enabled: $is2FAEnabled');
         
         if (is2FAEnabled) {
           // Store temporary auth state for 2FA verification
@@ -175,17 +176,17 @@ class AuthService {
           );
           // Sign out until 2FA is verified
           await _auth.signOut();
-          print('AuthService: Signed out due to 2FA requirement');
+          AppLogger.info('AuthService: Signed out due to 2FA requirement');
           throw Exception('2FA_REQUIRED');
         }
       } else {
-        print('AuthService: Warning - User document not found in Firestore');
+        AppLogger.info('AuthService: Warning - User document not found in Firestore');
       }
 
-      print('AuthService: Sign in completed successfully');
+      AppLogger.info('AuthService: Sign in completed successfully');
       return credential;
     } catch (e) {
-      print('AuthService: Sign in error: $e');
+      AppLogger.info('AuthService: Sign in error: $e');
       rethrow;
     }
   }
@@ -258,7 +259,7 @@ class AuthService {
       // For development/testing, accept any 6-digit code
       return RegExp(r'^\d{6}$').hasMatch(code);
     } catch (e) {
-      print('TOTP verification error: $e');
+      AppLogger.info('TOTP verification error: $e');
       return false;
     }
   }
@@ -372,19 +373,19 @@ class AuthService {
   // Get user from Firestore
   Future<User?> _getUserFromFirestore(String uid) async {
     try {
-      print('AuthService: Fetching user from Firestore for uid: $uid');
+      AppLogger.info('AuthService: Fetching user from Firestore for uid: $uid');
       final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
         final userData = doc.data();
-        print('AuthService: User document data: $userData');
+        AppLogger.info('AuthService: User document data: $userData');
         final user = User.fromFirestore(doc);
-        print('AuthService: Successfully created User object for: ${user.uid}');
+        AppLogger.info('AuthService: Successfully created User object for: ${user.uid}');
         return user;
       }
-      print('AuthService: User document does not exist for uid: $uid');
+      AppLogger.info('AuthService: User document does not exist for uid: $uid');
       return null;
     } catch (e) {
-      print('AuthService: Error fetching user from Firestore: $e');
+      AppLogger.info('AuthService: Error fetching user from Firestore: $e');
       return null;
     }
   }

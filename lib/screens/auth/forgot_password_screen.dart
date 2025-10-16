@@ -166,7 +166,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ] else ...[
                 // Success State
                 Card(
-                  color: AppTheme.success.withOpacity(0.1),
+                  color: AppTheme.success.withValues(alpha:0.1),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
@@ -216,7 +216,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Expanded(
                     child: Container(
                       height: 1,
-                      color: AppTheme.textSecondary.withOpacity(0.3),
+                      color: AppTheme.textSecondary.withValues(alpha:0.3),
                     ),
                   ),
                   Padding(
@@ -231,7 +231,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Expanded(
                     child: Container(
                       height: 1,
-                      color: AppTheme.textSecondary.withOpacity(0.3),
+                      color: AppTheme.textSecondary.withValues(alpha:0.3),
                     ),
                   ),
                 ],
@@ -256,10 +256,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceDark.withOpacity(0.5),
+                  color: AppTheme.surfaceDark.withValues(alpha:0.5),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.textSecondary.withOpacity(0.2),
+                    color: AppTheme.textSecondary.withValues(alpha:0.2),
                   ),
                 ),
                 child: Column(

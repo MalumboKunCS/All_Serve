@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared/shared.dart' as shared;
+import '../utils/app_logger.dart';
 
 class CustomerManagementService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -31,7 +32,7 @@ class CustomerManagementService {
         return shared.User.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting all customers: $e');
+      AppLogger.info('Error getting all customers: $e');
       return [];
     }
   }
@@ -47,7 +48,7 @@ class CustomerManagementService {
       }
       return null;
     } catch (e) {
-      print('Error getting customer by ID: $e');
+      AppLogger.info('Error getting customer by ID: $e');
       return null;
     }
   }
@@ -82,7 +83,7 @@ class CustomerManagementService {
 
       return true;
     } catch (e) {
-      print('Error suspending customer: $e');
+      AppLogger.info('Error suspending customer: $e');
       return false;
     }
   }
@@ -116,7 +117,7 @@ class CustomerManagementService {
 
       return true;
     } catch (e) {
-      print('Error activating customer: $e');
+      AppLogger.info('Error activating customer: $e');
       return false;
     }
   }
@@ -146,7 +147,7 @@ class CustomerManagementService {
 
       return true;
     } catch (e) {
-      print('Error deleting customer: $e');
+      AppLogger.info('Error deleting customer: $e');
       return false;
     }
   }
@@ -173,7 +174,7 @@ class CustomerManagementService {
 
       return true;
     } catch (e) {
-      print('Error flagging customer: $e');
+      AppLogger.info('Error flagging customer: $e');
       return false;
     }
   }
@@ -221,7 +222,7 @@ class CustomerManagementService {
             : null,
       };
     } catch (e) {
-      print('Error getting customer analytics: $e');
+      AppLogger.info('Error getting customer analytics: $e');
       return {};
     }
   }
@@ -240,7 +241,7 @@ class CustomerManagementService {
         return shared.Booking.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting customer bookings: $e');
+      AppLogger.info('Error getting customer bookings: $e');
       return [];
     }
   }
@@ -259,7 +260,7 @@ class CustomerManagementService {
         return shared.Review.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting customer reviews: $e');
+      AppLogger.info('Error getting customer reviews: $e');
       return [];
     }
   }
@@ -281,7 +282,7 @@ class CustomerManagementService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting flagged customers: $e');
+      AppLogger.info('Error getting flagged customers: $e');
       return [];
     }
   }
@@ -304,7 +305,7 @@ class CustomerManagementService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting customer logs: $e');
+      AppLogger.info('Error getting customer logs: $e');
       return [];
     }
   }
@@ -355,7 +356,7 @@ class CustomerManagementService {
         'inactiveCustomers': totalCustomersSnapshot.docs.length - activeCustomerIds,
       };
     } catch (e) {
-      print('Error getting customer growth stats: $e');
+      AppLogger.info('Error getting customer growth stats: $e');
       return {};
     }
   }
@@ -376,7 +377,7 @@ class CustomerManagementService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error logging customer action: $e');
+      AppLogger.info('Error logging customer action: $e');
     }
   }
 }

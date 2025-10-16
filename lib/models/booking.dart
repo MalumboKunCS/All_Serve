@@ -38,6 +38,12 @@ class Booking {
   final bool isUrgent;
   final String? timeSlot; // e.g., "09:00-10:00"
   final List<String> specialRequirements;
+  
+  // Customer contact information
+  final String? customerFullName;
+  final String? customerPhoneNumber;
+  final String? customerEmailAddress;
+  final String? additionalNotes;
 
   Booking({
     required this.bookingId,
@@ -67,6 +73,10 @@ class Booking {
     this.isUrgent = false,
     this.timeSlot,
     this.specialRequirements = const [],
+    this.customerFullName,
+    this.customerPhoneNumber,
+    this.customerEmailAddress,
+    this.additionalNotes,
   });
 
   factory Booking.fromFirestore(DocumentSnapshot doc) {
@@ -124,6 +134,10 @@ class Booking {
       isUrgent: data['isUrgent'] ?? false,
       timeSlot: data['timeSlot'],
       specialRequirements: List<String>.from(data['specialRequirements'] ?? []),
+      customerFullName: data['customerFullName'],
+      customerPhoneNumber: data['customerPhoneNumber'],
+      customerEmailAddress: data['customerEmailAddress'],
+      additionalNotes: data['additionalNotes'],
     );
   }
 
@@ -181,6 +195,10 @@ class Booking {
       isUrgent: data['isUrgent'] ?? false,
       timeSlot: data['timeSlot'],
       specialRequirements: List<String>.from(data['specialRequirements'] ?? []),
+      customerFullName: data['customerFullName'],
+      customerPhoneNumber: data['customerPhoneNumber'],
+      customerEmailAddress: data['customerEmailAddress'],
+      additionalNotes: data['additionalNotes'],
     );
   }
 
@@ -212,6 +230,10 @@ class Booking {
       'isUrgent': isUrgent,
       'timeSlot': timeSlot,
       'specialRequirements': specialRequirements,
+      'customerFullName': customerFullName,
+      'customerPhoneNumber': customerPhoneNumber,
+      'customerEmailAddress': customerEmailAddress,
+      'additionalNotes': additionalNotes,
     };
   }
 
@@ -243,6 +265,10 @@ class Booking {
     bool? isUrgent,
     String? timeSlot,
     List<String>? specialRequirements,
+    String? customerFullName,
+    String? customerPhoneNumber,
+    String? customerEmailAddress,
+    String? additionalNotes,
   }) {
     return Booking(
       bookingId: bookingId ?? this.bookingId,
@@ -272,6 +298,10 @@ class Booking {
       isUrgent: isUrgent ?? this.isUrgent,
       timeSlot: timeSlot ?? this.timeSlot,
       specialRequirements: specialRequirements ?? this.specialRequirements,
+      customerFullName: customerFullName ?? this.customerFullName,
+      customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
+      customerEmailAddress: customerEmailAddress ?? this.customerEmailAddress,
+      additionalNotes: additionalNotes ?? this.additionalNotes,
     );
   }
 

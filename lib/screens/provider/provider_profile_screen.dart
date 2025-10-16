@@ -6,6 +6,7 @@ import '../../models/provider.dart' as app_provider;
 import '../../models/category.dart';
 import '../../services/location_service.dart';
 import '../../services/search_service.dart';
+import '../../utils/app_logger.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -32,6 +33,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   bool _isLoading = false;
   bool _isLoadingLocation = false;
   final LocationService _locationService = LocationService();
+  
+  // Custom category support
+  bool _isCustomCategory = false;
+  final _customCategoryController = TextEditingController();
 
   @override
   void initState() {
@@ -46,6 +51,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     _descriptionController.dispose();
     _websiteController.dispose();
     _serviceAreaController.dispose();
+    _customCategoryController.dispose();
     super.dispose();
   }
 
@@ -56,7 +62,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         setState(() => _categories = List<Category>.from(categories));
       }
     } catch (e) {
-      print('Error loading categories: $e');
+      AppLogger.error('Error loading categories: $e');
     }
   }
 
@@ -92,17 +98,15 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       }
 
       final position = await _locationService.getCurrentLocation();
-      if (position != null) {
+      if (position != null && mounted) {
         setState(() => _selectedLocation = position);
         
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Location updated successfully'),
-              backgroundColor: AppTheme.success,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Location updated successfully'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -122,10 +126,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedCategoryId == null) {
+    
+    // Validate category selection
+    if (!_isCustomCategory && _selectedCategoryId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please select a category'),
+          content: const Text('Please select a category or enter a custom category'),
+          backgroundColor: AppTheme.error,
+        ),
+      );
+      return;
+    }
+    
+    if (_isCustomCategory && _customCategoryController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter a custom category name'),
           backgroundColor: AppTheme.error,
         ),
       );
@@ -154,7 +170,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       final profileData = {
         'businessName': _businessNameController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'categoryId': _selectedCategoryId!,
+        'categoryId': _isCustomCategory ? 'pending' : _selectedCategoryId!,
+        'customCategoryName': _isCustomCategory ? _customCategoryController.text.trim() : null,
+        'isCustomCategory': _isCustomCategory,
         'websiteUrl': _websiteController.text.trim().isNotEmpty 
           ? _websiteController.text.trim() 
           : null,
@@ -301,34 +319,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               
               const SizedBox(height: 16),
               
-              // Category Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedCategoryId,
-                decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Service Category',
-                  prefixIcon: const Icon(Icons.category),
-                ),
-                style: const TextStyle(color: AppTheme.textPrimary),
-                dropdownColor: AppTheme.surfaceDark,
-                items: _categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category.categoryId,
-                    child: Text(
-                      category.name,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() => _selectedCategoryId = value);
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a category';
-                  }
-                  return null;
-                },
-              ),
+              // Category Selection
+              _buildCategorySelection(),
               
               const SizedBox(height: 16),
               
@@ -459,6 +451,124 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         color: AppTheme.textPrimary,
         fontWeight: FontWeight.bold,
       ),
+    );
+  }
+
+  Widget _buildCategorySelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Service Category',
+          style: AppTheme.bodyLarge.copyWith(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // Category Type Selection
+        Row(
+          children: [
+            Expanded(
+              child: RadioListTile<bool>(
+                title: const Text('Existing Category'),
+                value: false,
+                groupValue: _isCustomCategory,
+                onChanged: (value) {
+                  setState(() {
+                    _isCustomCategory = value!;
+                    if (!_isCustomCategory) {
+                      _customCategoryController.clear();
+                    }
+                  });
+                },
+                activeColor: AppTheme.primary,
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<bool>(
+                title: const Text('Custom Category'),
+                value: true,
+                groupValue: _isCustomCategory,
+                onChanged: (value) {
+                  setState(() {
+                    _isCustomCategory = value!;
+                    if (_isCustomCategory) {
+                      _selectedCategoryId = null;
+                    }
+                  });
+                },
+                activeColor: AppTheme.primary,
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 16),
+        
+        // Category Input
+        if (!_isCustomCategory) ...[
+          DropdownButtonFormField<String>(
+            value: _selectedCategoryId,
+            decoration: AppTheme.inputDecoration.copyWith(
+              labelText: 'Select Category',
+              prefixIcon: const Icon(Icons.category),
+            ),
+            style: const TextStyle(color: AppTheme.textPrimary),
+            dropdownColor: AppTheme.surfaceDark,
+            items: _categories.map((category) {
+              return DropdownMenuItem(
+                value: category.categoryId,
+                child: Text(
+                  category.name,
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                ),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() => _selectedCategoryId = value);
+            },
+          ),
+        ] else ...[
+          TextFormField(
+            controller: _customCategoryController,
+            decoration: AppTheme.inputDecoration.copyWith(
+              labelText: 'Custom Category Name',
+              prefixIcon: const Icon(Icons.add_circle_outline),
+              hintText: 'e.g., Wedding Photography, Pet Grooming',
+            ),
+            style: const TextStyle(color: AppTheme.textPrimary),
+            validator: (value) {
+              if (_isCustomCategory && (value == null || value.trim().isEmpty)) {
+                return 'Please enter a custom category name';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.info.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.info.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppTheme.info, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Custom categories require admin approval before becoming active.',
+                    style: AppTheme.caption.copyWith(color: AppTheme.info),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

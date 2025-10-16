@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared/shared.dart' as shared;
+import '../utils/app_logger.dart';
 
 class ProviderReportService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -44,7 +45,7 @@ class ProviderReportService {
 
       return docRef.id;
     } catch (e) {
-      print('Error creating provider report: $e');
+      AppLogger.info('Error creating provider report: $e');
       return null;
     }
   }
@@ -62,7 +63,7 @@ class ProviderReportService {
         return shared.ProviderReport.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting reports for provider: $e');
+      AppLogger.info('Error getting reports for provider: $e');
       return [];
     }
   }
@@ -97,7 +98,7 @@ class ProviderReportService {
         return shared.ProviderReport.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting all reports: $e');
+      AppLogger.info('Error getting all reports: $e');
       return [];
     }
   }
@@ -112,7 +113,7 @@ class ProviderReportService {
       }
       return null;
     } catch (e) {
-      print('Error getting report by ID: $e');
+      AppLogger.info('Error getting report by ID: $e');
       return null;
     }
   }
@@ -148,7 +149,7 @@ class ProviderReportService {
 
       return true;
     } catch (e) {
-      print('Error updating report status: $e');
+      AppLogger.info('Error updating report status: $e');
       return false;
     }
   }
@@ -171,7 +172,7 @@ class ProviderReportService {
 
       return true;
     } catch (e) {
-      print('Error adding admin notes: $e');
+      AppLogger.info('Error adding admin notes: $e');
       return false;
     }
   }
@@ -211,7 +212,7 @@ class ProviderReportService {
 
       return stats;
     } catch (e) {
-      print('Error getting report stats: $e');
+      AppLogger.info('Error getting report stats: $e');
       return {};
     }
   }
@@ -232,7 +233,7 @@ class ProviderReportService {
         return shared.ProviderReport.fromFirestore(doc);
       }).toList();
     } catch (e) {
-      print('Error getting high priority reports: $e');
+      AppLogger.info('Error getting high priority reports: $e');
       return [];
     }
   }
@@ -277,7 +278,7 @@ class ProviderReportService {
 
       return true;
     } catch (e) {
-      print('Error deleting report: $e');
+      AppLogger.info('Error deleting report: $e');
       return false;
     }
   }
@@ -298,7 +299,7 @@ class ProviderReportService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error logging report action: $e');
+      AppLogger.info('Error logging report action: $e');
     }
   }
 
@@ -320,7 +321,7 @@ class ProviderReportService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting report logs: $e');
+      AppLogger.info('Error getting report logs: $e');
       return [];
     }
   }

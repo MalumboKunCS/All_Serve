@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/review.dart';
+import '../utils/app_logger.dart';
 
 class ReviewServiceClient {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -13,7 +14,7 @@ class ReviewServiceClient {
     required String comment,
   }) async {
     try {
-      print('ReviewServiceClient: Creating review for booking: $bookingId');
+      AppLogger.info('ReviewServiceClient: Creating review for booking: $bookingId');
       
       // 1. Validate booking exists and is completed
       final bookingDoc = await _firestore
@@ -34,7 +35,7 @@ class ReviewServiceClient {
         throw Exception('Unauthorized to review this booking');
       }
 
-      print('ReviewServiceClient: Booking validation passed');
+      AppLogger.info('ReviewServiceClient: Booking validation passed');
 
       // 2. Check if review already exists
       final existingReviewQuery = await _firestore
@@ -47,7 +48,7 @@ class ReviewServiceClient {
         throw Exception('Review already exists for this booking');
       }
 
-      print('ReviewServiceClient: No existing review found');
+      AppLogger.info('ReviewServiceClient: No existing review found');
 
       // 3. Create review
       final reviewId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -65,14 +66,14 @@ class ReviewServiceClient {
 
       await _firestore.collection('reviews').doc(reviewId).set(review);
 
-      print('ReviewServiceClient: Review created successfully with ID: $reviewId');
+      AppLogger.info('ReviewServiceClient: Review created successfully with ID: $reviewId');
 
       // 4. Update provider rating
       await _updateProviderRating(providerId);
 
       return reviewId;
     } catch (e) {
-      print('ReviewServiceClient: Error creating review: $e');
+      AppLogger.info('ReviewServiceClient: Error creating review: $e');
       rethrow;
     }
   }
@@ -85,7 +86,7 @@ class ReviewServiceClient {
     required String comment,
   }) async {
     try {
-      print('ReviewServiceClient: Updating review: $reviewId');
+      AppLogger.info('ReviewServiceClient: Updating review: $reviewId');
       
       // Verify user owns the review
       final reviewDoc = await _firestore
@@ -109,14 +110,14 @@ class ReviewServiceClient {
         'updatedAt': Timestamp.now(),
       });
 
-      print('ReviewServiceClient: Review updated successfully');
+      AppLogger.info('ReviewServiceClient: Review updated successfully');
 
       // Update provider rating
       await _updateProviderRating(reviewData['providerId']);
 
       return true;
     } catch (e) {
-      print('ReviewServiceClient: Error updating review: $e');
+      AppLogger.info('ReviewServiceClient: Error updating review: $e');
       return false;
     }
   }
@@ -140,7 +141,7 @@ class ReviewServiceClient {
 
       return null;
     } catch (e) {
-      print('ReviewServiceClient: Error getting review for booking: $e');
+      AppLogger.info('ReviewServiceClient: Error getting review for booking: $e');
       return null;
     }
   }
@@ -151,7 +152,7 @@ class ReviewServiceClient {
     int limit = 20,
   }) async {
     try {
-      print('ReviewServiceClient: Fetching reviews for provider: $providerId');
+      AppLogger.info('ReviewServiceClient: Fetching reviews for provider: $providerId');
       
       final query = await _firestore
           .collection('reviews')
@@ -167,10 +168,10 @@ class ReviewServiceClient {
         return Review.fromMap(data, id: doc.id);
       }).toList();
 
-      print('ReviewServiceClient: Found ${reviews.length} reviews');
+      AppLogger.info('ReviewServiceClient: Found ${reviews.length} reviews');
       return reviews;
     } catch (e) {
-      print('ReviewServiceClient: Error fetching provider reviews: $e');
+      AppLogger.info('ReviewServiceClient: Error fetching provider reviews: $e');
       return [];
     }
   }
@@ -181,7 +182,7 @@ class ReviewServiceClient {
     required String reason,
   }) async {
     try {
-      print('ReviewServiceClient: Flagging review: $reviewId');
+      AppLogger.info('ReviewServiceClient: Flagging review: $reviewId');
       
       await _firestore.collection('reviews').doc(reviewId).update({
         'flagged': true,
@@ -189,10 +190,10 @@ class ReviewServiceClient {
         'flaggedAt': Timestamp.now(),
       });
 
-      print('ReviewServiceClient: Review flagged successfully');
+      AppLogger.info('ReviewServiceClient: Review flagged successfully');
       return true;
     } catch (e) {
-      print('ReviewServiceClient: Error flagging review: $e');
+      AppLogger.info('ReviewServiceClient: Error flagging review: $e');
       return false;
     }
   }
@@ -200,7 +201,7 @@ class ReviewServiceClient {
   // Update provider average rating
   Future<void> _updateProviderRating(String providerId) async {
     try {
-      print('ReviewServiceClient: Updating provider rating for: $providerId');
+      AppLogger.info('ReviewServiceClient: Updating provider rating for: $providerId');
       
       final reviewsQuery = await _firestore
           .collection('reviews')
@@ -228,9 +229,9 @@ class ReviewServiceClient {
         'ratingCount': ratings.length,
       });
 
-      print('ReviewServiceClient: Provider rating updated - Avg: $averageRating, Count: ${ratings.length}');
+      AppLogger.info('ReviewServiceClient: Provider rating updated - Avg: $averageRating, Count: ${ratings.length}');
     } catch (e) {
-      print('ReviewServiceClient: Error updating provider rating: $e');
+      AppLogger.info('ReviewServiceClient: Error updating provider rating: $e');
     }
   }
 
@@ -241,7 +242,7 @@ class ReviewServiceClient {
     required bool isHelpful,
   }) async {
     try {
-      print('ReviewServiceClient: Voting on review: $reviewId');
+      AppLogger.info('ReviewServiceClient: Voting on review: $reviewId');
       
       final reviewDoc = await _firestore
           .collection('reviews')
@@ -267,10 +268,10 @@ class ReviewServiceClient {
         'helpfulVotes': helpfulVotes,
       });
 
-      print('ReviewServiceClient: Vote recorded successfully');
+      AppLogger.info('ReviewServiceClient: Vote recorded successfully');
       return true;
     } catch (e) {
-      print('ReviewServiceClient: Error voting on review: $e');
+      AppLogger.info('ReviewServiceClient: Error voting on review: $e');
       return false;
     }
   }

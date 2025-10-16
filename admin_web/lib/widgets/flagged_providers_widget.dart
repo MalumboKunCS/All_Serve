@@ -155,7 +155,7 @@ class _FlaggedProvidersWidgetState extends State<FlaggedProvidersWidget> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: shared.AppTheme.error.withOpacity(0.3),
+          color: shared.AppTheme.error.withValues(alpha:0.3),
           width: 1,
         ),
       ),
@@ -170,7 +170,7 @@ class _FlaggedProvidersWidgetState extends State<FlaggedProvidersWidget> {
                 // Provider Logo
                 CircleAvatar(
                   radius: 25,
-                  backgroundColor: shared.AppTheme.error.withOpacity(0.1),
+                  backgroundColor: shared.AppTheme.error.withValues(alpha:0.1),
                   backgroundImage: logoUrl != null && logoUrl.isNotEmpty
                       ? NetworkImage(logoUrl)
                       : null,
@@ -204,10 +204,10 @@ class _FlaggedProvidersWidgetState extends State<FlaggedProvidersWidget> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: shared.AppTheme.error.withOpacity(0.1),
+                          color: shared.AppTheme.error.withValues(alpha:0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: shared.AppTheme.error.withOpacity(0.3),
+                            color: shared.AppTheme.error.withValues(alpha:0.3),
                           ),
                         ),
                         child: Row(
@@ -272,10 +272,10 @@ class _FlaggedProvidersWidgetState extends State<FlaggedProvidersWidget> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: shared.AppTheme.error.withOpacity(0.05),
+                color: shared.AppTheme.error.withValues(alpha:0.05),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: shared.AppTheme.error.withOpacity(0.2),
+                  color: shared.AppTheme.error.withValues(alpha:0.2),
                 ),
               ),
               child: Row(
@@ -447,3 +447,11 @@ class _FlaggedProvidersWidgetState extends State<FlaggedProvidersWidget> {
     ) ?? false;
   }
 }
+
+
+
+
+
+
+
+

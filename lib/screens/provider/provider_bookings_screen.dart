@@ -121,7 +121,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
         }
 
         final bookings = snapshot.data ?? [];
-        
+
         if (bookings.isEmpty) {
           return Center(
             child: Column(
@@ -172,32 +172,32 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
                         booking.serviceTitle,
                         style: AppTheme.bodyLarge.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                       const SizedBox(height: 4),
-                      Text(
+                            Text(
                         booking.serviceCategory,
                         style: AppTheme.bodyMedium.copyWith(
-                          color: AppTheme.textSecondary,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _getStatusColor(booking.status).withOpacity(0.2),
+                    color: _getStatusColor(booking.status).withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -206,9 +206,9 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                       color: _getStatusColor(booking.status),
                       fontWeight: FontWeight.w600,
                     ),
-                  ),
-                ),
-              ],
+                      ),
+                    ),
+                  ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -222,9 +222,9 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                 Text(
                   booking.formattedScheduledDate,
                   style: AppTheme.bodyMedium.copyWith(
-                    color: AppTheme.textSecondary,
+                      color: AppTheme.textSecondary,
+                    ),
                   ),
-                ),
                 const SizedBox(width: 16),
                 Icon(
                   Icons.access_time,
@@ -272,9 +272,9 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                       minimumSize: MaterialStateProperty.all(const Size(80, 32)),
                     ),
                     child: const Text('Reject'),
-                  ),
-              ],
-            ),
+                    ),
+                  ],
+                ),
           ],
         ),
       ),
@@ -300,18 +300,18 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
           const SnackBar(
             content: Text('Failed to accept booking'),
             backgroundColor: AppTheme.error,
-          ),
-        );
-      }
+      ),
+    );
+  }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error accepting booking: $e'),
             backgroundColor: AppTheme.error,
-          ),
-        );
-      }
+        ),
+      );
+    }
     }
   }
 

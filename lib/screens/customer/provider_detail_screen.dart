@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
-
+import '../../widgets/contact_info_section.dart';
+import '../../widgets/profile_image_widget.dart';
+import '../../widgets/service_image_widget.dart';
+import '../../utils/responsive_utils.dart';
+import '../../utils/app_logger.dart';
 import 'booking_screen.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
@@ -89,27 +93,11 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
               background: Stack(
                 children: [
                   // Provider Images
-                  if (widget.provider.images.isNotEmpty)
-                    PageView.builder(
-                      itemCount: widget.provider.images.length,
-                      itemBuilder: (context, index) {
-                        return Image.network(
-                          widget.provider.images[index],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        );
-                      },
-                    )
-                  else
-                    Container(
-                      color: AppTheme.cardDark,
-                      child: Icon(
-                        Icons.image,
-                        size: 100,
-                        color: AppTheme.textTertiary,
-                      ),
-                    ),
+                  ProviderGalleryWidget(
+                    images: widget.provider.images,
+                    galleryImages: widget.provider.galleryImages,
+                    height: 300,
+                  ),
                   
                   // Gradient Overlay
                   Positioned(
@@ -124,7 +112,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withOpacity(0.7),
+                            Colors.black.withValues(alpha:0.7),
                           ],
                         ),
                       ),
@@ -141,20 +129,10 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                       children: [
                         Row(
                           children: [
-                            CircleAvatar(
+                            BusinessImageWidget(
+                              imageUrl: widget.provider.logoUrl,
+                              businessName: widget.provider.businessName,
                               radius: 30,
-                              backgroundImage: widget.provider.logoUrl != null
-                                  ? (widget.provider.logoUrl != null && widget.provider.logoUrl!.isNotEmpty)
-                                    ? NetworkImage(widget.provider.logoUrl!)
-                                    : null
-                                  : null,
-                              child: widget.provider.logoUrl == null
-                                  ? Icon(
-                                      Icons.business,
-                                      size: 30,
-                                      color: AppTheme.primaryPurple,
-                                    )
-                                  : null,
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -249,7 +227,7 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
       
       // Action Buttons
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         color: AppTheme.surfaceDark,
         child: widget.provider.websiteUrl?.isNotEmpty ?? false
           ? Row(
@@ -259,40 +237,119 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                   child: OutlinedButton.icon(
                     onPressed: _visitWebsite,
                     style: AppTheme.outlineButtonStyle,
-                    icon: const Icon(Icons.language),
-                    label: const Text('Visit Website'),
+                    icon: Icon(
+                      Icons.language,
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        mobile: 18,
+                        tablet: 20,
+                        desktop: 22,
+                      ),
+                    ),
+                    label: Text(
+                      'Visit Website',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 12,
+                          tablet: 14,
+                          desktop: 16,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 12,
+                  tablet: 14,
+                  desktop: 16,
+                )),
                 // Book Service Button
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BookingScreen(provider: widget.provider),
-                        ),
-                      );
+                      try {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BookingScreen(provider: widget.provider),
+                          ),
+                        );
+                      } catch (e) {
+                        AppLogger.error('Error navigating to booking: $e');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Unable to open booking'),
+                            backgroundColor: AppTheme.error,
+                          ),
+                        );
+                      }
                     },
                     style: AppTheme.primaryButtonStyle,
-                    icon: const Icon(Icons.calendar_today),
-                    label: const Text('Book Service'),
+                    icon: Icon(
+                      Icons.calendar_today,
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        mobile: 18,
+                        tablet: 20,
+                        desktop: 22,
+                      ),
+                    ),
+                    label: Text(
+                      'Book Service',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 12,
+                          tablet: 14,
+                          desktop: 16,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],
             )
           : ElevatedButton.icon(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => BookingScreen(provider: widget.provider),
-                  ),
-                );
+                try {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BookingScreen(provider: widget.provider),
+                    ),
+                  );
+                } catch (e) {
+                  AppLogger.error('Error navigating to booking: $e');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Unable to open booking'),
+                      backgroundColor: AppTheme.error,
+                    ),
+                  );
+                }
               },
               style: AppTheme.primaryButtonStyle,
-              icon: const Icon(Icons.calendar_today),
-              label: const Text('Book Service'),
+              icon: Icon(
+                Icons.calendar_today,
+                size: ResponsiveUtils.getResponsiveIconSize(
+                  context,
+                  mobile: 18,
+                  tablet: 20,
+                  desktop: 22,
+                ),
+              ),
+              label: Text(
+                'Book Service',
+                style: TextStyle(
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 12,
+                    tablet: 14,
+                    desktop: 16,
+                  ),
+                ),
+              ),
             ),
       ),
     );
@@ -405,59 +462,374 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
   Widget _buildServicesTab() {
     return _isLoading
         ? const Center(child: CircularProgressIndicator())
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _services.length,
-            itemBuilder: (context, index) {
-              final service = _services[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                color: AppTheme.cardDark,
-                child: ListTile(
-                  title: Text(
-                    service.title,
-                    style: AppTheme.bodyLarge.copyWith(
-                      color: AppTheme.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+        : _services.isEmpty
+            ? _buildEmptyServicesState()
+            : ListView.builder(
+                padding: ResponsiveUtils.getResponsivePadding(context),
+                itemCount: _services.length,
+                itemBuilder: (context, index) {
+                  final service = _services[index];
+                  return _buildServiceCard(service);
+                },
+              );
+  }
+
+  Widget _buildServiceCard(app_provider.Service service) {
+    return Container(
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          mobile: 16,
+          tablet: 18,
+          desktop: 20,
+        ),
+      ),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.primaryPurple.withValues(alpha: 0.1),
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: ResponsiveUtils.getResponsivePadding(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Service Header Row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Service Image
+                ServiceImageWidget(
+                  imageUrls: service.imageUrls,
+                  imageUrl: service.imageUrl,
+                  width: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 80,
+                    tablet: 90,
+                    desktop: 100,
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Duration: ${service.durationMin} minutes',
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Price: K${service.priceFrom} - K${service.priceTo}',
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: AppTheme.accentPurple,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  trailing: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => BookingScreen(
-                            provider: widget.provider,
-                            selectedService: service,
-                          ),
-                        ),
-                      );
-                    },
-                    style: AppTheme.secondaryButtonStyle,
-                    child: const Text('Book'),
+                  height: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 80,
+                    tablet: 90,
+                    desktop: 100,
                   ),
                 ),
-              );
-            },
-          );
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 16,
+                  tablet: 18,
+                  desktop: 20,
+                )),
+                // Service Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Service Title and Badge
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              service.title,
+                              style: AppTheme.bodyLarge.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 16,
+                                  tablet: 18,
+                                  desktop: 20,
+                                ),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 8,
+                            tablet: 10,
+                            desktop: 12,
+                          )),
+                          // Service Type Badge
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ResponsiveUtils.getResponsiveSpacing(
+                                context,
+                                mobile: 8,
+                                tablet: 10,
+                                desktop: 12,
+                              ),
+                              vertical: ResponsiveUtils.getResponsiveSpacing(
+                                context,
+                                mobile: 4,
+                                tablet: 6,
+                                desktop: 8,
+                              ),
+                            ),
+                            decoration: BoxDecoration(
+                              color: service.serviceType == 'bookable' 
+                                  ? AppTheme.primaryPurple.withValues(alpha: 0.2)
+                                  : AppTheme.accentBlue.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              service.serviceType == 'bookable' ? 'BOOKABLE' : 'CONTACT',
+                              style: AppTheme.caption.copyWith(
+                                color: service.serviceType == 'bookable' 
+                                    ? AppTheme.primaryPurple
+                                    : AppTheme.accentBlue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 10,
+                                  tablet: 11,
+                                  desktop: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 8,
+                        tablet: 10,
+                        desktop: 12,
+                      )),
+                      // Duration
+                      Text(
+                        'Duration: ${service.duration ?? 'Not specified'}',
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 14,
+                            tablet: 15,
+                            desktop: 16,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 4,
+                        tablet: 6,
+                        desktop: 8,
+                      )),
+                      // Price Information
+                      _buildPriceInfo(service),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            )),
+            // Action Button
+            SizedBox(
+              width: double.infinity,
+              child: service.serviceType == 'bookable'
+                  ? ElevatedButton(
+                      onPressed: () {
+                        try {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BookingScreen(
+                                provider: widget.provider,
+                                selectedService: service,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          AppLogger.error('Error navigating to booking: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Unable to open booking'),
+                              backgroundColor: AppTheme.error,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryPurple,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 20,
+                            tablet: 24,
+                            desktop: 28,
+                          ),
+                          vertical: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 12,
+                            tablet: 14,
+                            desktop: 16,
+                          ),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Book',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 14,
+                            tablet: 16,
+                            desktop: 18,
+                          ),
+                        ),
+                      ),
+                    )
+                  : ElevatedButton(
+                      onPressed: () {
+                        _showContactInfoDialog(context, service);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentBlue,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 20,
+                            tablet: 24,
+                            desktop: 28,
+                          ),
+                          vertical: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 12,
+                            tablet: 14,
+                            desktop: 16,
+                          ),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Contact',
+                        style: TextStyle(
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 14,
+                            tablet: 16,
+                            desktop: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceInfo(app_provider.Service service) {
+    if (service.type == 'priced' && service.priceFrom != null && service.priceTo != null) {
+      return Text(
+        'Price: K${service.priceFrom!.toStringAsFixed(0)} - K${service.priceTo!.toStringAsFixed(0)}',
+        style: AppTheme.bodyMedium.copyWith(
+          color: AppTheme.accentPurple,
+          fontWeight: FontWeight.w600,
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            mobile: 14,
+            tablet: 15,
+            desktop: 16,
+          ),
+        ),
+      );
+    } else if (service.type == 'negotiable') {
+      return Text(
+        'Price: Negotiable',
+        style: AppTheme.bodyMedium.copyWith(
+          color: AppTheme.warning,
+          fontWeight: FontWeight.w600,
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            mobile: 14,
+            tablet: 15,
+            desktop: 16,
+          ),
+        ),
+      );
+    } else if (service.type == 'free') {
+      return Text(
+        'Price: Free',
+        style: AppTheme.bodyMedium.copyWith(
+          color: AppTheme.success,
+          fontWeight: FontWeight.w600,
+          fontSize: ResponsiveUtils.getResponsiveFontSize(
+            context,
+            mobile: 14,
+            tablet: 15,
+            desktop: 16,
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildEmptyServicesState() {
+    return Center(
+      child: Padding(
+        padding: ResponsiveUtils.getResponsivePadding(context),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.work_outline,
+              size: ResponsiveUtils.getResponsiveIconSize(
+                context,
+                mobile: 80,
+                tablet: 90,
+                desktop: 100,
+              ),
+              color: AppTheme.textTertiary,
+            ),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            )),
+            Text(
+              'No Services Available',
+              style: AppTheme.heading3.copyWith(
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 10,
+              desktop: 12,
+            )),
+            Text(
+              'This provider hasn\'t added any services yet.',
+              style: AppTheme.bodyMedium.copyWith(
+                color: AppTheme.textTertiary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildReviewsTab() {
@@ -465,6 +837,73 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
       child: Text(
         'Reviews coming soon...',
         style: TextStyle(color: Colors.grey),
+      ),
+    );
+  }
+
+  void _showContactInfoDialog(BuildContext context, app_provider.Service service) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceDark,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardDark,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    topRight: Radius.circular(16),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.contact_phone, color: AppTheme.primaryPurple),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Contact Provider',
+                            style: AppTheme.heading3.copyWith(
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                          Text(
+                            service.title,
+                            style: AppTheme.bodyMedium.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(Icons.close, color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              // Contact Info
+              Flexible(
+                child: SingleChildScrollView(
+                  child: ContactInfoSection(service: service),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

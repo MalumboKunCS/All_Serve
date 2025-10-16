@@ -69,7 +69,7 @@ class _ProviderProfileViewState extends State<ProviderProfileView> {
           // Provider Logo
           CircleAvatar(
             radius: 40,
-            backgroundColor: shared.AppTheme.primaryPurple.withOpacity(0.1),
+            backgroundColor: shared.AppTheme.primaryPurple.withValues(alpha:0.1),
             backgroundImage: widget.provider.logoUrl != null && widget.provider.logoUrl!.isNotEmpty
                 ? NetworkImage(widget.provider.logoUrl!)
                 : null,
@@ -312,7 +312,7 @@ class _ProviderProfileViewState extends State<ProviderProfileView> {
             color: shared.AppTheme.cardLight,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: shared.AppTheme.primaryPurple.withOpacity(0.3),
+              color: shared.AppTheme.primaryPurple.withValues(alpha:0.3),
             ),
           ),
           child: Row(
@@ -512,9 +512,9 @@ class _ProviderProfileViewState extends State<ProviderProfileView> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha:0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

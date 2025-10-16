@@ -245,8 +245,8 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: announcement.isExpired 
-                    ? AppTheme.error.withOpacity(0.1)
-                    : AppTheme.info.withOpacity(0.1),
+                    ? AppTheme.error.withValues(alpha:0.1)
+                    : AppTheme.info.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -291,9 +291,9 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha:0.5)),
       ),
       child: Text(
         text,
@@ -309,7 +309,7 @@ class _AdminAnnouncementsScreenState extends State<AdminAnnouncementsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(

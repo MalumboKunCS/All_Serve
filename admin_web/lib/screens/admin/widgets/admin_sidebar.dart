@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared/shared.dart';
+import 'package:shared/shared.dart' as shared;
 
 class AdminSidebar extends StatelessWidget {
   final int selectedIndex;
@@ -17,7 +17,7 @@ class AdminSidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 250,
-      color: AppTheme.surfaceDark,
+      color: shared.AppTheme.surfaceDark,
       child: Column(
         children: [
           // Header
@@ -29,7 +29,7 @@ class AdminSidebar extends StatelessWidget {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    gradient: AppTheme.primaryGradient,
+                    gradient: shared.AppTheme.primaryGradient,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(
@@ -41,21 +41,21 @@ class AdminSidebar extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Admin Dashboard',
-                  style: AppTheme.heading3.copyWith(
-                    color: AppTheme.textPrimary,
+                  style: shared.AppTheme.heading3.copyWith(
+                    color: shared.AppTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'All-Serve Management',
-                  style: AppTheme.caption.copyWith(
-                    color: AppTheme.textTertiary,
+                  style: shared.AppTheme.caption.copyWith(
+                    color: shared.AppTheme.textTertiary,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(color: AppTheme.cardLight),
+          const Divider(color: shared.AppTheme.cardLight),
           
           // Navigation Items
           Expanded(
@@ -135,17 +135,17 @@ class AdminSidebar extends StatelessWidget {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? AppTheme.primaryPurple : AppTheme.textSecondary,
+          color: isSelected ? shared.AppTheme.primaryPurple : shared.AppTheme.textSecondary,
         ),
         title: Text(
           title,
           style: GoogleFonts.inter(
-            color: isSelected ? AppTheme.primaryPurple : AppTheme.textSecondary,
+            color: isSelected ? shared.AppTheme.primaryPurple : shared.AppTheme.textSecondary,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
         selected: isSelected,
-        selectedTileColor: AppTheme.cardDark,
+        selectedTileColor: shared.AppTheme.cardDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
@@ -156,7 +156,7 @@ class AdminSidebar extends StatelessWidget {
 
   void _handleLogout(BuildContext context) async {
     try {
-      final authService = context.read<AuthService>();
+      final authService = context.read<shared.AuthService>();
       await authService.signOut();
       // The AuthWrapper will automatically redirect to login
     } catch (e) {

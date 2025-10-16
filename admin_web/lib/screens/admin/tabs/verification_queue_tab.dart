@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../../widgets/application_viewer_dialog.dart';
 import '../../../widgets/document_viewer_dialog.dart';
+import '../../../utils/app_logger.dart';
 
 class VerificationQueueTab extends StatefulWidget {
   final VoidCallback onRefresh;
@@ -221,9 +222,42 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
                 }
 
                 final providerData = snapshot.data!.data() as Map<String, dynamic>;
+                
+                // Debug logging to trace data flow
+                AppLogger.debug('=== VERIFICATION QUEUE DEBUG ===');
+                AppLogger.debug('Provider ID: $providerId');
+                AppLogger.debug('Raw provider data keys: ${providerData.keys.toList()}');
+                AppLogger.debug('Business Name field: ${providerData['businessName']}');
+                AppLogger.debug('Description field: ${providerData['description']}');
+                AppLogger.debug('Documents field: ${providerData['documents']}');
+                AppLogger.debug('Full provider data: $providerData');
+                AppLogger.debug('=== END VERIFICATION QUEUE DEBUG ===');
+                
                 final businessName = providerData['businessName'] as String? ?? 'Unknown';
                 final description = providerData['description'] as String? ?? '';
-                final documents = providerData['documents'] as Map<String, dynamic>? ?? {};
+                
+                // Handle both document storage formats:
+                // 1. Individual fields (nrcUrl, businessLicenseUrl, certificatesUrl)
+                // 2. Documents map (documents: {nrcUrl: "...", businessLicenseUrl: "..."})
+                Map<String, dynamic> documents = {};
+                
+                // Check if documents are stored as a map
+                if (providerData['documents'] != null && providerData['documents'] is Map) {
+                  documents = Map<String, dynamic>.from(providerData['documents']);
+                } else {
+                  // Check for individual document fields
+                  if (providerData['nrcUrl'] != null && providerData['nrcUrl'].toString().isNotEmpty) {
+                    documents['nrcUrl'] = providerData['nrcUrl'];
+                  }
+                  if (providerData['businessLicenseUrl'] != null && providerData['businessLicenseUrl'].toString().isNotEmpty) {
+                    documents['businessLicenseUrl'] = providerData['businessLicenseUrl'];
+                  }
+                  if (providerData['certificatesUrl'] != null && providerData['certificatesUrl'].toString().isNotEmpty) {
+                    documents['certificatesUrl'] = providerData['certificatesUrl'];
+                  }
+                }
+                
+                AppLogger.debug('Processed documents: $documents');
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,9 +464,9 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -458,11 +492,15 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
     switch (docType) {
       case 'nrcUrl':
         icon = Icons.badge;
-        label = 'NRC';
+        label = 'National Registration Card (NRC)';
         break;
       case 'businessLicenseUrl':
         icon = Icons.business;
         label = 'Business License';
+        break;
+      case 'certificatesUrl':
+        icon = Icons.verified_user;
+        label = 'Professional Certificates';
         break;
       case 'otherDocs':
         icon = Icons.description;
@@ -479,9 +517,9 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: shared.AppTheme.primaryPurple.withOpacity(0.1),
+          color: shared.AppTheme.primaryPurple.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: shared.AppTheme.primaryPurple.withOpacity(0.3)),
+          border: Border.all(color: shared.AppTheme.primaryPurple.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

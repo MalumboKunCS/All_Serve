@@ -180,7 +180,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: AppTheme.accent.withOpacity(0.5),
+              color: AppTheme.accent.withValues(alpha:0.5),
               style: BorderStyle.solid,
             ),
           ),
@@ -259,7 +259,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
             right: 8,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha:0.6),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: PopupMenuButton(
@@ -298,7 +298,7 @@ class _ProviderGalleryScreenState extends State<ProviderGalleryScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
+                color: Colors.black.withValues(alpha:0.6),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(

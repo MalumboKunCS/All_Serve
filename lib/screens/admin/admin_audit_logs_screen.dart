@@ -161,7 +161,7 @@ class _AdminAuditLogsScreenState extends State<AdminAuditLogsScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _getActionColor(log.action).withOpacity(0.1),
+                color: _getActionColor(log.action).withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -239,10 +239,10 @@ class _AdminAuditLogsScreenState extends State<AdminAuditLogsScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
-                color: _getActionColor(log.action).withOpacity(0.2),
+                color: _getActionColor(log.action).withValues(alpha:0.2),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: _getActionColor(log.action).withOpacity(0.5),
+                  color: _getActionColor(log.action).withValues(alpha:0.5),
                 ),
               ),
               child: Text(
@@ -371,7 +371,7 @@ class _AdminAuditLogsScreenState extends State<AdminAuditLogsScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundDark.withOpacity(0.5),
+        color: AppTheme.backgroundDark.withValues(alpha:0.5),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(

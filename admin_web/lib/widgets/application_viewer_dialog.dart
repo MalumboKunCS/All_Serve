@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared/shared.dart' as shared;
 import 'document_viewer_dialog.dart';
+import '../utils/app_logger.dart';
 
 class ApplicationViewerDialog extends StatefulWidget {
   final String applicationId;
@@ -38,8 +39,49 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
           .get();
       
       if (providerDoc.exists) {
+        final providerData = providerDoc.data()!;
+        
+        // Debug logging to trace data flow
+        AppLogger.debug('=== APPLICATION VIEWER DEBUG ===');
+        AppLogger.debug('Provider ID: ${widget.providerId}');
+        AppLogger.debug('Raw provider data keys: ${providerData.keys.toList()}');
+        AppLogger.debug('Business Name field: ${providerData['businessName']}');
+        AppLogger.debug('Description field: ${providerData['description']}');
+        AppLogger.debug('Documents field: ${providerData['documents']}');
+        AppLogger.debug('Full provider data: $providerData');
+        AppLogger.debug('=== END APPLICATION VIEWER DEBUG ===');
+        
+        // Create a normalized provider data structure
+        final normalizedProviderData = Map<String, dynamic>.from(providerData);
+        
+        // Handle both document storage formats:
+        // 1. Individual fields (nrcUrl, businessLicenseUrl, certificatesUrl)
+        // 2. Documents map (documents: {nrcUrl: "...", businessLicenseUrl: "..."})
+        Map<String, dynamic> documents = {};
+        
+        // Check if documents are stored as a map
+        if (providerData['documents'] != null && providerData['documents'] is Map) {
+          documents = Map<String, dynamic>.from(providerData['documents']);
+        } else {
+          // Check for individual document fields
+          if (providerData['nrcUrl'] != null && providerData['nrcUrl'].toString().isNotEmpty) {
+            documents['nrcUrl'] = providerData['nrcUrl'];
+          }
+          if (providerData['businessLicenseUrl'] != null && providerData['businessLicenseUrl'].toString().isNotEmpty) {
+            documents['businessLicenseUrl'] = providerData['businessLicenseUrl'];
+          }
+          if (providerData['certificatesUrl'] != null && providerData['certificatesUrl'].toString().isNotEmpty) {
+            documents['certificatesUrl'] = providerData['certificatesUrl'];
+          }
+        }
+        
+        // Ensure the documents field is properly set
+        normalizedProviderData['documents'] = documents;
+        
+        AppLogger.debug('Normalized provider data documents: $documents');
+        
         _provider = shared.Provider.fromMap(
-          providerDoc.data()!,
+          normalizedProviderData,
           id: widget.providerId,
         );
       }
@@ -312,6 +354,10 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
         icon = Icons.business;
         label = 'Business License';
         break;
+      case 'certificatesUrl':
+        icon = Icons.verified_user;
+        label = 'Professional Certificates';
+        break;
       case 'otherDocs':
         icon = Icons.description;
         label = 'Other Documents';
@@ -332,7 +378,7 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
             color: shared.AppTheme.backgroundDark,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: shared.AppTheme.primaryPurple.withOpacity(0.3),
+              color: shared.AppTheme.primaryPurple.withValues(alpha:0.3),
             ),
           ),
           child: Row(
@@ -385,7 +431,7 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: shared.AppTheme.primaryPurple.withOpacity(0.3),
+            color: shared.AppTheme.primaryPurple.withValues(alpha:0.3),
           ),
         ),
         child: ClipRRect(
@@ -435,6 +481,8 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
       docType = 'nrcUrl';
     } else if (url.contains('license') || url.contains('License')) {
       docType = 'businessLicenseUrl';
+    } else if (url.contains('certificate') || url.contains('Certificate')) {
+      docType = 'certificatesUrl';
     }
     
     showDialog(

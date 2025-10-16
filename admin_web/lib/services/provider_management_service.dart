@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared/shared.dart' as shared;
+import '../utils/app_logger.dart';
 
 class ProviderManagementService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -22,7 +23,7 @@ class ProviderManagementService {
 
       return true;
     } catch (e) {
-      print('Error suspending provider: $e');
+      AppLogger.info('Error suspending provider: $e');
       return false;
     }
   }
@@ -45,7 +46,7 @@ class ProviderManagementService {
 
       return true;
     } catch (e) {
-      print('Error promoting provider: $e');
+      AppLogger.info('Error promoting provider: $e');
       return false;
     }
   }
@@ -67,7 +68,7 @@ class ProviderManagementService {
 
       return true;
     } catch (e) {
-      print('Error resetting password: $e');
+      AppLogger.info('Error resetting password: $e');
       return false;
     }
   }
@@ -91,7 +92,7 @@ class ProviderManagementService {
 
       return true;
     } catch (e) {
-      print('Error deleting provider: $e');
+      AppLogger.info('Error deleting provider: $e');
       return false;
     }
   }
@@ -150,7 +151,7 @@ class ProviderManagementService {
         'recentBookings': recentBookings,
       };
     } catch (e) {
-      print('Error getting provider analytics: $e');
+      AppLogger.info('Error getting provider analytics: $e');
       return {};
     }
   }
@@ -190,7 +191,7 @@ class ProviderManagementService {
 
       return flaggedProviders;
     } catch (e) {
-      print('Error getting flagged providers: $e');
+      AppLogger.info('Error getting flagged providers: $e');
       return [];
     }
   }
@@ -213,7 +214,7 @@ class ProviderManagementService {
         };
       }).toList();
     } catch (e) {
-      print('Error getting provider logs: $e');
+      AppLogger.info('Error getting provider logs: $e');
       return [];
     }
   }
@@ -234,7 +235,7 @@ class ProviderManagementService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error logging provider action: $e');
+      AppLogger.info('Error logging provider action: $e');
     }
   }
 
@@ -277,8 +278,16 @@ class ProviderManagementService {
 
       return providersWithAnalytics;
     } catch (e) {
-      print('Error getting all providers with analytics: $e');
+      AppLogger.info('Error getting all providers with analytics: $e');
       return [];
     }
   }
 }
+
+
+
+
+
+
+
+

@@ -24,6 +24,10 @@ class EnhancedBookingService {
     String? timeSlot,
     bool isUrgent = false,
     List<String> specialRequirements = const [],
+    String? customerFullName,
+    String? customerPhoneNumber,
+    String? customerEmailAddress,
+    String? additionalNotes,
   }) async {
     try {
       // 1. Check provider availability in real-time
@@ -79,6 +83,10 @@ class EnhancedBookingService {
         'isUrgent': isUrgent,
         'timeSlot': timeSlot,
         'specialRequirements': specialRequirements,
+        'customerFullName': customerFullName,
+        'customerPhoneNumber': customerPhoneNumber,
+        'customerEmailAddress': customerEmailAddress,
+        'additionalNotes': additionalNotes,
       });
 
       final bookingId = bookingRef.id;
@@ -469,10 +477,16 @@ class EnhancedBookingService {
       query = query.where('status', isEqualTo: status.name);
     }
     
-    query = query.orderBy('scheduledAt', descending: true);
+    // Remove orderBy to avoid index requirement - we'll sort client-side
+    // query = query.orderBy('scheduledAt', descending: true);
     
     return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => Booking.fromFirestore(doc)).toList();
+      final bookings = snapshot.docs.map((doc) => Booking.fromFirestore(doc)).toList();
+      
+      // Sort client-side by scheduledAt in descending order (most recent first)
+      bookings.sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      
+      return bookings;
     });
   }
 
@@ -524,7 +538,8 @@ class EnhancedBookingService {
         'description': service.description,
         'priceFrom': service.priceFrom,
         'priceTo': service.priceTo,
-        'durationMin': service.durationMin,
+        'duration': service.duration,
+        'type': service.type,
         'imageUrl': service.imageUrl,
         'availability': service.availability,
       };
@@ -774,3 +789,4 @@ enum UserType {
   customer,
   provider,
 }
+          

@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/service_category.dart';
 import '../../services/cloudinary_storage_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/multi_image_picker.dart';
+import '../../utils/app_logger.dart';
 
 class EnhancedServiceDialog extends StatefulWidget {
   final app_provider.Service? service;
@@ -29,10 +30,21 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
   final _durationController = TextEditingController();
 
   String _selectedCategory = 'beauty';
-  File? _selectedImage;
+  String _selectedServiceType = 'priced'; // 'priced', 'negotiable', 'free'
+  String _selectedBookingType = 'bookable'; // NEW: 'bookable' or 'contact'
+  String? _customCategory; // For "Other" category
+  File? _selectedImage; // Deprecated - keeping for backward compatibility
+  List<File> _selectedImages = []; // New: multiple images
   List<String> _selectedAvailability = [];
   bool _isLoading = false;
   bool _showPreview = false;
+  Map<int, double> _uploadProgress = {}; // Track upload progress for each image
+
+  // NEW: Contact info controllers (only needed for contact type)
+  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _whatsappController = TextEditingController();
+  final _websiteController = TextEditingController();
 
   final List<String> _daysOfWeek = [
     'monday',
@@ -44,6 +56,18 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
     'sunday',
   ];
 
+  // Service type suggestions based on category
+  final Map<String, String> _categoryTypeSuggestions = {
+    'cleaning': 'priced',
+    'grooming': 'priced',
+    'transport': 'priced',
+    'business': 'negotiable',
+    'loans': 'negotiable',
+    'consultancy': 'negotiable',
+    'volunteering': 'free',
+    'community_help': 'free',
+  };
+
   @override
   void initState() {
     super.initState();
@@ -54,11 +78,36 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
     if (widget.service != null) {
       _titleController.text = widget.service!.title;
       _descriptionController.text = widget.service!.description ?? '';
-      _priceFromController.text = widget.service!.priceFrom.toString();
-      _priceToController.text = widget.service!.priceTo.toString();
-      _durationController.text = widget.service!.durationMin.toString();
+      _priceFromController.text = widget.service!.priceFrom?.toString() ?? '';
+      _priceToController.text = widget.service!.priceTo?.toString() ?? '';
+      _durationController.text = widget.service!.duration ?? '';
       _selectedCategory = widget.service!.category;
+      _selectedServiceType = widget.service!.type;
+      _selectedBookingType = widget.service!.serviceType; // NEW: Load booking type
       _selectedAvailability = List.from(widget.service!.availability);
+      
+      // NEW: Load contact info if available
+      if (widget.service!.contactInfo != null) {
+        _phoneController.text = widget.service!.contactInfo!['phone'] ?? '';
+        _emailController.text = widget.service!.contactInfo!['email'] ?? '';
+        _whatsappController.text = widget.service!.contactInfo!['whatsapp'] ?? '';
+        _websiteController.text = widget.service!.contactInfo!['website'] ?? '';
+      }
+      
+      // Note: We can't load existing images as File objects, they'll remain as URLs
+      // The service will use imageUrls field for existing images
+    } else {
+      // Auto-suggest service type based on category
+      _suggestServiceType();
+    }
+  }
+
+  void _suggestServiceType() {
+    final suggestedType = _categoryTypeSuggestions[_selectedCategory];
+    if (suggestedType != null) {
+      setState(() {
+        _selectedServiceType = suggestedType;
+      });
     }
   }
 
@@ -69,37 +118,16 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
     _priceFromController.dispose();
     _priceToController.dispose();
     _durationController.dispose();
+    // NEW: Dispose contact info controllers
+    _phoneController.dispose();
+    _emailController.dispose();
+    _whatsappController.dispose();
+    _websiteController.dispose();
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        setState(() {
-          _selectedImage = File(result.files.first.path!);
-        });
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error picking image: $e');
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    if (_selectedImage == null) return null;
-
-    try {
-      final cloudinaryService = CloudinaryStorageService();
-      return await cloudinaryService.uploadServiceImage(_selectedImage!);
-    } catch (e) {
-      _showErrorSnackBar('Error uploading image: $e');
-      return null;
-    }
-  }
+  // Removed deprecated _pickImage and _uploadImage methods
+  // Now using MultiImagePicker widget for handling multiple images
 
   void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -133,32 +161,87 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload image if selected
-      String? imageUrl;
-      if (_selectedImage != null) {
-        imageUrl = await _uploadImage();
-        if (imageUrl == null) {
-          setState(() => _isLoading = false);
-          return;
+      // Upload multiple images if selected
+      List<String> uploadedImageUrls = [];
+      
+      if (_selectedImages.isNotEmpty) {
+        // Upload each image with progress tracking
+        for (int i = 0; i < _selectedImages.length; i++) {
+          setState(() {
+            _uploadProgress[i] = 0.0; // Initialize progress
+          });
+          
+          try {
+            final cloudinaryService = CloudinaryStorageService();
+            final imageUrl = await cloudinaryService.uploadServiceImage(_selectedImages[i]);
+            
+            uploadedImageUrls.add(imageUrl);
+            setState(() {
+              _uploadProgress[i] = 1.0; // Mark as complete
+            });
+          } catch (e) {
+            _showErrorSnackBar('Error uploading image ${i + 1}: $e');
+            setState(() {
+              _uploadProgress.remove(i);
+            });
+          }
         }
-      } else if (widget.service?.imageUrl != null) {
-        imageUrl = widget.service!.imageUrl;
+      }
+      
+      // Keep existing image URLs if editing and no new images were uploaded
+      if (widget.service != null && uploadedImageUrls.isEmpty && widget.service!.imageUrls.isNotEmpty) {
+        uploadedImageUrls = List.from(widget.service!.imageUrls);
       }
 
       final now = DateTime.now();
+      // Use custom category if "other" is selected, otherwise use selected category
+      final categoryToSave = _selectedCategory == 'other' 
+          ? (_customCategory?.trim().toLowerCase() ?? 'other')
+          : _selectedCategory;
+      
+      // Handle pricing based on service type
+      double? priceFrom, priceTo;
+      String? duration;
+      
+      if (_selectedServiceType == 'priced') {
+        priceFrom = double.parse(_priceFromController.text);
+        priceTo = double.parse(_priceToController.text);
+        duration = _durationController.text.trim().isEmpty ? null : _durationController.text.trim();
+      }
+
+      // NEW: Build contact info only if contact service
+      Map<String, dynamic>? contactInfo;
+      if (_selectedBookingType == 'contact') {
+        contactInfo = {
+          'phone': _phoneController.text.trim(),
+          if (_emailController.text.trim().isNotEmpty) 
+            'email': _emailController.text.trim(),
+          if (_whatsappController.text.trim().isNotEmpty) 
+            'whatsapp': _whatsappController.text.trim(),
+          if (_websiteController.text.trim().isNotEmpty) 
+            'website': _websiteController.text.trim(),
+        };
+        
+        AppLogger.debug('Contact info prepared: $contactInfo');
+      }
+
       final service = app_provider.Service(
         serviceId: widget.service?.serviceId ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
-        category: _selectedCategory,
+        category: categoryToSave,
+        type: _selectedServiceType,
+        serviceType: _selectedBookingType, // NEW: Service booking type
         description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
-        priceFrom: double.parse(_priceFromController.text),
-        priceTo: double.parse(_priceToController.text),
-        durationMin: int.parse(_durationController.text),
-        imageUrl: imageUrl,
+        priceFrom: priceFrom,
+        priceTo: priceTo,
+        duration: duration,
+        imageUrl: uploadedImageUrls.isNotEmpty ? uploadedImageUrls.first : null, // For backward compatibility
+        imageUrls: uploadedImageUrls, // New field
         availability: _selectedAvailability,
         isActive: true,
         createdAt: widget.service?.createdAt ?? now,
         updatedAt: now,
+        contactInfo: contactInfo, // NEW: Contact information
       );
 
       widget.onSave(service);
@@ -171,7 +254,10 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
       _showErrorSnackBar('Error saving service: $e');
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _uploadProgress.clear();
+        });
       }
     }
   }
@@ -264,30 +350,62 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
             ],
             Row(
               children: [
-                Icon(
-                  Icons.attach_money,
-                  size: 16,
-                  color: AppTheme.success,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'K${_priceFromController.text} - K${_priceToController.text}',
-                  style: AppTheme.bodyMedium.copyWith(
+                if (_selectedServiceType == 'priced') ...[
+                  Icon(
+                    Icons.attach_money,
+                    size: 16,
                     color: AppTheme.success,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.access_time,
-                  size: 16,
-                  color: AppTheme.textSecondary,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${_durationController.text} min',
-                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
-                ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _priceFromController.text.isNotEmpty && _priceToController.text.isNotEmpty
+                        ? 'K${_priceFromController.text} - K${_priceToController.text}'
+                        : 'Set pricing',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: AppTheme.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _durationController.text.isNotEmpty ? _durationController.text : 'Set duration',
+                    style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+                  ),
+                ] else if (_selectedServiceType == 'negotiable') ...[
+                  Icon(
+                    Icons.handshake,
+                    size: 16,
+                    color: AppTheme.warning,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Price negotiable',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else if (_selectedServiceType == 'free') ...[
+                  Icon(
+                    Icons.volunteer_activism,
+                    size: 16,
+                    color: AppTheme.info,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Free service',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.info,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ],
@@ -409,20 +527,299 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
                         onChanged: (value) {
                           setState(() {
                             _selectedCategory = value!;
+                            if (value != 'other') {
+                              _customCategory = null; // Clear custom category when switching away from "Other"
+                            }
+                            // Auto-suggest service type based on category
+                            _suggestServiceType();
                           });
                         },
                       ),
+                      
+                      // Show custom category input when "Other" is selected
+                      if (_selectedCategory == 'other') ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          decoration: AppTheme.inputDecoration.copyWith(
+                            labelText: 'Specify Category',
+                            hintText: 'e.g., Photography, Tutoring, etc.',
+                            prefixIcon: Icon(Icons.edit, color: AppTheme.primary),
+                          ),
+                          style: const TextStyle(color: AppTheme.textPrimary),
+                          onChanged: (value) {
+                            setState(() {
+                              _customCategory = value;
+                            });
+                          },
+                          validator: (value) {
+                            if (_selectedCategory == 'other' && (value == null || value.trim().isEmpty)) {
+                              return 'Please specify the category';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
                       const SizedBox(height: 20),
 
-                      // Price Range (Side by Side)
+                      // Service Type Selection
                       Text(
-                        'Price Range',
+                        'Service Type',
                         style: AppTheme.bodyLarge.copyWith(
                           color: AppTheme.textPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        value: _selectedServiceType,
+                        decoration: AppTheme.inputDecoration.copyWith(
+                          labelText: 'Select service type',
+                        ),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'priced',
+                            child: Row(
+                              children: [
+                                Icon(Icons.attach_money, size: 20, color: AppTheme.success),
+                                const SizedBox(width: 8),
+                                const Text('Priced Service'),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.success.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Set fixed prices',
+                                    style: AppTheme.caption.copyWith(color: AppTheme.success),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'negotiable',
+                            child: Row(
+                              children: [
+                                Icon(Icons.handshake, size: 20, color: AppTheme.warning),
+                                const SizedBox(width: 8),
+                                const Text('Negotiable Service'),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.warning.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Price on contact',
+                                    style: AppTheme.caption.copyWith(color: AppTheme.warning),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          DropdownMenuItem(
+                            value: 'free',
+                            child: Row(
+                              children: [
+                                Icon(Icons.volunteer_activism, size: 20, color: AppTheme.info),
+                                const SizedBox(width: 8),
+                                const Text('Free Service'),
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.info.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'No charge',
+                                    style: AppTheme.caption.copyWith(color: AppTheme.info),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedServiceType = value!;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // NEW: Booking Type Selection
+                      Text(
+                        'Booking Type',
+                        style: AppTheme.bodyLarge.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        color: AppTheme.cardDark,
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              RadioListTile<String>(
+                                title: Row(
+                                  children: [
+                                    Icon(Icons.calendar_today, size: 20, color: AppTheme.success),
+                                    const SizedBox(width: 8),
+                                    const Text('Bookable Service'),
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.success.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Schedule appointments',
+                                        style: AppTheme.caption.copyWith(color: AppTheme.success),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                subtitle: const Text('Customers can book appointments with date/time'),
+                                value: 'bookable',
+                                groupValue: _selectedBookingType,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedBookingType = value!;
+                                    AppLogger.debug('Booking type changed to: $_selectedBookingType');
+                                  });
+                                },
+                                activeColor: AppTheme.primaryPurple,
+                              ),
+                              RadioListTile<String>(
+                                title: Row(
+                                  children: [
+                                    Icon(Icons.contact_phone, size: 20, color: AppTheme.warning),
+                                    const SizedBox(width: 8),
+                                    const Text('Contact-Only Service'),
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.warning.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        'Direct contact',
+                                        style: AppTheme.caption.copyWith(color: AppTheme.warning),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                subtitle: const Text('Customers will see your contact information'),
+                                value: 'contact',
+                                groupValue: _selectedBookingType,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _selectedBookingType = value!;
+                                    AppLogger.debug('Booking type changed to: $_selectedBookingType');
+                                  });
+                                },
+                                activeColor: AppTheme.primaryPurple,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // NEW: Conditional Contact Info Fields
+                      if (_selectedBookingType == 'contact') ...[
+                        Card(
+                          color: AppTheme.cardDark,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Contact Information',
+                                  style: AppTheme.bodyLarge.copyWith(
+                                    color: AppTheme.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Provide contact details for customers to reach you directly',
+                                  style: AppTheme.bodyMedium.copyWith(
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _phoneController,
+                                  decoration: AppTheme.inputDecoration.copyWith(
+                                    labelText: 'Phone Number *',
+                                    hintText: '+260970123456',
+                                    prefixIcon: Icon(Icons.phone, color: AppTheme.textSecondary),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                  validator: (value) {
+                                    if (_selectedBookingType == 'contact' && (value == null || value.trim().isEmpty)) {
+                                      return 'Phone number is required for contact services';
+                                    }
+                                    return null;
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _emailController,
+                                  decoration: AppTheme.inputDecoration.copyWith(
+                                    labelText: 'Email Address',
+                                    hintText: 'support@provider.com',
+                                    prefixIcon: Icon(Icons.email, color: AppTheme.textSecondary),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _whatsappController,
+                                  decoration: AppTheme.inputDecoration.copyWith(
+                                    labelText: 'WhatsApp Number',
+                                    hintText: '+260970123456',
+                                    prefixIcon: Icon(Icons.chat, color: AppTheme.textSecondary),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                                const SizedBox(height: 16),
+                                TextFormField(
+                                  controller: _websiteController,
+                                  decoration: AppTheme.inputDecoration.copyWith(
+                                    labelText: 'Website',
+                                    hintText: 'https://yourwebsite.com',
+                                    prefixIcon: Icon(Icons.language, color: AppTheme.textSecondary),
+                                  ),
+                                  keyboardType: TextInputType.url,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+
+                      // Price Range (Conditional - only for priced services)
+                      if (_selectedServiceType == 'priced') ...[
+                        Text(
+                          'Price Range',
+                          style: AppTheme.bodyLarge.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
@@ -433,14 +830,27 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
                                 hintText: 'e.g., 50',
                                 prefixText: 'K',
                               ),
-                              keyboardType: TextInputType.number,
+                              keyboardType: TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                final price = double.tryParse(value);
-                                if (price == null || price <= 0) {
-                                  return 'Must be > 0';
+                                if (_selectedServiceType == 'priced') {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  final price = double.tryParse(value);
+                                  if (price == null) {
+                                    return 'Invalid number';
+                                  }
+                                  if (price < 0) {
+                                    return 'Cannot be negative';
+                                  }
+                                  if (price == 0) {
+                                    return 'Must be > 0';
+                                  }
+                                  // Check if "To" price is already set and is less than "From" price
+                                  final toPrice = double.tryParse(_priceToController.text);
+                                  if (toPrice != null && price > toPrice) {
+                                    return 'Must be ≤ To price';
+                                  }
                                 }
                                 return null;
                               },
@@ -455,18 +865,27 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
                                 hintText: 'e.g., 100',
                                 prefixText: 'K',
                               ),
-                              keyboardType: TextInputType.number,
+                              keyboardType: TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Required';
-                                }
-                                final price = double.tryParse(value);
-                                if (price == null || price <= 0) {
-                                  return 'Must be > 0';
-                                }
-                                final fromPrice = double.tryParse(_priceFromController.text);
-                                if (fromPrice != null && price < fromPrice) {
-                                  return 'Must be ≥ from price';
+                                if (_selectedServiceType == 'priced') {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  final price = double.tryParse(value);
+                                  if (price == null) {
+                                    return 'Invalid number';
+                                  }
+                                  if (price < 0) {
+                                    return 'Cannot be negative';
+                                  }
+                                  if (price == 0) {
+                                    return 'Must be > 0';
+                                  }
+                                  // Check if "From" price is already set and is greater than "To" price
+                                  final fromPrice = double.tryParse(_priceFromController.text);
+                                  if (fromPrice != null && price < fromPrice) {
+                                    return 'Must be ≥ From price';
+                                  }
                                 }
                                 return null;
                               },
@@ -474,40 +893,32 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                      // Duration
-                      Text(
-                        'Duration',
-                        style: AppTheme.bodyLarge.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
+                        // Duration (Conditional - only for priced services)
+                        Text(
+                          'Duration',
+                          style: AppTheme.bodyLarge.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _durationController,
-                        decoration: AppTheme.inputDecoration.copyWith(
-                          labelText: 'Duration (minutes)',
-                          hintText: 'e.g., 60',
-                          suffixText: 'min',
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _durationController,
+                          decoration: AppTheme.inputDecoration.copyWith(
+                            labelText: 'Duration (e.g., 60 minutes, 2 hours)',
+                            hintText: 'e.g., 60 minutes',
+                          ),
+                          validator: (value) {
+                            if (_selectedServiceType == 'priced' && (value == null || value.trim().isEmpty)) {
+                              return 'Duration is required for priced services';
+                            }
+                            return null;
+                          },
                         ),
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Duration is required';
-                          }
-                          final duration = int.tryParse(value);
-                          if (duration == null || duration <= 0) {
-                            return 'Must be > 0 minutes';
-                          }
-                          if (duration > 1440) {
-                            return 'Cannot exceed 24 hours';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
+                      ],
 
                       // Description
                       Text(
@@ -529,54 +940,17 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Image Upload
-                      Text(
-                        'Service Image (Optional)',
-                        style: AppTheme.bodyLarge.copyWith(
-                          color: AppTheme.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      InkWell(
-                        onTap: _pickImage,
-                        child: Container(
-                          height: 120,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: AppTheme.primary.withValues(alpha: 0.3),
-                              style: BorderStyle.solid,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: _selectedImage != null
-                              ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.file(
-                                    _selectedImage!,
-                                    width: double.infinity,
-                                    height: 120,
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                              : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.add_photo_alternate,
-                                      size: 40,
-                                      color: AppTheme.primary,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Tap to add image',
-                                      style: AppTheme.bodyMedium.copyWith(
-                                        color: AppTheme.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
+                      // Multi-Image Upload
+                      MultiImagePicker(
+                        initialImages: _selectedImages,
+                        maxImages: 5,
+                        onImagesChanged: (images) {
+                          setState(() {
+                            _selectedImages = images;
+                          });
+                        },
+                        isUploading: _isLoading,
+                        uploadProgress: _uploadProgress,
                       ),
                       const SizedBox(height: 20),
 

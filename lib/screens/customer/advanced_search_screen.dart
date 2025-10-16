@@ -3,11 +3,12 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import '../../theme/app_theme.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../services/search_service.dart';
 import '../../services/location_service.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/category.dart';
+import '../../utils/app_logger.dart';
+import '../../widgets/profile_image_widget.dart';
 import 'provider_detail_screen.dart';
 
 class AdvancedSearchScreen extends StatefulWidget {
@@ -93,6 +94,10 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
   Future<void> _initializeLocation() async {
     try {
       final location = await LocationService().getCurrentLocation();
+      
+      // Check if widget is still mounted before calling setState
+      if (!mounted) return;
+      
       setState(() => _userLocation = location);
       
       // Update filters with location
@@ -108,7 +113,11 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         sortBy: _filters.sortBy,
       );
     } catch (e) {
-      print('Error getting location: $e');
+      AppLogger.error('Error getting location: $e');
+      // Check if widget is still mounted before calling setState
+      if (mounted) {
+        setState(() => _userLocation = null);
+      }
     }
   }
 
@@ -526,38 +535,38 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
       itemBuilder: (context, index) {
         if (index == 0) {
           return Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Text(
-                  '${_providers.length} providers found',
-                  style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Text(
+                '${_providers.length} providers found',
+                style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+              ),
+              const Spacer(),
+              if (_userLocation == null)
+                TextButton.icon(
+                  onPressed: _initializeLocation,
+                  icon: Icon(Icons.location_on, color: AppTheme.accent),
+                  label: Text('Enable Location', style: TextStyle(color: AppTheme.accent)),
                 ),
-                const Spacer(),
-                if (_userLocation == null)
-                  TextButton.icon(
-                    onPressed: _initializeLocation,
-                    icon: Icon(Icons.location_on, color: AppTheme.accent),
-                    label: Text('Enable Location', style: TextStyle(color: AppTheme.accent)),
-                  ),
-              ],
-            ),
+            ],
+          ),
           );
         }
 
         final listIndex = index - 1;
         if (listIndex == _providers.length) {
           if (!_isLoadingMore) return const SizedBox.shrink();
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: CircularProgressIndicator(color: AppTheme.accent),
-            ),
-          );
-        }
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: CircularProgressIndicator(color: AppTheme.accent),
+                  ),
+                );
+              }
 
         return _buildProviderCard(_providers[listIndex]);
-      },
+            },
     );
   }
 
@@ -603,27 +612,10 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
           child: Row(
             children: [
               // Provider logo
-              ClipOval(
-                child: SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: (provider.logoUrl?.isNotEmpty ?? false)
-                      ? CachedNetworkImage(
-                          imageUrl: provider.logoUrl!,
-                          fit: BoxFit.cover,
-                          memCacheWidth: 120,
-                          fadeInDuration: Duration.zero,
-                          placeholder: (context, _) => Container(color: AppTheme.primary.withValues(alpha: 0.2)),
-                          errorWidget: (context, url, error) => Container(
-                            color: AppTheme.primary,
-                            child: const Icon(Icons.business, color: Colors.white),
-                          ),
-                        )
-                      : Container(
-                          color: AppTheme.primary,
-                          child: const Icon(Icons.business, color: Colors.white),
-                        ),
-                ),
+              BusinessImageWidget(
+                imageUrl: provider.logoUrl,
+                businessName: provider.businessName,
+                radius: 30,
               ),
               
               const SizedBox(width: 16),
@@ -705,7 +697,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: AppTheme.accent.withOpacity(0.1),
+                  color: AppTheme.accent.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: Icon(
@@ -859,6 +851,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         sortBy: _filters.sortBy,
       );
 
+      AppLogger.debug('Performing search with query: "${updatedFilters.query}"');
+      
       final result = await SearchService.searchProviders(
         query: updatedFilters.query,
         categoryId: updatedFilters.categoryId,
@@ -874,6 +868,11 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         offset: 0,
       );
 
+      AppLogger.debug('Search returned ${result.providers.length} providers');
+      for (int i = 0; i < result.providers.length && i < 3; i++) {
+        AppLogger.debug('Provider ${i + 1}: ${result.providers[i].businessName}');
+      }
+
       setState(() {
         _providers = result.providers;
         _hasMore = result.hasMore;
@@ -887,7 +886,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         _searchCategories(_searchController.text.trim());
       }
     } catch (e) {
-      print('Search error: $e');
+      AppLogger.error('Search error: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -920,7 +919,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         _currentOffset += result.providers.length;
       });
     } catch (e) {
-      print('Load more error: $e');
+      AppLogger.error('Load more error: $e');
     } finally {
       setState(() => _isLoadingMore = false);
     }
@@ -941,7 +940,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
         _hasMore = false;
       });
     } catch (e) {
-      print('Error loading trending providers: $e');
+      AppLogger.error('Error loading trending providers: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -952,7 +951,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> with Ticker
       final categories = await SearchService.searchCategories(query);
       setState(() => _categories = List<Category>.from(categories));
     } catch (e) {
-      print('Error searching categories: $e');
+      AppLogger.error('Error searching categories: $e');
     }
   }
 

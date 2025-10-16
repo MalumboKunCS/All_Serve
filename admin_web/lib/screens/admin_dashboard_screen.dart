@@ -11,6 +11,7 @@ import 'admin/tabs/announcements_tab.dart';
 import 'admin/tabs/admin_management_tab.dart';
 import 'admin/tabs/provider_reports_tab.dart';
 import '../widgets/announcement_dialog.dart';
+import '../utils/app_logger.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -36,20 +37,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _loadDashboardData() async {
     try {
-      print('Loading dashboard data...');
-      print('Current user UID: ${shared.AuthService().currentUser?.uid}');
-      print('Current user role: ${shared.AuthService().currentUser?.role}');
+      AppLogger.info('Loading dashboard data...');
+      AppLogger.info('Current user UID: ${shared.AuthService().currentUser?.uid}');
+      AppLogger.info('Current user role: ${shared.AuthService().currentUser?.role}');
       final stats = await shared.AdminService.getDashboardStats();
-      print('Dashboard stats loaded: $stats');
+      AppLogger.info('Dashboard stats loaded: $stats');
       
       final pendingProviders = await _getPendingProviders();
-      print('Pending providers loaded: ${pendingProviders.length}');
+      AppLogger.info('Pending providers loaded: ${pendingProviders.length}');
       
       final flaggedReviews = await _getFlaggedReviews();
-      print('Flagged reviews loaded: ${flaggedReviews.length}');
+      AppLogger.info('Flagged reviews loaded: ${flaggedReviews.length}');
       
       final recentUsers = await _getRecentUsers();
-      print('Recent users loaded: ${recentUsers.length}');
+      AppLogger.info('Recent users loaded: ${recentUsers.length}');
 
       if (mounted) {
         setState(() {
@@ -61,7 +62,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         });
       }
     } catch (e) {
-      print('Error loading dashboard data: $e');
+      AppLogger.info('Error loading dashboard data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,7 +79,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       return await shared.AdminService.getPendingProviders();
     } catch (e) {
-      print('Error getting pending providers: $e');
+      AppLogger.info('Error getting pending providers: $e');
       return [];
     }
   }
@@ -87,7 +88,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       return await shared.AdminService.getFlaggedReviews();
     } catch (e) {
-      print('Error getting flagged reviews: $e');
+      AppLogger.info('Error getting flagged reviews: $e');
       return [];
     }
   }
@@ -96,7 +97,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       return await shared.AdminService.getRecentUsers();
     } catch (e) {
-      print('Error getting recent users: $e');
+      AppLogger.info('Error getting recent users: $e');
       return [];
     }
   }
@@ -154,24 +155,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     showDialog(
       context: context,
       builder: (context) => AnnouncementDialog(
-        onSend: (title, message) async {
-          await _sendAnnouncement(title, message);
+        onSend: ({
+          required String title,
+          required String message,
+          required String audience,
+          List<String> specificUserIds = const [],
+          List<String> targetCategories = const [],
+          String priority = 'medium',
+          String type = 'info',
+          DateTime? expiresAt,
+        }) async {
+          await _sendAnnouncement(
+            title: title,
+            message: message,
+            audience: audience,
+            specificUserIds: specificUserIds,
+            targetCategories: targetCategories,
+            priority: priority,
+            type: type,
+            expiresAt: expiresAt,
+          );
         },
       ),
     );
   }
 
-  Future<void> _sendAnnouncement(String title, String message) async {
+  Future<void> _sendAnnouncement({
+    required String title,
+    required String message,
+    required String audience,
+    List<String> specificUserIds = const [],
+    List<String> targetCategories = const [],
+    String priority = 'medium',
+    String type = 'info',
+    DateTime? expiresAt,
+  }) async {
     try {
-      print('Sending announcement: $title - $message');
+      AppLogger.info('Sending announcement: $title - $message to $audience');
       
-      final success = await shared.AdminService.sendAnnouncement(title, message);
+      final success = await shared.AdminService.sendTargetedAnnouncement(
+        title: title,
+        message: message,
+        audience: audience,
+        specificUserIds: specificUserIds,
+        targetCategories: targetCategories,
+        priority: priority,
+        type: type,
+        expiresAt: expiresAt,
+      );
       
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Announcement sent successfully to all users!'),
+              content: Text('Announcement sent successfully to $audience!'),
               backgroundColor: Colors.green,
             ),
           );
@@ -180,7 +217,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         }
       }
     } catch (e) {
-      print('Error sending announcement: $e');
+      AppLogger.info('Error sending announcement: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -374,11 +374,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? AppTheme.primary : AppTheme.textSecondary.withOpacity(0.3),
+            color: isSelected ? AppTheme.primary : AppTheme.textSecondary.withValues(alpha:0.3),
             width: 2,
           ),
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? AppTheme.primary.withOpacity(0.1) : null,
+          color: isSelected ? AppTheme.primary.withValues(alpha:0.1) : null,
         ),
         child: Column(
           children: [

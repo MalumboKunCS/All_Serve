@@ -52,7 +52,9 @@ dependencies:
   
   # Location & Maps (upgraded)
   geolocator: ^14.0.2
+  google_maps_flutter: ^2.5.0
   geocoding: ^4.0.0
+  google_places_flutter: ^2.0.9
   
   # UI & UX (upgraded)
   google_fonts: ^6.3.1
@@ -69,6 +71,7 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   path: ^1.9.0
   crypto: ^3.0.3
+  logger: ^2.0.2+1
   
   # State Management
   provider: ^6.1.1

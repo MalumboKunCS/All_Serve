@@ -81,7 +81,7 @@ class _ProviderRegistrationStatusWidgetState extends State<ProviderRegistrationS
     }
 
     return Card(
-      color: AppTheme.warning.withOpacity(0.1),
+      color: AppTheme.warning.withValues(alpha:0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -153,7 +153,7 @@ class _ProviderRegistrationStatusWidgetState extends State<ProviderRegistrationS
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.warning.withOpacity(0.2),
+                      color: AppTheme.warning.withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -196,6 +196,14 @@ class _ProviderRegistrationStatusWidgetState extends State<ProviderRegistrationS
     }
   }
 }
+
+
+
+
+
+
+
+
 
 
 

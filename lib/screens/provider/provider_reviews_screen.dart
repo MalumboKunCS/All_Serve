@@ -194,7 +194,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen> {
             child: Container(
               height: 6,
               decoration: BoxDecoration(
-                color: AppTheme.textTertiary.withOpacity(0.3),
+                color: AppTheme.textTertiary.withValues(alpha:0.3),
                 borderRadius: BorderRadius.circular(3),
               ),
               child: FractionallySizedBox(
@@ -368,7 +368,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen> {
                               width: 80,
                               height: 16,
                               decoration: BoxDecoration(
-                                color: AppTheme.textTertiary.withOpacity(0.3),
+                                color: AppTheme.textTertiary.withValues(alpha:0.3),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
@@ -377,7 +377,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen> {
                               width: 60,
                               height: 12,
                               decoration: BoxDecoration(
-                                color: AppTheme.textTertiary.withOpacity(0.3),
+                                color: AppTheme.textTertiary.withValues(alpha:0.3),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                             ),
@@ -410,9 +410,9 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.2),
+                  color: AppTheme.warning.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.warning.withOpacity(0.5)),
+                  border: Border.all(color: AppTheme.warning.withValues(alpha:0.5)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

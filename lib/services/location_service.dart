@@ -28,19 +28,41 @@ class LocationService {
     return true;
   }
 
-  /// Get current location
+  /// Get current location with improved timeout handling
   Future<Position?> getCurrentLocation() async {
     try {
       bool hasPermission = await checkAndRequestPermissions();
       if (!hasPermission) return null;
 
+      // Try to get last known position first (faster)
+      Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
+      if (lastKnownPosition != null) {
+        // Check if last known position is recent (within 5 minutes)
+        final now = DateTime.now();
+        final positionTime = lastKnownPosition.timestamp;
+        if (positionTime != null && now.difference(positionTime).inMinutes < 5) {
+          return lastKnownPosition;
+        }
+      }
+
+      // Get fresh position with shorter timeout and fallback accuracy
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+        desiredAccuracy: LocationAccuracy.medium, // Reduced from high for faster response
+        timeLimit: const Duration(seconds: 5), // Reduced from 10 seconds
       );
 
       return position;
     } catch (e) {
+      // Try to get last known position as fallback
+      try {
+        Position? lastKnownPosition = await Geolocator.getLastKnownPosition();
+        if (lastKnownPosition != null) {
+          return lastKnownPosition;
+        }
+      } catch (fallbackError) {
+        // ignore fallback error
+      }
+      
       print('Error getting current location: $e');
       return null;
     }

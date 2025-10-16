@@ -397,7 +397,7 @@ class _CustomersTabState extends State<CustomersTab> {
                     icon: const Icon(Icons.visibility),
                     tooltip: 'View Details',
                     style: IconButton.styleFrom(
-                      backgroundColor: shared.AppTheme.primaryPurple.withOpacity(0.1),
+                      backgroundColor: shared.AppTheme.primaryPurple.withValues(alpha:0.1),
                       foregroundColor: shared.AppTheme.primaryPurple,
                     ),
                   ),
@@ -445,9 +445,9 @@ class _CustomersTabState extends State<CustomersTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha:0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -902,9 +902,9 @@ class CustomerProfileView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha:0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

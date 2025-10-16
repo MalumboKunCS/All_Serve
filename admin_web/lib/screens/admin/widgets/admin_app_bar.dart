@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:shared/shared.dart';
+import 'package:shared/shared.dart' as shared;
 
 class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback onMenuPressed;
@@ -14,8 +13,8 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: AppTheme.surfaceDark,
-      foregroundColor: AppTheme.textPrimary,
+      backgroundColor: shared.AppTheme.surfaceDark,
+      foregroundColor: shared.AppTheme.textPrimary,
       elevation: 0,
       leading: IconButton(
         icon: const Icon(Icons.menu),
@@ -23,8 +22,8 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       title: Text(
         'Admin Dashboard',
-        style: AppTheme.heading3.copyWith(
-          color: AppTheme.textPrimary,
+        style: shared.AppTheme.heading3.copyWith(
+          color: shared.AppTheme.textPrimary,
         ),
       ),
       actions: [
@@ -37,12 +36,12 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         
         // User Profile
-        Consumer<AuthService>(
+        Consumer<shared.AuthService>(
           builder: (context, authService, child) {
             final user = authService.currentUser;
             return PopupMenuButton<String>(
               icon: CircleAvatar(
-                backgroundColor: AppTheme.primaryPurple,
+                backgroundColor: shared.AppTheme.primaryPurple,
                 child: Text(
                   user?.name != null && user!.name.isNotEmpty 
                     ? user.name.substring(0, 1).toUpperCase()
@@ -112,7 +111,7 @@ class AdminAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   void _handleLogout(BuildContext context) async {
     try {
-      final authService = context.read<AuthService>();
+      final authService = context.read<shared.AuthService>();
       await authService.signOut();
       // The AuthWrapper will automatically redirect to login
     } catch (e) {

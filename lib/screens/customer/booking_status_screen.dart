@@ -8,6 +8,7 @@ import '../../services/enhanced_booking_service.dart';
 import 'package:shared/shared.dart' as shared;
 import 'my_bookings_screen.dart';
 import 'review_screen.dart';
+import '../../utils/app_logger.dart';
 
 class BookingStatusScreen extends StatefulWidget {
   final String bookingId;
@@ -153,7 +154,7 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
         }
       }
     } catch (e) {
-      print('Error loading provider data: $e');
+      AppLogger.error('Error loading provider data: $e');
     }
   }
 
@@ -315,7 +316,7 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
     }
 
     return Card(
-      color: statusColor.withOpacity(0.1),
+      color: statusColor.withValues(alpha:0.1),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -324,7 +325,7 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
+                color: statusColor.withValues(alpha:0.2),
                 borderRadius: BorderRadius.circular(40),
               ),
               child: Icon(
@@ -425,7 +426,7 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppTheme.success.withOpacity(0.2),
+                                color: AppTheme.success.withValues(alpha:0.2),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: AppTheme.success),
                               ),
@@ -514,7 +515,7 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
                         Container(
                           width: 2,
                           height: 40,
-                          color: AppTheme.primary.withOpacity(0.3),
+                          color: AppTheme.primary.withValues(alpha:0.3),
                         ),
                     ],
                   ),
@@ -557,8 +558,8 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
           OutlinedButton.icon(
             onPressed: () => _cancelBooking(booking),
             style: AppTheme.outlineButtonStyle.copyWith(
-              foregroundColor: MaterialStateProperty.all(AppTheme.error),
-              side: MaterialStateProperty.all(BorderSide(color: AppTheme.error)),
+              foregroundColor: WidgetStateProperty.all(AppTheme.error),
+              side: WidgetStateProperty.all(BorderSide(color: AppTheme.error)),
             ),
             icon: const Icon(Icons.cancel_outlined),
             label: const Text('Cancel Booking'),

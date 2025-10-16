@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'app_logger.dart';
 
 class DatabaseSetup {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -8,7 +9,7 @@ class DatabaseSetup {
   // Initialize database with sample data
   Future<void> initializeDatabase() async {
     try {
-      print('DatabaseSetup: Starting database initialization...');
+      AppLogger.info('DatabaseSetup: Starting database initialization...');
       
       // Create categories
       await _createCategories();
@@ -22,16 +23,16 @@ class DatabaseSetup {
       // Create sample customers
       await _createSampleCustomers();
       
-      print('DatabaseSetup: Database initialization completed successfully!');
+      AppLogger.info('DatabaseSetup: Database initialization completed successfully!');
     } catch (e) {
-      print('DatabaseSetup: Error initializing database: $e');
+      AppLogger.info('DatabaseSetup: Error initializing database: $e');
       rethrow;
     }
   }
 
   // Create categories
   Future<void> _createCategories() async {
-    print('DatabaseSetup: Creating categories...');
+    AppLogger.info('DatabaseSetup: Creating categories...');
     
     final categories = [
       {
@@ -91,12 +92,12 @@ class DatabaseSetup {
           .set(category);
     }
     
-    print('DatabaseSetup: Created ${categories.length} categories');
+    AppLogger.info('DatabaseSetup: Created ${categories.length} categories');
   }
 
   // Create admin user
   Future<void> _createAdminUser() async {
-    print('DatabaseSetup: Creating admin user...');
+    AppLogger.info('DatabaseSetup: Creating admin user...');
     
     try {
       // Create admin user in Firebase Auth
@@ -123,15 +124,15 @@ class DatabaseSetup {
         'createdAt': Timestamp.now(),
       });
 
-      print('DatabaseSetup: Admin user created - Email: admin@allserve.com, Password: admin123456');
+      AppLogger.info('DatabaseSetup: Admin user created - Email: admin@allserve.com, Password: admin123456');
     } catch (e) {
-      print('DatabaseSetup: Admin user may already exist: $e');
+      AppLogger.info('DatabaseSetup: Admin user may already exist: $e');
     }
   }
 
   // Create sample providers
   Future<void> _createSampleProviders() async {
-    print('DatabaseSetup: Creating sample providers...');
+    AppLogger.info('DatabaseSetup: Creating sample providers...');
     
     final providers = [
       {
@@ -280,12 +281,12 @@ class DatabaseSetup {
           .set(provider);
     }
     
-    print('DatabaseSetup: Created ${providers.length} sample providers');
+    AppLogger.info('DatabaseSetup: Created ${providers.length} sample providers');
   }
 
   // Create sample customers
   Future<void> _createSampleCustomers() async {
-    print('DatabaseSetup: Creating sample customers...');
+    AppLogger.info('DatabaseSetup: Creating sample customers...');
     
     final customers = [
       {
@@ -329,12 +330,12 @@ class DatabaseSetup {
           .set(customer);
     }
     
-    print('DatabaseSetup: Created ${customers.length} sample customers');
+    AppLogger.info('DatabaseSetup: Created ${customers.length} sample customers');
   }
 
   // Create sample bookings
   Future<void> createSampleBookings() async {
-    print('DatabaseSetup: Creating sample bookings...');
+    AppLogger.info('DatabaseSetup: Creating sample bookings...');
     
     final bookings = [
       {
@@ -380,12 +381,12 @@ class DatabaseSetup {
           .set(booking);
     }
     
-    print('DatabaseSetup: Created ${bookings.length} sample bookings');
+    AppLogger.info('DatabaseSetup: Created ${bookings.length} sample bookings');
   }
 
   // Create sample reviews
   Future<void> createSampleReviews() async {
-    print('DatabaseSetup: Creating sample reviews...');
+    AppLogger.info('DatabaseSetup: Creating sample reviews...');
     
     final reviews = [
       {
@@ -419,12 +420,12 @@ class DatabaseSetup {
           .set(review);
     }
     
-    print('DatabaseSetup: Created ${reviews.length} sample reviews');
+    AppLogger.info('DatabaseSetup: Created ${reviews.length} sample reviews');
   }
 
   // Create verification queue entries
   Future<void> createVerificationQueue() async {
-    print('DatabaseSetup: Creating verification queue entries...');
+    AppLogger.info('DatabaseSetup: Creating verification queue entries...');
     
     final queueEntries = [
       {
@@ -450,12 +451,12 @@ class DatabaseSetup {
           .set(entry);
     }
     
-    print('DatabaseSetup: Created ${queueEntries.length} verification queue entries');
+    AppLogger.info('DatabaseSetup: Created ${queueEntries.length} verification queue entries');
   }
 
   // Create sample announcements
   Future<void> createSampleAnnouncements() async {
-    print('DatabaseSetup: Creating sample announcements...');
+    AppLogger.info('DatabaseSetup: Creating sample announcements...');
     
     final announcements = [
       {
@@ -493,13 +494,13 @@ class DatabaseSetup {
           .set(announcement);
     }
     
-    print('DatabaseSetup: Created ${announcements.length} sample announcements');
+    AppLogger.info('DatabaseSetup: Created ${announcements.length} sample announcements');
   }
 
   // Complete database setup with all sample data
   Future<void> setupCompleteDatabase() async {
     try {
-      print('DatabaseSetup: Starting complete database setup...');
+      AppLogger.info('DatabaseSetup: Starting complete database setup...');
       
       await initializeDatabase();
       await createSampleBookings();
@@ -507,10 +508,10 @@ class DatabaseSetup {
       await createVerificationQueue();
       await createSampleAnnouncements();
       
-      print('DatabaseSetup: Complete database setup finished successfully!');
-      print('DatabaseSetup: You can now test the app with sample data.');
+      AppLogger.info('DatabaseSetup: Complete database setup finished successfully!');
+      AppLogger.info('DatabaseSetup: You can now test the app with sample data.');
     } catch (e) {
-      print('DatabaseSetup: Error in complete database setup: $e');
+      AppLogger.info('DatabaseSetup: Error in complete database setup: $e');
       rethrow;
     }
   }
@@ -518,7 +519,7 @@ class DatabaseSetup {
   // Clear all data (for testing)
   Future<void> clearAllData() async {
     try {
-      print('DatabaseSetup: Clearing all data...');
+      AppLogger.info('DatabaseSetup: Clearing all data...');
       
       final collections = ['users', 'providers', 'categories', 'bookings', 'reviews', 'verificationQueue', 'announcements'];
       
@@ -529,9 +530,9 @@ class DatabaseSetup {
         }
       }
       
-      print('DatabaseSetup: All data cleared successfully!');
+      AppLogger.info('DatabaseSetup: All data cleared successfully!');
     } catch (e) {
-      print('DatabaseSetup: Error clearing data: $e');
+      AppLogger.info('DatabaseSetup: Error clearing data: $e');
       rethrow;
     }
   }

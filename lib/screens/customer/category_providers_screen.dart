@@ -5,6 +5,7 @@ import '../../models/category.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../services/search_service.dart';
 import '../../services/location_service.dart';
+import '../../utils/app_logger.dart';
 import 'provider_detail_screen.dart';
 
 class CategoryProvidersScreen extends StatefulWidget {
@@ -44,7 +45,7 @@ class _CategoryProvidersScreenState extends State<CategoryProvidersScreen> {
         _userLocation = await _locationService.getCurrentLocation();
       }
     } catch (e) {
-      print('Error getting location: $e');
+      AppLogger.error('Error getting location: $e');
     }
   }
 
@@ -62,7 +63,7 @@ class _CategoryProvidersScreenState extends State<CategoryProvidersScreen> {
         });
       }
     } catch (e) {
-      print('Error loading providers: $e');
+      AppLogger.error('Error loading providers: $e');
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -293,7 +294,7 @@ class _CategoryProvidersScreenState extends State<CategoryProvidersScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.success.withOpacity(0.2),
+                              color: AppTheme.success.withValues(alpha:0.2),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(color: AppTheme.success),
                             ),
@@ -363,7 +364,7 @@ class _CategoryProvidersScreenState extends State<CategoryProvidersScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(0.1),
+                            color: AppTheme.primary.withValues(alpha:0.1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
@@ -379,7 +380,7 @@ class _CategoryProvidersScreenState extends State<CategoryProvidersScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.accent.withOpacity(0.1),
+                              color: AppTheme.accent.withValues(alpha:0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: AppTheme.accent),
                             ),

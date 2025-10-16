@@ -16,10 +16,11 @@ class ServiceOffering {
   final String serviceId;
   final String title;
   final String category;
+  final String type; // 'priced', 'negotiable', 'free'
   final String? description;
-  final double priceFrom;
-  final double priceTo;
-  final int durationMin;
+  final double? priceFrom; // Nullable for non-priced services
+  final double? priceTo; // Nullable for non-priced services
+  final String? duration; // Changed from int durationMin to String duration
   final String? imageUrl;
   final List<String> availability;
   final bool isActive;
@@ -30,10 +31,11 @@ class ServiceOffering {
     required this.serviceId,
     required this.title,
     required this.category,
+    required this.type,
     this.description,
-    required this.priceFrom,
-    required this.priceTo,
-    required this.durationMin,
+    this.priceFrom,
+    this.priceTo,
+    this.duration,
     this.imageUrl,
     this.availability = const [],
     this.isActive = true,
@@ -46,10 +48,11 @@ class ServiceOffering {
       'serviceId': serviceId,
       'title': title,
       'category': category,
+      'type': type,
       'description': description,
       'priceFrom': priceFrom,
       'priceTo': priceTo,
-      'durationMin': durationMin,
+      'duration': duration,
       'imageUrl': imageUrl,
       'availability': availability,
       'isActive': isActive,
@@ -63,10 +66,11 @@ class ServiceOffering {
       serviceId: map['serviceId'] ?? '',
       title: map['title'] ?? '',
       category: map['category'] ?? 'general',
+      type: map['type'] ?? 'priced', // Default to 'priced' for backward compatibility
       description: map['description'],
-      priceFrom: (map['priceFrom'] ?? 0.0).toDouble(),
-      priceTo: (map['priceTo'] ?? 0.0).toDouble(),
-      durationMin: map['durationMin'] ?? 0,
+      priceFrom: map['priceFrom'] != null ? (map['priceFrom'] as num).toDouble() : null,
+      priceTo: map['priceTo'] != null ? (map['priceTo'] as num).toDouble() : null,
+      duration: map['duration'] as String?,
       imageUrl: map['imageUrl'],
       availability: List<String>.from(map['availability'] ?? []),
       isActive: map['isActive'] ?? true,
@@ -765,10 +769,11 @@ class ProviderService {
             serviceId: service.serviceId,
             title: updates['title'] ?? service.title,
             category: updates['category'] ?? service.category,
+            type: updates['type'] ?? service.type,
             description: updates['description'] ?? service.description,
             priceFrom: updates['priceFrom'] ?? service.priceFrom,
             priceTo: updates['priceTo'] ?? service.priceTo,
-            durationMin: updates['durationMin'] ?? service.durationMin,
+            duration: updates['duration'] ?? service.duration,
             imageUrl: updates['imageUrl'] ?? service.imageUrl,
             availability: updates['availability'] ?? service.availability,
             isActive: updates['isActive'] ?? service.isActive,

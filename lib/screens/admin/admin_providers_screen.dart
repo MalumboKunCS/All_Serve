@@ -344,7 +344,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                   return Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.backgroundDark.withOpacity(0.5),
+                      color: AppTheme.backgroundDark.withValues(alpha:0.5),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -394,7 +394,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: AppTheme.success.withOpacity(0.2),
+          color: AppTheme.success.withValues(alpha:0.2),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppTheme.success),
         ),
@@ -427,7 +427,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color),
       ),
@@ -460,9 +460,9 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha:0.5)),
       ),
       child: Text(
         status.toUpperCase(),
@@ -478,7 +478,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

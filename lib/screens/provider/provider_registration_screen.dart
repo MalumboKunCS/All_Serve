@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'dart:io';
 import '../../theme/app_theme.dart';
 import 'package:shared/shared.dart' as shared;
@@ -13,8 +15,10 @@ import '../../services/cloudinary_storage_service.dart';
 import '../../services/admin_notification_service.dart';
 import '../../services/provider_registration_service.dart';
 import '../../services/category_setup_service.dart';
+import '../../widgets/google_maps_location_picker.dart';
 import 'provider_dashboard_screen.dart';
 import '../auth/login_screen.dart';
+import '../../utils/app_logger.dart';
 
 class ProviderRegistrationScreen extends StatefulWidget {
   const ProviderRegistrationScreen({super.key});
@@ -40,7 +44,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
   bool _isOtherCategory = false;
   final _customCategoryController = TextEditingController();
   Position? _selectedLocation;
-  bool _isLoadingLocation = false;
+  String? _selectedAddress;
   bool _isSubmitting = false;
   
   // Document upload state
@@ -68,6 +72,22 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
     super.initState();
     _loadCategories();
     _markRegistrationStarted();
+    _setupTextFieldListeners();
+  }
+
+  void _setupTextFieldListeners() {
+    // Add listeners to update UI when text changes
+    _businessNameController.addListener(_onTextChanged);
+    _descriptionController.addListener(_onTextChanged);
+    _websiteController.addListener(_onTextChanged);
+    _serviceAreaController.addListener(_onTextChanged);
+    _customCategoryController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _markRegistrationStarted() async {
@@ -78,12 +98,19 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         await ProviderRegistrationService.markRegistrationStarted(currentUser.uid);
       }
     } catch (e) {
-      print('Error marking registration as started: $e');
+      AppLogger.info('Error marking registration as started: $e');
     }
   }
 
   @override
   void dispose() {
+    // Remove listeners before disposing controllers
+    _businessNameController.removeListener(_onTextChanged);
+    _descriptionController.removeListener(_onTextChanged);
+    _websiteController.removeListener(_onTextChanged);
+    _serviceAreaController.removeListener(_onTextChanged);
+    _customCategoryController.removeListener(_onTextChanged);
+    
     _businessNameController.dispose();
     _descriptionController.dispose();
     _websiteController.dispose();
@@ -95,17 +122,17 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
 
   Future<void> _loadCategories() async {
     try {
-      print('Loading categories...');
+      AppLogger.info('Loading categories...');
       
       // First, ensure default categories exist in database
       await CategorySetupService.initializeDefaultCategories();
       
       // Then load categories from database
       final categories = await SearchService.getCategories();
-      print('Loaded ${categories.length} categories from SearchService');
+      AppLogger.info('Loaded ${categories.length} categories from SearchService');
       
       if (categories.isEmpty) {
-        print('No categories found, using default categories');
+        AppLogger.info('No categories found, using default categories');
         _categories = _getDefaultCategories();
       } else {
         _categories = List<Category>.from(categories);
@@ -113,10 +140,10 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
       
       if (mounted) {
         setState(() {});
-        print('Categories loaded successfully: ${_categories.length} items');
+        AppLogger.info('Categories loaded successfully: ${_categories.length} items');
       }
     } catch (e) {
-      print('Error loading categories: $e');
+      AppLogger.info('Error loading categories: $e');
       // Use default categories as fallback
       _categories = _getDefaultCategories();
       if (mounted) {
@@ -186,27 +213,63 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
     ];
   }
 
-  Future<void> _getCurrentLocation() async {
-    setState(() => _isLoadingLocation = true);
-    
-    try {
-      final position = await _locationService.getCurrentLocation();
-      if (mounted) {
-        setState(() {
-          _selectedLocation = position;
-          _isLoadingLocation = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoadingLocation = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error getting location: $e'),
-            backgroundColor: AppTheme.error,
-          ),
+  Future<void> _selectLocationOnMap() async {
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (context) => GoogleMapsLocationPicker(
+          initialPosition: _selectedLocation != null 
+              ? LatLng(_selectedLocation!.latitude, _selectedLocation!.longitude)
+              : null,
+          initialAddress: _selectedAddress,
+          enableSearch: true,
+          enableMultipleLocations: false,
+          businessType: _selectedCategoryId != null && _categories.isNotEmpty
+              ? _categories.firstWhere(
+                  (cat) => cat.categoryId == _selectedCategoryId,
+                  orElse: () => Category(
+                    categoryId: '',
+                    name: 'Unknown',
+                    description: '',
+                    createdAt: DateTime.now(),
+                  ),
+                ).name
+              : null,
+          showRoutes: false,
+          onLocationSelected: (LatLng position, String address) {
+            // This will be called when user confirms location
+          },
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      // Extract position and address from result
+      final positionData = result['position'];
+      final addressData = result['address'];
+      
+      // Handle both single location and list formats
+      final LatLng position = positionData is List 
+          ? positionData.first as LatLng 
+          : positionData as LatLng;
+      final String address = addressData is List 
+          ? addressData.first as String 
+          : addressData as String;
+      
+      setState(() {
+        _selectedLocation = Position(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          timestamp: DateTime.now(),
+          accuracy: 0.0,
+          altitude: 0.0,
+          altitudeAccuracy: 0.0,
+          heading: 0.0,
+          headingAccuracy: 0.0,
+          speed: 0.0,
+          speedAccuracy: 0.0,
         );
-      }
+        _selectedAddress = address;
+      });
     }
   }
 
@@ -268,13 +331,18 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
   bool _canProceedToNextPage() {
     switch (_currentPage) {
       case 0: // Basic Info
-        return _businessNameController.text.isNotEmpty &&
-               _descriptionController.text.isNotEmpty &&
+        final canProceed = _businessNameController.text.trim().isNotEmpty &&
+               _descriptionController.text.trim().isNotEmpty &&
+               _descriptionController.text.trim().length >= 50 &&
                _selectedCategoryId != null &&
                (!_isOtherCategory || _customCategoryController.text.trim().isNotEmpty);
+        
+        
+        return canProceed;
       case 1: // Location
         return _selectedLocation != null &&
-               _serviceAreaController.text.isNotEmpty;
+               _serviceAreaController.text.trim().isNotEmpty &&
+               (double.tryParse(_serviceAreaController.text.trim()) ?? 0) > 0;
       case 2: // Documents
         return _hasAllDocuments();
       case 3: // Images
@@ -290,10 +358,43 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
     );
   }
 
+  // Get completion status for current page
+  String _getPageCompletionStatus() {
+    switch (_currentPage) {
+      case 0: // Basic Info
+        int completed = 0;
+        int total = 3; // Business name, description, category
+        if (_businessNameController.text.trim().isNotEmpty) completed++;
+        if (_descriptionController.text.trim().length >= 50) completed++;
+        if (_selectedCategoryId != null && (!_isOtherCategory || _customCategoryController.text.trim().isNotEmpty)) completed++;
+        
+        
+        return '$completed/$total fields completed';
+      case 1: // Location
+        int completed = 0;
+        int total = 2; // Location, service area
+        if (_selectedLocation != null) completed++;
+        if (_serviceAreaController.text.trim().isNotEmpty && (double.tryParse(_serviceAreaController.text.trim()) ?? 0) > 0) completed++;
+        return '$completed/$total fields completed';
+      case 2: // Documents
+        int completed = _uploadedDocuments.values.where((url) => url.isNotEmpty).length;
+        int total = _requiredDocuments.length;
+        return '$completed/$total documents uploaded';
+      case 3: // Images
+        int completed = 0;
+        int total = 2; // Profile image, business logo
+        if (_profileImage != null) completed++;
+        if (_businessLogo != null) completed++;
+        return '$completed/$total images uploaded';
+      default:
+        return '';
+    }
+  }
+
   void _nextPage() {
-    print('Next page called. Current page: $_currentPage');
-    print('Can proceed: ${_canProceedToNextPage()}');
-    print('Is submitting: $_isSubmitting');
+    AppLogger.info('Next page called. Current page: $_currentPage');
+    AppLogger.info('Can proceed: ${_canProceedToNextPage()}');
+    AppLogger.info('Is submitting: $_isSubmitting');
     
     if (_canProceedToNextPage()) {
       if (_currentPage < 3) {
@@ -302,11 +403,11 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
           curve: Curves.easeInOut,
         );
       } else {
-        print('Calling _submitRegistration()');
+        AppLogger.info('Calling _submitRegistration()');
         _submitRegistration();
       }
     } else {
-      print('Cannot proceed to next page. Validation failed.');
+      AppLogger.info('Cannot proceed to next page. Validation failed.');
       _showValidationErrors();
     }
   }
@@ -434,7 +535,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
           businessName: _businessNameController.text.trim(),
         );
       } catch (e) {
-        print('Warning: Failed to send admin notification: $e');
+        AppLogger.info('Warning: Failed to send admin notification: $e');
         // Don't throw here as notification failure shouldn't block registration
       }
 
@@ -459,18 +560,25 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
 
   Future<void> _createVerificationQueueEntry(String providerId) async {
     try {
-      print('Creating verification queue entry for provider: $providerId');
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+      
+      AppLogger.info('Creating verification queue entry for provider: $providerId with ownerUid: ${currentUser.uid}');
       final docRef = await FirebaseFirestore.instance.collection('verification_queue').add({
         'providerId': providerId,
+        'ownerUid': currentUser.uid, // Add the ownerUid field
         'status': 'pending',
         'submittedAt': FieldValue.serverTimestamp(),
         'reviewedAt': null,
         'reviewedBy': null,
-        'notes': null,
+        'adminRemarks': '', // Add adminRemarks field
+        'docs': {}, // Initialize empty docs map to match the model
       });
-      print('Verification queue entry created with ID: ${docRef.id}');
+      AppLogger.info('Verification queue entry created with ID: ${docRef.id}');
     } catch (e) {
-      print('Error creating verification queue entry: $e');
+      AppLogger.info('Error creating verification queue entry: $e');
       throw Exception('Failed to create verification queue entry: $e');
     }
   }
@@ -547,11 +655,47 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         children: [
           // Progress indicator
           Container(
-            padding: const EdgeInsets.all(16),
-            child: LinearProgressIndicator(
-              value: (_currentPage + 1) / 4,
-              backgroundColor: AppTheme.cardDark,
-              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPurple),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: (_currentPage + 1) / 4,
+                  backgroundColor: AppTheme.cardDark,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPurple),
+                  minHeight: 6,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _getPageCompletionStatus(),
+                      style: AppTheme.caption.copyWith(
+                        color: _canProceedToNextPage() ? AppTheme.success : AppTheme.textSecondary,
+                        fontWeight: _canProceedToNextPage() ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                    if (_canProceedToNextPage())
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: AppTheme.success,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Ready',
+                            style: AppTheme.caption.copyWith(
+                              color: AppTheme.success,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
           
@@ -589,18 +733,39 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   ),
                 if (_currentPage > 0) const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: _canProceedToNextPage() && !_isSubmitting
-                        ? _nextPage
-                        : null,
-                    style: AppTheme.primaryButtonStyle.copyWith(
-                      backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
-                        if (states.contains(MaterialState.disabled)) {
-                          return AppTheme.textTertiary;
-                        }
-                        return _currentPage == 3 ? AppTheme.success : AppTheme.primaryPurple;
-                      }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: _canProceedToNextPage() && !_isSubmitting
+                          ? [
+                              BoxShadow(
+                                color: (_currentPage == 3 ? AppTheme.success : AppTheme.primaryPurple)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : [],
                     ),
+                    child: ElevatedButton(
+                      onPressed: _canProceedToNextPage() && !_isSubmitting
+                          ? _nextPage
+                          : null,
+                      style: AppTheme.primaryButtonStyle.copyWith(
+                        backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return AppTheme.textTertiary.withValues(alpha: 0.3);
+                          }
+                          return _currentPage == 3 ? AppTheme.success : AppTheme.primaryPurple;
+                        }),
+                        elevation: MaterialStateProperty.resolveWith<double>((states) {
+                          if (states.contains(MaterialState.disabled)) {
+                            return 0;
+                          }
+                          return 4;
+                        }),
+                      ),
                     child: _isSubmitting
                         ? const SizedBox(
                             height: 20,
@@ -625,6 +790,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                               ),
                             ],
                           ),
+                    ),
                   ),
                 ),
               ],
@@ -659,6 +825,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                 labelText: 'Business Name *',
                 prefixIcon: const Icon(Icons.business),
               ),
+              onChanged: (value) => setState(() {}),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your business name';
@@ -721,6 +888,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   prefixIcon: const Icon(Icons.edit),
                   hintText: 'e.g., Pet Grooming, Event Planning, etc.',
                 ),
+                onChanged: (value) => setState(() {}),
                 validator: (value) {
                   if (_isOtherCategory && (value == null || value.trim().isEmpty)) {
                     return 'Please specify your category';
@@ -733,22 +901,43 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
             const SizedBox(height: 16),
             
             // Description
-            TextFormField(
-              controller: _descriptionController,
-              decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Business Description *',
-                prefixIcon: const Icon(Icons.description),
-              ),
-              maxLines: 4,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a business description';
-                }
-                if (value.length < 50) {
-                  return 'Description must be at least 50 characters';
-                }
-                return null;
-              },
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _descriptionController,
+                  decoration: AppTheme.inputDecoration.copyWith(
+                    labelText: 'Business Description *',
+                    prefixIcon: const Icon(Icons.description),
+                    helperText: 'Minimum 50 characters',
+                  ),
+                  maxLines: 4,
+                  onChanged: (value) => setState(() {}),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a business description';
+                    }
+                    if (value.length < 50) {
+                      return 'Description must be at least 50 characters';
+                    }
+                    return null;
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 12),
+                  child: Text(
+                    '${_descriptionController.text.length}/50 characters',
+                    style: AppTheme.caption.copyWith(
+                      color: _descriptionController.text.length >= 50 
+                          ? AppTheme.success 
+                          : AppTheme.textTertiary,
+                      fontWeight: _descriptionController.text.length >= 50 
+                          ? FontWeight.w600 
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             
@@ -806,39 +995,65 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   ),
                   const SizedBox(height: 16),
                   
-                  if (_selectedLocation == null)
-                    ElevatedButton.icon(
-                      onPressed: _isLoadingLocation ? null : _getCurrentLocation,
-                      icon: _isLoadingLocation
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.my_location),
-                      label: Text(_isLoadingLocation ? 'Getting Location...' : 'Get Current Location'),
-                      style: AppTheme.primaryButtonStyle,
-                    )
-                  else
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Latitude: ${_selectedLocation!.latitude.toStringAsFixed(6)}',
-                          style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+                  ElevatedButton.icon(
+                    onPressed: _selectLocationOnMap,
+                    icon: const Icon(Icons.map),
+                    label: const Text('Select on Map'),
+                    style: AppTheme.primaryButtonStyle,
+                  ),
+                  
+                  if (_selectedLocation != null) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppTheme.success.withValues(alpha: 0.3),
                         ),
-                        Text(
-                          'Longitude: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
-                          style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: _getCurrentLocation,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Update Location'),
-                        ),
-                      ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: AppTheme.success,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Location Selected',
+                                style: AppTheme.bodyMedium.copyWith(
+                                  color: AppTheme.success,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_selectedAddress != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              _selectedAddress!,
+                              style: AppTheme.caption.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Lat: ${_selectedLocation!.latitude.toStringAsFixed(6)}, '
+                            'Lng: ${_selectedLocation!.longitude.toStringAsFixed(6)}',
+                            style: AppTheme.caption.copyWith(
+                              color: AppTheme.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -929,7 +1144,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.success.withOpacity(0.2),
+                      color: AppTheme.success.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

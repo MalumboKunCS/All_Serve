@@ -4,6 +4,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import '../utils/app_logger.dart';
 
 class NotificationService {
   static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -25,9 +26,9 @@ class NotificationService {
       await _configureFCM();
 
       _isInitialized = true;
-      print('Notification service initialized successfully');
+      AppLogger.info('Notification service initialized successfully');
     } catch (e) {
-      print('Error initializing notification service: $e');
+      AppLogger.info('Error initializing notification service: $e');
     }
   }
 
@@ -101,7 +102,7 @@ class NotificationService {
       }
       return token;
     } catch (e) {
-      print('Error getting FCM token: $e');
+      AppLogger.info('Error getting FCM token: $e');
       return null;
     }
   }
@@ -123,9 +124,9 @@ class NotificationService {
       //   });
       // }
       
-      print('FCM Token: $token');
+      AppLogger.info('FCM Token: $token');
     } catch (e) {
-      print('Error saving token to Firestore: $e');
+      AppLogger.info('Error saving token to Firestore: $e');
     }
   }
 
@@ -142,7 +143,7 @@ class NotificationService {
         });
       }
     } catch (e) {
-      print('Error updating user token: $e');
+      AppLogger.info('Error updating user token: $e');
     }
   }
 
@@ -159,13 +160,13 @@ class NotificationService {
         });
       }
     } catch (e) {
-      print('Error removing user token: $e');
+      AppLogger.info('Error removing user token: $e');
     }
   }
 
   // Handle foreground messages
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    print('Received foreground message: ${message.messageId}');
+    AppLogger.info('Received foreground message: ${message.messageId}');
     
     // Show local notification for foreground messages
     await _showLocalNotification(message);
@@ -173,7 +174,7 @@ class NotificationService {
 
   // Handle notification tap
   static Future<void> _handleNotificationTap(RemoteMessage message) async {
-    print('Notification tapped: ${message.messageId}');
+    AppLogger.info('Notification tapped: ${message.messageId}');
     
     // Handle navigation based on notification data
     final data = message.data;
@@ -213,7 +214,7 @@ class NotificationService {
         payload: jsonEncode(message.data),
       );
     } catch (e) {
-      print('Error showing local notification: $e');
+      AppLogger.info('Error showing local notification: $e');
     }
   }
 
@@ -226,33 +227,33 @@ class NotificationService {
       switch (type) {
         case 'booking_request':
           // Navigate to booking management
-          print('Navigate to booking: $id');
+          AppLogger.info('Navigate to booking: $id');
           break;
         case 'booking_accepted':
         case 'booking_rejected':
         case 'booking_completed':
           // Navigate to booking details
-          print('Navigate to booking status: $id');
+          AppLogger.info('Navigate to booking status: $id');
           break;
         case 'provider_approved':
         case 'provider_rejected':
           // Navigate to provider dashboard
-          print('Navigate to provider dashboard');
+          AppLogger.info('Navigate to provider dashboard');
           break;
         case 'announcement':
           // Navigate to announcements or home
-          print('Navigate to announcements');
+          AppLogger.info('Navigate to announcements');
           break;
         case 'review':
           // Navigate to reviews
-          print('Navigate to reviews: $id');
+          AppLogger.info('Navigate to reviews: $id');
           break;
         default:
           // Navigate to home
-          print('Navigate to home');
+          AppLogger.info('Navigate to home');
       }
     } catch (e) {
-      print('Error handling notification navigation: $e');
+      AppLogger.info('Error handling notification navigation: $e');
     }
   }
 
@@ -264,7 +265,7 @@ class NotificationService {
         _handleNotificationNavigation(data);
       }
     } catch (e) {
-      print('Error handling notification tap: $e');
+      AppLogger.info('Error handling notification tap: $e');
     }
   }
 
@@ -272,9 +273,9 @@ class NotificationService {
   static Future<void> subscribeToTopic(String topic) async {
     try {
       await _firebaseMessaging.subscribeToTopic(topic);
-      print('Subscribed to topic: $topic');
+      AppLogger.info('Subscribed to topic: $topic');
     } catch (e) {
-      print('Error subscribing to topic: $e');
+      AppLogger.info('Error subscribing to topic: $e');
     }
   }
 
@@ -282,9 +283,9 @@ class NotificationService {
   static Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _firebaseMessaging.unsubscribeFromTopic(topic);
-      print('Unsubscribed from topic: $topic');
+      AppLogger.info('Unsubscribed from topic: $topic');
     } catch (e) {
-      print('Error unsubscribing from topic: $e');
+      AppLogger.info('Error unsubscribing from topic: $e');
     }
   }
 
@@ -336,7 +337,7 @@ class NotificationService {
     try {
       // This would typically be handled by your backend/cloud functions
       // For demonstration, we'll just log it
-      print('Sending notification to user $userId: $title - $body');
+      AppLogger.info('Sending notification to user $userId: $title - $body');
       
       // In a real implementation, you would:
       // 1. Get user's device tokens from Firestore
@@ -354,10 +355,10 @@ class NotificationService {
         final deviceTokens = List<String>.from(userData['deviceTokens'] ?? []);
         
         // Here you would use FCM Admin SDK to send to these tokens
-        print('Would send to tokens: $deviceTokens');
+        AppLogger.info('Would send to tokens: $deviceTokens');
       }
     } catch (e) {
-      print('Error sending notification to user: $e');
+      AppLogger.info('Error sending notification to user: $e');
     }
   }
 
@@ -370,12 +371,12 @@ class NotificationService {
   }) async {
     try {
       // This would typically be handled by your backend/cloud functions
-      print('Sending notification: $title - $body to topic: $topic');
+      AppLogger.info('Sending notification: $title - $body to topic: $topic');
       
       // In a real implementation, you would use FCM Admin SDK
       // or Cloud Functions to send notifications
     } catch (e) {
-      print('Error sending notification: $e');
+      AppLogger.info('Error sending notification: $e');
     }
   }
 
@@ -387,7 +388,7 @@ class NotificationService {
     Map<String, dynamic>? data,
   }) async {
     try {
-      print('Sending notification to ${deviceTokens.length} users: $title - $body');
+      AppLogger.info('Sending notification to ${deviceTokens.length} users: $title - $body');
       
       // In a real implementation, you would use FCM Admin SDK
       // to send notifications to multiple device tokens
@@ -395,13 +396,13 @@ class NotificationService {
       
       for (int i = 0; i < deviceTokens.length; i += 100) {
         final batch = deviceTokens.skip(i).take(100).toList();
-        print('Sending batch ${(i ~/ 100) + 1}: ${batch.length} tokens');
+        AppLogger.info('Sending batch ${(i ~/ 100) + 1}: ${batch.length} tokens');
         
         // In production, you would send the actual FCM message here
         // await _sendFCMToMultipleTokens(batch, title, body, data);
       }
     } catch (e) {
-      print('Error sending notification to multiple users: $e');
+      AppLogger.info('Error sending notification to multiple users: $e');
     }
   }
 }
@@ -409,7 +410,7 @@ class NotificationService {
 // Background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('Handling background message: ${message.messageId}');
+  AppLogger.info('Handling background message: ${message.messageId}');
   
   // Handle background notification logic here
   // You can update local database, show notification, etc.
