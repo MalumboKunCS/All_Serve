@@ -288,3 +288,4 @@ class ProviderGalleryWidget extends StatelessWidget {
     );
   }
 }
+

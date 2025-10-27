@@ -5,9 +5,13 @@ import '../../models/provider.dart' as app_provider;
 import '../../widgets/contact_info_section.dart';
 import '../../widgets/profile_image_widget.dart';
 import '../../widgets/service_image_widget.dart';
+import '../../widgets/review_card.dart';
 import '../../utils/responsive_utils.dart';
 import '../../utils/app_logger.dart';
+import '../../models/review.dart';
+import '../../services/comprehensive_review_service.dart';
 import 'booking_screen.dart';
+import 'provider_reviews_screen.dart';
 
 class ProviderDetailScreen extends StatefulWidget {
   final app_provider.Provider provider;
@@ -163,6 +167,31 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
                                       ),
                                     ],
                                   ),
+                                  // Show cancellation rate if provider has accepted bookings
+                                  if (widget.provider.acceptedCount > 0) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          size: 14,
+                                          color: widget.provider.hasHighCancellationRate 
+                                              ? AppTheme.warning 
+                                              : AppTheme.success,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Cancellation rate: ${widget.provider.cancellationRate.toStringAsFixed(1)}%',
+                                          style: AppTheme.caption.copyWith(
+                                            color: widget.provider.hasHighCancellationRate 
+                                                ? AppTheme.warning 
+                                                : Colors.white70,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -178,14 +207,8 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {
-                  // TODO: Implement share functionality
-                },
-              ),
-            ],
+            // Remove share button (Issue 9: Remove share button from provider detail screen)
+            actions: [],
           ),
           
           // Tab Bar
@@ -229,128 +252,176 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
       bottomNavigationBar: Container(
         padding: ResponsiveUtils.getResponsivePadding(context),
         color: AppTheme.surfaceDark,
-        child: widget.provider.websiteUrl?.isNotEmpty ?? false
-          ? Row(
-              children: [
-                // Visit Website Button
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _visitWebsite,
-                    style: AppTheme.outlineButtonStyle,
-                    icon: Icon(
-                      Icons.language,
-                      size: ResponsiveUtils.getResponsiveIconSize(
-                        context,
-                        mobile: 18,
-                        tablet: 20,
-                        desktop: 22,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Reviews summary bar
+            if (widget.provider.ratingCount > 0) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.cardDark),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.star,
+                      size: 16,
+                      color: AppTheme.warning,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${widget.provider.ratingAvg.toStringAsFixed(1)} (${widget.provider.ratingCount} reviews)',
+                      style: AppTheme.bodyMedium.copyWith(
+                        color: AppTheme.textPrimary,
                       ),
                     ),
-                    label: Text(
-                      'Visit Website',
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 12,
-                          tablet: 14,
-                          desktop: 16,
+                    const SizedBox(width: 16),
+                    TextButton(
+                      onPressed: () {
+                        _tabController.animateTo(2); // Navigate to reviews tab
+                      },
+                      child: Text(
+                        'View All',
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.primaryPurple,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
-                  context,
-                  mobile: 12,
-                  tablet: 14,
-                  desktop: 16,
-                )),
-                // Book Service Button
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      try {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => BookingScreen(provider: widget.provider),
+              ),
+            ],
+            
+            // Action buttons
+            widget.provider.websiteUrl?.isNotEmpty ?? false
+              ? Row(
+                  children: [
+                    // Visit Website Button
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _visitWebsite,
+                        style: AppTheme.outlineButtonStyle,
+                        icon: Icon(
+                          Icons.language,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 18,
+                            tablet: 20,
+                            desktop: 22,
                           ),
-                        );
-                      } catch (e) {
-                        AppLogger.error('Error navigating to booking: $e');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Unable to open booking'),
-                            backgroundColor: AppTheme.error,
+                        ),
+                        label: Text(
+                          'Visit Website',
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 12,
+                              tablet: 14,
+                              desktop: 16,
+                            ),
                           ),
-                        );
-                      }
-                    },
-                    style: AppTheme.primaryButtonStyle,
-                    icon: Icon(
-                      Icons.calendar_today,
-                      size: ResponsiveUtils.getResponsiveIconSize(
-                        context,
-                        mobile: 18,
-                        tablet: 20,
-                        desktop: 22,
-                      ),
-                    ),
-                    label: Text(
-                      'Book Service',
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 12,
-                          tablet: 14,
-                          desktop: 16,
                         ),
                       ),
                     ),
+                    SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 12,
+                      tablet: 14,
+                      desktop: 16,
+                    )),
+                    // Book Service Button
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          try {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => BookingScreen(provider: widget.provider),
+                              ),
+                            );
+                          } catch (e) {
+                            AppLogger.error('Error navigating to booking: $e');
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Unable to open booking'),
+                                backgroundColor: AppTheme.error,
+                              ),
+                            );
+                          }
+                        },
+                        style: AppTheme.primaryButtonStyle,
+                        icon: Icon(
+                          Icons.calendar_today,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 18,
+                            tablet: 20,
+                            desktop: 22,
+                          ),
+                        ),
+                        label: Text(
+                          'Book Service',
+                          style: TextStyle(
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 12,
+                              tablet: 14,
+                              desktop: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : ElevatedButton.icon(
+                  onPressed: () {
+                    try {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => BookingScreen(provider: widget.provider),
+                        ),
+                      );
+                    } catch (e) {
+                      AppLogger.error('Error navigating to booking: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Unable to open booking'),
+                          backgroundColor: AppTheme.error,
+                        ),
+                      );
+                    }
+                  },
+                  style: AppTheme.primaryButtonStyle,
+                  icon: Icon(
+                    Icons.calendar_today,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 18,
+                      tablet: 20,
+                      desktop: 22,
+                    ),
+                  ),
+                  label: Text(
+                    'Book Service',
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
+                    ),
                   ),
                 ),
-              ],
-            )
-          : ElevatedButton.icon(
-              onPressed: () {
-                try {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => BookingScreen(provider: widget.provider),
-                    ),
-                  );
-                } catch (e) {
-                  AppLogger.error('Error navigating to booking: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Unable to open booking'),
-                      backgroundColor: AppTheme.error,
-                    ),
-                  );
-                }
-              },
-              style: AppTheme.primaryButtonStyle,
-              icon: Icon(
-                Icons.calendar_today,
-                size: ResponsiveUtils.getResponsiveIconSize(
-                  context,
-                  mobile: 18,
-                  tablet: 20,
-                  desktop: 22,
-                ),
-              ),
-              label: Text(
-                'Book Service',
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getResponsiveFontSize(
-                    context,
-                    mobile: 12,
-                    tablet: 14,
-                    desktop: 16,
-                  ),
-                ),
-              ),
-            ),
+          ],
+        ),
       ),
     );
   }
@@ -833,12 +904,98 @@ class _ProviderDetailScreenState extends State<ProviderDetailScreen>
   }
 
   Widget _buildReviewsTab() {
-    return const Center(
-      child: Text(
-        'Reviews coming soon...',
-        style: TextStyle(color: Colors.grey),
-      ),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getProviderStats(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, color: AppTheme.error, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  'Failed to load reviews',
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.error),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final stats = snapshot.data ?? {};
+        
+        return StreamBuilder<List<Review>>(
+          stream: ComprehensiveReviewService.getProviderReviews(widget.provider.providerId),
+          builder: (context, reviewsSnapshot) {
+            if (reviewsSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (reviewsSnapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading reviews: ${reviewsSnapshot.error}',
+                  style: AppTheme.bodyMedium.copyWith(color: AppTheme.error),
+                ),
+              );
+            }
+
+            final reviews = reviewsSnapshot.data ?? <Review>[];
+            
+            if (reviews.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.star_border, color: AppTheme.textSecondary, size: 64),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Reviews Yet',
+                      style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Be the first to review this provider',
+                      style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: ResponsiveUtils.getResponsivePadding(context),
+              itemCount: reviews.length,
+              itemBuilder: (context, index) {
+                final review = reviews[index];
+                return ReviewCard(review: review);
+              },
+            );
+          },
+        );
+      },
     );
+  }
+
+  Future<Map<String, dynamic>> _getProviderStats() async {
+    try {
+      return await ComprehensiveReviewService.getProviderStats(widget.provider.providerId);
+    } catch (e) {
+      AppLogger.error('Error loading provider stats: $e');
+      return {};
+    }
   }
 
   void _showContactInfoDialog(BuildContext context, app_provider.Service service) {

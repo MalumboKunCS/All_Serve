@@ -5,9 +5,18 @@ enum BookingStatus {
   accepted,
   rejected,
   inProgress,
+  pendingCustomerConfirmation,  // Provider marked complete, waiting for customer confirmation
   completed,
   cancelled,
   rescheduled,
+}
+
+enum PaymentStatus {
+  unpaid,
+  paid,
+  refunded,
+  failed,
+  pending,
 }
 
 class Booking {
@@ -44,6 +53,18 @@ class Booking {
   final String? customerPhoneNumber;
   final String? customerEmailAddress;
   final String? additionalNotes;
+  
+  // Review tracking
+  final bool hasReview;
+  final String? reviewId;
+  
+  // Payment tracking
+  final PaymentStatus? paymentStatus;
+  final String? paymentId;
+  final String? paymentMethod;
+  
+  // Timezone support
+  final String? timezone;
 
   Booking({
     required this.bookingId,
@@ -77,6 +98,12 @@ class Booking {
     this.customerPhoneNumber,
     this.customerEmailAddress,
     this.additionalNotes,
+    this.hasReview = false,
+    this.reviewId,
+    this.paymentStatus,
+    this.paymentId,
+    this.paymentMethod,
+    this.timezone,
   });
 
   factory Booking.fromFirestore(DocumentSnapshot doc) {
@@ -138,6 +165,17 @@ class Booking {
       customerPhoneNumber: data['customerPhoneNumber'],
       customerEmailAddress: data['customerEmailAddress'],
       additionalNotes: data['additionalNotes'],
+      hasReview: data['hasReview'] ?? false,
+      reviewId: data['reviewId'],
+      paymentStatus: data['paymentStatus'] != null
+          ? PaymentStatus.values.firstWhere(
+              (e) => e.name == data['paymentStatus'],
+              orElse: () => PaymentStatus.unpaid,
+            )
+          : PaymentStatus.unpaid,
+      paymentId: data['paymentId'],
+      paymentMethod: data['paymentMethod'],
+      timezone: data['timezone'],
     );
   }
 
@@ -199,6 +237,17 @@ class Booking {
       customerPhoneNumber: data['customerPhoneNumber'],
       customerEmailAddress: data['customerEmailAddress'],
       additionalNotes: data['additionalNotes'],
+      hasReview: data['hasReview'] ?? false,
+      reviewId: data['reviewId'],
+      paymentStatus: data['paymentStatus'] != null
+          ? PaymentStatus.values.firstWhere(
+              (e) => e.name == data['paymentStatus'],
+              orElse: () => PaymentStatus.unpaid,
+            )
+          : PaymentStatus.unpaid,
+      paymentId: data['paymentId'],
+      paymentMethod: data['paymentMethod'],
+      timezone: data['timezone'],
     );
   }
 
@@ -234,6 +283,12 @@ class Booking {
       'customerPhoneNumber': customerPhoneNumber,
       'customerEmailAddress': customerEmailAddress,
       'additionalNotes': additionalNotes,
+      'hasReview': hasReview,
+      'reviewId': reviewId,
+      'paymentStatus': paymentStatus?.name,
+      'paymentId': paymentId,
+      'paymentMethod': paymentMethod,
+      'timezone': timezone,
     };
   }
 
@@ -269,6 +324,12 @@ class Booking {
     String? customerPhoneNumber,
     String? customerEmailAddress,
     String? additionalNotes,
+    bool? hasReview,
+    String? reviewId,
+    PaymentStatus? paymentStatus,
+    String? paymentId,
+    String? paymentMethod,
+    String? timezone,
   }) {
     return Booking(
       bookingId: bookingId ?? this.bookingId,
@@ -302,6 +363,12 @@ class Booking {
       customerPhoneNumber: customerPhoneNumber ?? this.customerPhoneNumber,
       customerEmailAddress: customerEmailAddress ?? this.customerEmailAddress,
       additionalNotes: additionalNotes ?? this.additionalNotes,
+      hasReview: hasReview ?? this.hasReview,
+      reviewId: reviewId ?? this.reviewId,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      paymentId: paymentId ?? this.paymentId,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      timezone: timezone ?? this.timezone,
     );
   }
 
@@ -312,6 +379,8 @@ class Booking {
   bool get canBeRejected => status == BookingStatus.pending;
   bool get canBeCompleted => status == BookingStatus.accepted || status == BookingStatus.inProgress;
   bool get canBeStarted => status == BookingStatus.accepted;
+  bool get canBeConfirmedByCustomer => status == BookingStatus.pendingCustomerConfirmation;  // NEW
+  bool get isPendingCustomerConfirmation => status == BookingStatus.pendingCustomerConfirmation;  // NEW
   
   bool get isCompleted => status == BookingStatus.completed;
   bool get isCancelled => status == BookingStatus.cancelled;
@@ -320,6 +389,23 @@ class Booking {
   bool get isAccepted => status == BookingStatus.accepted;
   bool get isInProgress => status == BookingStatus.inProgress;
   bool get isRescheduled => status == BookingStatus.rescheduled;
+  
+  // Payment check methods
+  bool get isPaymentRequired => paymentStatus != null && paymentStatus != PaymentStatus.paid;
+  bool get isPaid => paymentStatus == PaymentStatus.paid;
+  bool get isPaymentPending => paymentStatus == PaymentStatus.pending;
+  bool get isPaymentFailed => paymentStatus == PaymentStatus.failed;
+  bool get canBeRefunded => isPaid && (isCompleted || isCancelled);
+  
+  // Review eligibility
+  bool get canBeReviewed => isCompleted && !hasReview;
+  bool get isEligibleForReview {
+    if (!isCompleted || hasReview) return false;
+    if (completedAt == null) return false;
+    // Allow reviews within 30 days of completion
+    final reviewDeadline = completedAt!.add(const Duration(days: 30));
+    return DateTime.now().isBefore(reviewDeadline);
+  }
 
   // Utility methods
   String get statusDisplayName {
@@ -332,6 +418,8 @@ class Booking {
         return 'Rejected';
       case BookingStatus.inProgress:
         return 'In Progress';
+      case BookingStatus.pendingCustomerConfirmation:
+        return 'Pending Confirmation';
       case BookingStatus.completed:
         return 'Completed';
       case BookingStatus.cancelled:

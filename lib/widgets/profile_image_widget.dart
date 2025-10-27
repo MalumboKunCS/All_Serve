@@ -154,3 +154,4 @@ class BusinessImageWidget extends StatelessWidget {
     );
   }
 }
+

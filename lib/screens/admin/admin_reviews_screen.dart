@@ -127,10 +127,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
     switch (_filterStatus) {
       case 'flagged':
-        query = query.where('flagged', isEqualTo: true);
+        query = query.where('isFlagged', isEqualTo: true);
         break;
       case 'unflagged':
-        query = query.where('flagged', isEqualTo: false);
+        query = query.where('isFlagged', isEqualTo: false);
         break;
       // 'all' doesn't need additional filtering
     }
@@ -152,7 +152,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               children: [
                 _buildStarRating(review.rating.round()),
                 const Spacer(),
-                if (review.flagged)
+                if (review.isFlagged)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
@@ -282,7 +282,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ),
 
             // Flag reason (if flagged)
-            if (review.flagged && (review.flagReason?.isNotEmpty ?? false)) ...[
+            if (review.isFlagged && (review.flagReason?.isNotEmpty ?? false)) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -335,7 +335,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Widget _buildActionButtons(Review review) {
-    if (review.flagged) {
+    if (review.isFlagged) {
       return Row(
         children: [
           Expanded(
@@ -381,7 +381,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           .collection('reviews')
           .doc(review.reviewId)
           .update({
-        'flagged': false,
+        'isFlagged': false,
         'flagReason': null,
       });
 
@@ -535,7 +535,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           .collection('reviews')
           .doc(review.reviewId)
           .update({
-        'flagged': true,
+        'isFlagged': true,
         'flagReason': reason.trim(),
       });
 

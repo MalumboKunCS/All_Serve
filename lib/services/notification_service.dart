@@ -130,7 +130,7 @@ class NotificationService {
     }
   }
 
-  // Update device token for current user
+  // Update device token for current user - IMPROVED IMPLEMENTATION
   static Future<void> updateUserToken(String userId) async {
     try {
       final token = await _firebaseMessaging.getToken();
@@ -141,9 +141,12 @@ class NotificationService {
             .update({
           'deviceTokens': FieldValue.arrayUnion([token])
         });
+        AppLogger.info('Successfully updated FCM token for user: $userId');
+      } else {
+        AppLogger.info('No FCM token available for user: $userId');
       }
     } catch (e) {
-      AppLogger.info('Error updating user token: $e');
+      AppLogger.info('Error updating user token for user $userId: $e');
     }
   }
 

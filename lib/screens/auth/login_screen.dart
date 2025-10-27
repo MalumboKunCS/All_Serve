@@ -8,7 +8,7 @@ import 'two_fa_verification_screen.dart';
 import '../customer/customer_home_screen.dart';
 import '../provider/provider_dashboard_screen.dart';
 import '../provider/provider_registration_screen.dart';
-import '../admin/admin_dashboard_screen.dart';
+// Admin dashboard lives in admin_web; guard navigation in SplashScreen. Remove direct import.
 import '../../services/provider_registration_service.dart';
 import '../../utils/app_logger.dart';
 // Post-login navigation is handled by SplashScreen via auth state listener
@@ -75,7 +75,8 @@ class _LoginScreenState extends State<LoginScreen> {
           }
           break;
         case 'admin':
-          destination = const AdminDashboardScreen();
+          // Admin navigation is handled in SplashScreen; default to customer/home here
+          destination = const CustomerHomeScreen();
           break;
         case 'customer':
         default:
@@ -152,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withOpacity(0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -180,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'Sign in to continue to All-Serve',
                     style: AppTheme.bodyLarge.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                     ),
                   ),
                   
@@ -194,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
+                          color: Colors.black.withOpacity(0.3),
                           blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
@@ -309,17 +310,17 @@ class _LoginScreenState extends State<LoginScreen> {
                           // Divider
                           Row(
                             children: [
-                              Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
+                              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
                               Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 16),
                                 child: Text(
                                   'OR',
                                   style: AppTheme.bodyMedium.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.7),
+                                    color: Colors.white.withOpacity(0.7),
                                   ),
                                 ),
                               ),
-                              Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.3))),
+                              Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
                             ],
                           ),
                           
@@ -332,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               Text(
                                 "Don't have an account? ",
                                 style: AppTheme.bodyMedium.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.7),
+                                  color: Colors.white.withOpacity(0.7),
                                 ),
                               ),
                               TextButton(

@@ -6,11 +6,16 @@ class Review {
   final String customerId;
   final String providerId;
   final double rating;
+  final String? title; // Optional review title
   final String comment;
   final DateTime createdAt;
-  final bool flagged;
+  final bool isFlagged;
   final String? flagReason;
+  final bool isVisible; // For admin moderation
   final List<String> helpfulVotes;
+  final String? customerName; // For display purposes
+  final String? customerAvatar; // For display purposes
+  final DateTime? updatedAt;
 
   Review({
     required this.reviewId,
@@ -18,11 +23,16 @@ class Review {
     required this.customerId,
     required this.providerId,
     required this.rating,
+    this.title,
     required this.comment,
     required this.createdAt,
-    this.flagged = false,
+    this.isFlagged = false,
     this.flagReason,
+    this.isVisible = true,
     this.helpfulVotes = const [],
+    this.customerName,
+    this.customerAvatar,
+    this.updatedAt,
   });
 
   factory Review.fromFirestore(DocumentSnapshot doc) {
@@ -33,11 +43,18 @@ class Review {
       customerId: data['customerId'] ?? '',
       providerId: data['providerId'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
+      title: data['title'],
       comment: data['comment'] ?? '',
       createdAt: (data['createdAt'] as Timestamp).toDate(),
-      flagged: data['flagged'] ?? false,
+      isFlagged: data['isFlagged'] ?? false,
       flagReason: data['flagReason'],
+      isVisible: data['isVisible'] ?? true,
       helpfulVotes: List<String>.from(data['helpfulVotes'] ?? []),
+      customerName: data['customerName'],
+      customerAvatar: data['customerAvatar'],
+      updatedAt: data['updatedAt'] != null 
+          ? (data['updatedAt'] as Timestamp).toDate() 
+          : null,
     );
   }
 
@@ -48,13 +65,22 @@ class Review {
       customerId: data['customerId'] ?? '',
       providerId: data['providerId'] ?? '',
       rating: (data['rating'] ?? 0.0).toDouble(),
+      title: data['title'],
       comment: data['comment'] ?? '',
       createdAt: data['createdAt'] is Timestamp 
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
-      flagged: data['flagged'] ?? false,
+      isFlagged: data['isFlagged'] ?? false,
       flagReason: data['flagReason'],
+      isVisible: data['isVisible'] ?? true,
       helpfulVotes: List<String>.from(data['helpfulVotes'] ?? []),
+      customerName: data['customerName'],
+      customerAvatar: data['customerAvatar'],
+      updatedAt: data['updatedAt'] is Timestamp 
+          ? (data['updatedAt'] as Timestamp).toDate()
+          : data['updatedAt'] != null 
+              ? DateTime.parse(data['updatedAt'])
+              : null,
     );
   }
 
@@ -64,11 +90,16 @@ class Review {
       'customerId': customerId,
       'providerId': providerId,
       'rating': rating,
+      'title': title,
       'comment': comment,
       'createdAt': Timestamp.fromDate(createdAt),
-      'flagged': flagged,
+      'isFlagged': isFlagged,
       'flagReason': flagReason,
+      'isVisible': isVisible,
       'helpfulVotes': helpfulVotes,
+      'customerName': customerName,
+      'customerAvatar': customerAvatar,
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
 
@@ -77,11 +108,16 @@ class Review {
     String? customerId,
     String? providerId,
     double? rating,
+    String? title,
     String? comment,
     DateTime? createdAt,
-    bool? flagged,
+    bool? isFlagged,
     String? flagReason,
+    bool? isVisible,
     List<String>? helpfulVotes,
+    String? customerName,
+    String? customerAvatar,
+    DateTime? updatedAt,
   }) {
     return Review(
       reviewId: reviewId,
@@ -89,11 +125,16 @@ class Review {
       customerId: customerId ?? this.customerId,
       providerId: providerId ?? this.providerId,
       rating: rating ?? this.rating,
+      title: title ?? this.title,
       comment: comment ?? this.comment,
       createdAt: createdAt ?? this.createdAt,
-      flagged: flagged ?? this.flagged,
+      isFlagged: isFlagged ?? this.isFlagged,
       flagReason: flagReason ?? this.flagReason,
+      isVisible: isVisible ?? this.isVisible,
       helpfulVotes: helpfulVotes ?? this.helpfulVotes,
+      customerName: customerName ?? this.customerName,
+      customerAvatar: customerAvatar ?? this.customerAvatar,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }

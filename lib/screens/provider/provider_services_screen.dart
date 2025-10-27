@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../utils/firestore_debug_utils.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/responsive_utils.dart';
 import 'enhanced_service_dialog.dart';
 
 class ProviderServicesScreen extends StatefulWidget {
@@ -205,48 +206,103 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('Manage Services'),
+        title: Text(
+          'Manage Services',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 18,
+              tablet: 20,
+              desktop: 22,
+            ),
+          ),
+        ),
         backgroundColor: AppTheme.surfaceDark,
       ),
       body: _isLoading
           ? Center(child: CircularProgressIndicator(color: AppTheme.accent))
-          : Column(
-              children: [
-                // Header
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Your Services (${_services.length})',
-                          style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
-                        ),
+          : ResponsiveLayoutBuilder(
+              builder: (context, screenType) {
+                return Column(
+                  children: [
+                    // Header
+                    Container(
+                      padding: ResponsiveUtils.getResponsivePadding(context),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Your Services (${_services.length})',
+                              style: AppTheme.heading3.copyWith(
+                                color: AppTheme.textPrimary,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 18,
+                                  tablet: 20,
+                                  desktop: 22,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: AppTheme.spacingSm,
+                            tablet: AppTheme.spacingMd,
+                            desktop: AppTheme.spacingLg,
+                          )),
+                          ElevatedButton.icon(
+                            onPressed: _showAddServiceDialog,
+                            style: AppTheme.primaryButtonStyle,
+                            icon: Icon(
+                              Icons.add,
+                              size: ResponsiveUtils.getResponsiveIconSize(
+                                context,
+                                mobile: 18,
+                                tablet: 20,
+                                desktop: 22,
+                              ),
+                            ),
+                            label: Text(
+                              'Add Service',
+                              style: TextStyle(
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 14,
+                                  tablet: 16,
+                                  desktop: 18,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      ElevatedButton.icon(
-                        onPressed: _showAddServiceDialog,
-                        style: AppTheme.primaryButtonStyle,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Service'),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
 
-                // Services List
-                Expanded(
-                  child: _services.isEmpty
-                      ? _buildEmptyState()
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _services.length,
-                          itemBuilder: (context, index) {
-                            final service = _services[index];
-                            return _buildServiceCard(service, index);
-                          },
-                        ),
-                ),
-              ],
+                    // Services List
+                    Expanded(
+                      child: _services.isEmpty
+                          ? _buildEmptyState()
+                          : ResponsiveContainer(
+                              child: ListView.builder(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ResponsiveUtils.getResponsiveSpacing(
+                                    context,
+                                    mobile: AppTheme.spacingMd,
+                                    tablet: AppTheme.spacingLg,
+                                    desktop: AppTheme.spacingXl,
+                                  ),
+                                ),
+                                itemCount: _services.length,
+                                itemBuilder: (context, index) {
+                                  final service = _services[index];
+                                  return _buildServiceCard(service, index);
+                                },
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
     );
   }
@@ -258,26 +314,80 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         children: [
           Icon(
             Icons.work_outline,
-            size: 64,
+            size: ResponsiveUtils.getResponsiveIconSize(
+              context,
+              mobile: 56,
+              tablet: 64,
+              desktop: 72,
+            ),
             color: AppTheme.textSecondary,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            mobile: AppTheme.spacingMd,
+            tablet: AppTheme.spacingLg,
+            desktop: AppTheme.spacingXl,
+          )),
           Text(
             'No Services Added',
-            style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+            style: AppTheme.heading3.copyWith(
+              color: AppTheme.textPrimary,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 20,
+                tablet: 22,
+                desktop: 24,
+              ),
+            ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            mobile: AppTheme.spacingSm,
+            tablet: AppTheme.spacingMd,
+            desktop: AppTheme.spacingLg,
+          )),
           Text(
             'Add your first service to start receiving bookings',
-            style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+            style: AppTheme.bodyText.copyWith(
+              color: AppTheme.textSecondary,
+              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                context,
+                mobile: 14,
+                tablet: 16,
+                desktop: 18,
+              ),
+            ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+            context,
+            mobile: AppTheme.spacingLg,
+            tablet: AppTheme.spacingXl,
+            desktop: AppTheme.spacingXxl,
+          )),
           ElevatedButton.icon(
             onPressed: _showAddServiceDialog,
             style: AppTheme.primaryButtonStyle,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Service'),
+            icon: Icon(
+              Icons.add,
+              size: ResponsiveUtils.getResponsiveIconSize(
+                context,
+                mobile: 18,
+                tablet: 20,
+                desktop: 22,
+              ),
+            ),
+            label: Text(
+              'Add Service',
+              style: TextStyle(
+                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                  context,
+                  mobile: 14,
+                  tablet: 16,
+                  desktop: 18,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -287,9 +397,14 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   Widget _buildServiceCard(app_provider.Service service, int index) {
     return Card(
       color: AppTheme.surfaceDark,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+        context,
+        mobile: AppTheme.spacingMd,
+        tablet: AppTheme.spacingLg,
+        desktop: AppTheme.spacingXl,
+      )),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -298,21 +413,60 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 Expanded(
                   child: Text(
                     service.title,
-                    style: AppTheme.heading3.copyWith(color: AppTheme.textPrimary),
+                    style: AppTheme.heading3.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 16,
+                        tablet: 18,
+                        desktop: 20,
+                      ),
+                    ),
                   ),
                 ),
                 PopupMenuButton(
-                  icon: Icon(Icons.more_vert, color: AppTheme.textSecondary),
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: AppTheme.textSecondary,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 20,
+                      tablet: 22,
+                      desktop: 24,
+                    ),
+                  ),
                   color: AppTheme.surfaceDark,
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       child: Row(
                         children: [
-                          Icon(Icons.edit, color: AppTheme.textPrimary),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.edit,
+                            color: AppTheme.textPrimary,
+                            size: ResponsiveUtils.getResponsiveIconSize(
+                              context,
+                              mobile: 18,
+                              tablet: 20,
+                              desktop: 22,
+                            ),
+                          ),
+                          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: AppTheme.spacingSm,
+                            tablet: AppTheme.spacingMd,
+                            desktop: AppTheme.spacingLg,
+                          )),
                           Text(
                             'Edit',
-                            style: TextStyle(color: AppTheme.textPrimary),
+                            style: TextStyle(
+                              color: AppTheme.textPrimary,
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                context,
+                                mobile: 14,
+                                tablet: 16,
+                                desktop: 18,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -321,11 +475,33 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                     PopupMenuItem(
                       child: Row(
                         children: [
-                          Icon(Icons.delete, color: AppTheme.error),
-                          const SizedBox(width: 8),
+                          Icon(
+                            Icons.delete,
+                            color: AppTheme.error,
+                            size: ResponsiveUtils.getResponsiveIconSize(
+                              context,
+                              mobile: 18,
+                              tablet: 20,
+                              desktop: 22,
+                            ),
+                          ),
+                          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: AppTheme.spacingSm,
+                            tablet: AppTheme.spacingMd,
+                            desktop: AppTheme.spacingLg,
+                          )),
                           Text(
                             'Delete',
-                            style: TextStyle(color: AppTheme.error),
+                            style: TextStyle(
+                              color: AppTheme.error,
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                context,
+                                mobile: 14,
+                                tablet: 16,
+                                desktop: 18,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -335,16 +511,31 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: AppTheme.spacingMd,
+              tablet: AppTheme.spacingLg,
+              desktop: AppTheme.spacingXl,
+            )),
             Row(
               children: [
                 if (service.type == 'priced') ...[
                   Icon(
                     Icons.attach_money,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
                     color: AppTheme.success,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingXs,
+                    tablet: AppTheme.spacingSm,
+                    desktop: AppTheme.spacingMd,
+                  )),
                   Text(
                     service.priceFrom != null && service.priceTo != null
                         ? 'K${service.priceFrom!.toStringAsFixed(0)} - K${service.priceTo!.toStringAsFixed(0)}'
@@ -352,45 +543,106 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                     style: AppTheme.bodyText.copyWith(
                       color: AppTheme.success,
                       fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingMd,
+                    tablet: AppTheme.spacingLg,
+                    desktop: AppTheme.spacingXl,
+                  )),
                   Icon(
                     Icons.schedule,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
                     color: AppTheme.textSecondary,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingXs,
+                    tablet: AppTheme.spacingSm,
+                    desktop: AppTheme.spacingMd,
+                  )),
                   Text(
                     service.duration ?? 'Duration not set',
-                    style: AppTheme.bodyText.copyWith(color: AppTheme.textSecondary),
+                    style: AppTheme.bodyText.copyWith(
+                      color: AppTheme.textSecondary,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
+                    ),
                   ),
                 ] else if (service.type == 'negotiable') ...[
                   Icon(
                     Icons.handshake,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
                     color: AppTheme.warning,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingXs,
+                    tablet: AppTheme.spacingSm,
+                    desktop: AppTheme.spacingMd,
+                  )),
                   Text(
                     'Price negotiable',
                     style: AppTheme.bodyText.copyWith(
                       color: AppTheme.warning,
                       fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
                     ),
                   ),
                 ] else if (service.type == 'free') ...[
                   Icon(
                     Icons.volunteer_activism,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 14,
+                      tablet: 16,
+                      desktop: 18,
+                    ),
                     color: AppTheme.info,
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingXs,
+                    tablet: AppTheme.spacingSm,
+                    desktop: AppTheme.spacingMd,
+                  )),
                   Text(
                     'Free service',
                     style: AppTheme.bodyText.copyWith(
                       color: AppTheme.info,
                       fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 12,
+                        tablet: 14,
+                        desktop: 16,
+                      ),
                     ),
                   ),
                 ],

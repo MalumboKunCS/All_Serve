@@ -62,6 +62,7 @@ class ProfileService {
   Future<bool> updateUserProfile({
     required String uid,
     String? firstName,
+    String? phoneNumber,
     File? profileImage,
   }) async {
     try {
@@ -70,12 +71,16 @@ class ProfileService {
       };
 
       if (firstName != null) {
-        updateData['firstName'] = firstName;
+        updateData['fullName'] = firstName;
+      }
+
+      if (phoneNumber != null) {
+        updateData['phoneNumber'] = phoneNumber;
       }
 
       if (profileImage != null) {
         final profileImageUrl = await _uploadProfileImage(uid, profileImage);
-        updateData['profileImageUrl'] = profileImageUrl;
+        updateData['profilePicture'] = profileImageUrl;
       }
 
       await _firestore.collection('users').doc(uid).update(updateData);

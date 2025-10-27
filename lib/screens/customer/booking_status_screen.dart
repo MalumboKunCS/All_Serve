@@ -5,10 +5,13 @@ import '../../theme/app_theme.dart';
 import '../../models/booking.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../services/enhanced_booking_service.dart';
+import '../../services/atomic_booking_service.dart';
 import 'package:shared/shared.dart' as shared;
 import 'my_bookings_screen.dart';
 import 'review_screen.dart';
 import '../../utils/app_logger.dart';
+import '../../services/comprehensive_review_service.dart';
+import '../../widgets/review_submission_dialog.dart';
 
 class BookingStatusScreen extends StatefulWidget {
   final String bookingId;
@@ -34,6 +37,108 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
         .doc(widget.bookingId)
         .snapshots();
     _loadProviderData();
+  }
+
+  Future<void> _confirmCompletion(Booking booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Confirm Service Completion'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Please confirm that the service has been completed to your satisfaction.',
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.cardDark,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Service: ${booking.serviceTitle}',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Final Price: K${booking.finalPrice > 0 ? booking.finalPrice.toStringAsFixed(0) : booking.estimatedPrice.toStringAsFixed(0)}',
+                    style: AppTheme.bodyMedium.copyWith(
+                      color: AppTheme.success,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'By confirming, you agree that the service was completed as expected.',
+              style: AppTheme.caption.copyWith(
+                color: AppTheme.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not Yet'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+            child: const Text('Confirm Completion'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final authService = Provider.of<shared.AuthService>(context, listen: false);
+      final user = authService.currentUser;
+      
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Update booking status to completed
+      await AtomicBookingService.confirmBookingCompletion(
+        bookingId: booking.bookingId,
+        customerId: user.uid,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Service completion confirmed! You can now leave a review.'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error confirming completion: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _cancelBooking(Booking booking) async {
@@ -283,6 +388,18 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
         statusMessage = 'Booking Confirmed';
         statusSubtitle = 'Provider has accepted your booking';
         break;
+      case BookingStatus.inProgress:
+        statusColor = AppTheme.primaryPurple;
+        statusIcon = Icons.play_circle;
+        statusMessage = 'Service In Progress';
+        statusSubtitle = 'Your service is being provided';
+        break;
+      case BookingStatus.pendingCustomerConfirmation:
+        statusColor = AppTheme.info;
+        statusIcon = Icons.pending_actions;
+        statusMessage = 'Awaiting Your Confirmation';
+        statusSubtitle = 'Provider has marked service as complete. Please confirm.';
+        break;
       case BookingStatus.completed:
         statusColor = AppTheme.success;
         statusIcon = Icons.task_alt;
@@ -306,12 +423,6 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
         statusIcon = Icons.schedule;
         statusMessage = 'Booking Rescheduled';
         statusSubtitle = 'This booking has been rescheduled';
-        break;
-      case BookingStatus.inProgress:
-        statusColor = AppTheme.primaryPurple;
-        statusIcon = Icons.play_circle;
-        statusMessage = 'Service In Progress';
-        statusSubtitle = 'Your service is being provided';
         break;
     }
 
@@ -554,6 +665,25 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Confirm Completion button for pending confirmation status
+        if (booking.canBeConfirmedByCustomer)
+          ElevatedButton.icon(
+            onPressed: () => _confirmCompletion(booking),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.success,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            icon: const Icon(Icons.check_circle),
+            label: const Text(
+              'Confirm Service Completion',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+          ),
+        
+        if (booking.canBeConfirmedByCustomer)
+          const SizedBox(height: 12),
+        
         if (booking.canBeCancelled)
           OutlinedButton.icon(
             onPressed: () => _cancelBooking(booking),
@@ -565,23 +695,42 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
             label: const Text('Cancel Booking'),
           ),
         
-        if (booking.isCompleted)
+        if (booking.isCompleted && !booking.hasReview)
           ElevatedButton.icon(
-            onPressed: () {
-              if (_provider != null) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ReviewScreen(
-                      booking: booking,
-                      provider: _provider!,
-                    ),
-                  ),
-                );
-              }
-            },
+            onPressed: () => _showReviewDialog(booking),
             style: AppTheme.primaryButtonStyle,
-            icon: const Icon(Icons.rate_review),
+            icon: const Icon(Icons.star_outline),
             label: const Text('Leave Review'),
+          ),
+        
+        if (booking.isCompleted && booking.hasReview)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.success.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: AppTheme.success,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Review Submitted',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.success,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         
         const SizedBox(height: 12),
@@ -630,5 +779,21 @@ class _BookingStatusScreenState extends State<BookingStatusScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  void _showReviewDialog(Booking booking) {
+    if (_provider == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => ReviewSubmissionDialog(
+        booking: booking,
+        provider: _provider!,
+        onReviewSubmitted: () {
+          // Refresh the booking data to show updated review status
+          setState(() {});
+        },
+      ),
+    );
   }
 }

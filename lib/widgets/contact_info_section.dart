@@ -117,7 +117,7 @@ class ContactInfoSection extends StatelessWidget {
                 ),
               ),
             
-            // WhatsApp
+            // WhatsApp (Issue 8: Proper WhatsApp deep linking)
             if (contactInfo['whatsapp'] != null && contactInfo['whatsapp'].toString().isNotEmpty)
               _buildContactTile(
                 context,
@@ -125,14 +125,20 @@ class ContactInfoSection extends StatelessWidget {
                 iconColor: const Color(0xFF25D366), // WhatsApp green
                 title: 'Chat on WhatsApp',
                 subtitle: contactInfo['whatsapp'],
-                onTap: () => _launchURL(
-                  context,
-                  'https://wa.me/${contactInfo['whatsapp']!.toString().replaceAll('+', '')}',
-                  'WhatsApp',
-                ),
+                onTap: () {
+                  // Clean phone number: remove spaces, dashes, and leading +
+                  final cleanNumber = contactInfo['whatsapp'].toString()
+                      .replaceAll(RegExp(r'[\s\-\(\)]'), '')
+                      .replaceAll('+', '');
+                  _launchURL(
+                    context,
+                    'https://wa.me/$cleanNumber',
+                    'WhatsApp',
+                  );
+                },
               ),
             
-            // Email
+            // Email (Issue 8: Proper Email deep linking with subject line)
             if (contactInfo['email'] != null && contactInfo['email'].toString().isNotEmpty)
               _buildContactTile(
                 context,
@@ -140,11 +146,15 @@ class ContactInfoSection extends StatelessWidget {
                 iconColor: AppTheme.info,
                 title: 'Send Email',
                 subtitle: contactInfo['email'],
-                onTap: () => _launchURL(
-                  context,
-                  'mailto:${contactInfo['email']}',
-                  'email',
-                ),
+                onTap: () {
+                  // Pre-fill email with subject line
+                  final subject = Uri.encodeComponent('Inquiry about ${service.title}');
+                  _launchURL(
+                    context,
+                    'mailto:${contactInfo['email']}?subject=$subject',
+                    'email',
+                  );
+                },
               ),
             
             // Website

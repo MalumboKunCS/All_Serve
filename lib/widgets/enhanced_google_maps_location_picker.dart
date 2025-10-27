@@ -96,8 +96,14 @@ class _GoogleMapsLocationPickerState extends State<GoogleMapsLocationPicker> {
         _selectedLocations.add(position);
         _updateMultipleMarkers();
       });
-      _getAddressFromLatLng(position);
-      // Note: Address will be added to _locationAddresses in _getAddressFromLatLng
+      // Get address asynchronously and add to list when ready
+      _getAddressFromLatLng(position).then((_) {
+        if (mounted && _locationAddresses.length < _selectedLocations.length) {
+          setState(() {
+            _locationAddresses.add(_selectedAddress);
+          });
+        }
+      });
     } else {
       setState(() {
         _selectedPosition = position;
@@ -123,7 +129,7 @@ class _GoogleMapsLocationPickerState extends State<GoogleMapsLocationPicker> {
         _showSuggestions = true;
       });
     } catch (e) {
-      print('Error getting search suggestions: $e');
+      debugPrint('Error getting search suggestions: $e');
     }
   }
 
@@ -168,29 +174,7 @@ class _GoogleMapsLocationPickerState extends State<GoogleMapsLocationPicker> {
           _selectedAddress = 'Error getting address';
         });
       }
-      print('Error getting address: $e');
-    }
-  }
-
-  String _getBusinessMarkerColor() {
-    switch (widget.businessType?.toLowerCase()) {
-      case 'restaurant':
-      case 'food':
-        return 'red';
-      case 'hotel':
-      case 'accommodation':
-        return 'blue';
-      case 'transport':
-      case 'taxi':
-        return 'yellow';
-      case 'retail':
-      case 'shop':
-        return 'green';
-      case 'health':
-      case 'medical':
-        return 'orange';
-      default:
-        return 'purple';
+      debugPrint('Error getting address: $e');
     }
   }
 
@@ -329,7 +313,7 @@ class _GoogleMapsLocationPickerState extends State<GoogleMapsLocationPicker> {
           SnackBar(content: Text('Error searching address: $e')),
         );
       }
-      print('Error searching address: $e');
+      debugPrint('Error searching address: $e');
     } finally {
       setState(() => _isLoadingAddress = false);
     }

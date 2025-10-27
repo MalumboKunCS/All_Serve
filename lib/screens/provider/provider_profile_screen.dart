@@ -7,6 +7,7 @@ import '../../models/category.dart';
 import '../../services/location_service.dart';
 import '../../services/search_service.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/responsive_utils.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -276,13 +277,18 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Business Information Section
               _buildSectionHeader('Business Information'),
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               TextFormField(
                 controller: _businessNameController,
@@ -299,7 +305,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 },
               ),
               
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               TextFormField(
                 controller: _descriptionController,
@@ -317,12 +328,22 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 },
               ),
               
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               // Category Selection
               _buildCategorySelection(),
               
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               TextFormField(
                 controller: _websiteController,
@@ -339,7 +360,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
               
               // Location Section
               _buildSectionHeader('Business Location'),
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               Card(
                 color: AppTheme.surfaceDark,
@@ -387,7 +413,12 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
               ),
               
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingMd,
+                tablet: AppTheme.spacingLg,
+                desktop: AppTheme.spacingXl,
+              )),
               
               TextFormField(
                 controller: _serviceAreaController,

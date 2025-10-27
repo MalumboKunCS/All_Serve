@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:shared/shared.dart' as shared;
+import '../theme/app_theme.dart';
 import 'auth/login_screen.dart';
 import 'customer/customer_home_screen.dart';
 import 'provider/provider_dashboard_screen.dart';
 import 'provider/provider_registration_screen.dart';
-import 'admin/admin_dashboard_screen.dart';
+// AdminDashboardScreen is in a separate admin app; route admins appropriately if available
 import '../services/provider_registration_service.dart';
 import '../utils/app_logger.dart';
 
@@ -136,9 +137,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           );
           break;
         case 'admin':
+          // If admin web is a separate app, keep user in a safe screen
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => const AdminDashboardScreen(),
+              builder: (_) => const CustomerHomeScreen(),
             ),
           );
           break;
@@ -164,10 +166,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: shared.AppTheme.backgroundDark,
+      backgroundColor: AppTheme.backgroundDark,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: shared.AppTheme.primaryGradient,
+          gradient: AppTheme.primaryGradient,
         ),
         child: Center(
           child: Column(
@@ -184,7 +186,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha:0.3),
+                        color: Colors.black.withOpacity(0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -193,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   child: const Icon(
                     Icons.build_circle,
                     size: 80,
-                    color: shared.AppTheme.primaryPurple,
+                    color: AppTheme.primaryPurple,
                   ),
                 ),
               ),
@@ -207,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   children: [
                     Text(
                       'All-Serve',
-                      style: shared.AppTheme.heading1.copyWith(
+                      style: AppTheme.heading1.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -215,8 +217,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     const SizedBox(height: 8),
                     Text(
                       'Your Local Service Marketplace',
-                      style: shared.AppTheme.bodyLarge.copyWith(
-                        color: Colors.white.withValues(alpha:0.9),
+                      style: AppTheme.bodyLarge.copyWith(
+                        color: Colors.white.withOpacity(0.9),
                       ),
                     ),
                   ],

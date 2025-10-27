@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart' as shared;
+// Add html import for web functionality
+import 'dart:html' as html;
 
 class DocumentViewerDialog extends StatefulWidget {
   final String documentType;
@@ -176,7 +178,7 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
           ),
         ),
 
-        // Document preview area
+        // Document preview area - FIXED: Actually display the document
         Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -224,41 +226,117 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
   }
 
   Widget _buildDocumentPreview() {
-    // For now, show a placeholder since we can't directly display PDFs or images in Flutter web
-    // In a real implementation, you might use a PDF viewer package or image viewer
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _getDocumentIcon(),
-            size: 64,
-            color: shared.AppTheme.primaryPurple,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _getDocumentTitle(),
-            style: shared.AppTheme.heading3.copyWith(
-              color: shared.AppTheme.textPrimary,
+    // FIXED: Actually display the document based on its type
+    final isPdf = widget.documentUrl.toLowerCase().contains('.pdf');
+    final isImage = widget.documentUrl.toLowerCase().contains('.jpg') || 
+                   widget.documentUrl.toLowerCase().contains('.jpeg') || 
+                   widget.documentUrl.toLowerCase().contains('.png') ||
+                   widget.documentUrl.toLowerCase().contains('.gif');
+    
+    if (isImage) {
+      // Display image directly
+      return Image.network(
+        widget.documentUrl,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Document preview not available',
-            style: shared.AppTheme.bodyMedium.copyWith(
-              color: shared.AppTheme.textSecondary,
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 48,
+                  color: shared.AppTheme.error,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Failed to load image',
+                  style: shared.AppTheme.bodyMedium.copyWith(
+                    color: shared.AppTheme.textSecondary,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Click "Open in New Tab" to view the document',
-            style: shared.AppTheme.caption.copyWith(
-              color: shared.AppTheme.textTertiary,
+          );
+        },
+      );
+    } else if (isPdf) {
+      // For PDF, provide a message that it will open in a new tab
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.picture_as_pdf,
+              size: 64,
+              color: shared.AppTheme.primaryPurple,
             ),
-          ),
-        ],
-      ),
-    );
+            const SizedBox(height: 16),
+            Text(
+              'PDF Document',
+              style: shared.AppTheme.heading3.copyWith(
+                color: shared.AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Click "Open in New Tab" to view this PDF document',
+              style: shared.AppTheme.bodyMedium.copyWith(
+                color: shared.AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    } else {
+      // For other document types
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _getDocumentIcon(),
+              size: 64,
+              color: shared.AppTheme.primaryPurple,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _getDocumentTitle(),
+              style: shared.AppTheme.heading3.copyWith(
+                color: shared.AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Document preview not available for this file type',
+              style: shared.AppTheme.bodyMedium.copyWith(
+                color: shared.AppTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Click "Open in New Tab" or "Download" to access the document',
+              style: shared.AppTheme.caption.copyWith(
+                color: shared.AppTheme.textTertiary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   IconData _getDocumentIcon() {
@@ -267,6 +345,8 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
         return Icons.badge;
       case 'businessLicenseUrl':
         return Icons.business;
+      case 'certificatesUrl':
+        return Icons.verified_user;
       case 'otherDocs':
         return Icons.description;
       default:
@@ -280,6 +360,8 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
         return 'National Registration Card (NRC)';
       case 'businessLicenseUrl':
         return 'Business License';
+      case 'certificatesUrl':
+        return 'Professional Certificates';
       case 'otherDocs':
         return 'Other Documents';
       default:
@@ -288,31 +370,42 @@ class _DocumentViewerDialogState extends State<DocumentViewerDialog> {
   }
 
   void _downloadDocument() {
-    // In a web environment, this would trigger a download
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Downloading ${_getDocumentTitle()}...'),
-        backgroundColor: shared.AppTheme.info,
-      ),
-    );
+    // Use HTML to trigger download
+    try {
+      html.window.open(widget.documentUrl, '_blank');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Opening ${_getDocumentTitle()} for download...'),
+          backgroundColor: shared.AppTheme.info,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to download document: $e'),
+          backgroundColor: shared.AppTheme.error,
+        ),
+      );
+    }
   }
 
   void _openInNewTab() {
-    // Open document URL in new tab
-    // In Flutter web, this would use html.window.open()
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Opening ${_getDocumentTitle()} in new tab...'),
-        backgroundColor: shared.AppTheme.success,
-      ),
-    );
+    // Open document URL in new tab using HTML
+    try {
+      html.window.open(widget.documentUrl, '_blank');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Opening ${_getDocumentTitle()} in new tab...'),
+          backgroundColor: shared.AppTheme.success,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to open document: $e'),
+          backgroundColor: shared.AppTheme.error,
+        ),
+      );
+    }
   }
 }
-
-
-
-
-
-
-
-

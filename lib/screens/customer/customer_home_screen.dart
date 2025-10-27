@@ -8,10 +8,12 @@ import '../../models/provider.dart' as app_provider;
 import '../../utils/app_logger.dart';
 import '../../utils/responsive_utils.dart';
 import 'categories_screen.dart';
+import 'category_providers_screen.dart'; // Issue 7: For category filtering
 import 'my_profile_screen.dart';
 import 'provider_detail_screen.dart';
 import 'advanced_search_screen.dart';
 import 'my_bookings_screen.dart';
+import 'notifications_screen.dart';
 import '../auth/login_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
@@ -153,80 +155,119 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     pinned: true,
                     backgroundColor: AppTheme.surfaceDark,
                     flexibleSpace: FlexibleSpaceBar(
-                      title: Text(
-                        'All-Serve',
-                        style: AppTheme.heading3.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: ResponsiveUtils.getResponsiveFontSize(
-                            context,
-                            mobile: 20,
-                            tablet: 22,
-                            desktop: 24,
+                      titlePadding: EdgeInsets.zero,
+                      background: Stack(
+                        children: [
+                          // Gradient background
+                          Container(
+                            decoration: const BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                            ),
                           ),
-                        ),
-                      ),
-                      centerTitle: true,
-                      titlePadding: const EdgeInsets.only(bottom: 16),
-                      background: Container(
-                        decoration: const BoxDecoration(
-                          gradient: AppTheme.primaryGradient,
-                        ),
-                        child: SafeArea(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  left: 16,
-                                  right: 16,
-                                  top: constraints.maxHeight * 0.4, // Dynamic top positioning
-                                  bottom: 16,
+                          // All-Serve watermark (subtle background text)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.only(top: 40),
+                              child: Text(
+                                'All-Serve',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                    context,
+                                    mobile: 60,
+                                    tablet: 70,
+                                    desktop: 80,
+                                  ),
+                                  letterSpacing: 2,
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Welcome back!',
-                                      style: AppTheme.bodyLarge.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                          context,
-                                          mobile: 16,
-                                          tablet: 18,
-                                          desktop: 20,
-                                        ),
-                                      ),
-                                    ),
-                                    SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                              ),
+                            ),
+                          ),
+                          // Welcome content
+                          SafeArea(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                    left: ResponsiveUtils.getResponsiveSpacing(
                                       context,
-                                      mobile: AppTheme.spacingXs,
-                                      tablet: AppTheme.spacingSm,
-                                      desktop: AppTheme.spacingMd,
-                                    )),
-                                    Text(
-                                      'Find trusted local service providers',
-                                      style: AppTheme.bodyMedium.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.9),
-                                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                                          context,
-                                          mobile: 14,
-                                          tablet: 16,
-                                          desktop: 18,
+                                      mobile: 20,
+                                      tablet: 24,
+                                      desktop: 32,
+                                    ),
+                                    right: ResponsiveUtils.getResponsiveSpacing(
+                                      context,
+                                      mobile: 20,
+                                      tablet: 24,
+                                      desktop: 32,
+                                    ),
+                                    top: constraints.maxHeight * 0.35,
+                                    bottom: 20,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Welcome back!',
+                                        style: AppTheme.bodyLarge.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                            context,
+                                            mobile: 18,
+                                            tablet: 20,
+                                            desktop: 22,
+                                          ),
+                                          height: 1.3,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                                      SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                                        context,
+                                        mobile: 6,
+                                        tablet: 8,
+                                        desktop: 10,
+                                      )),
+                                      Text(
+                                        'Find trusted local service providers',
+                                        style: AppTheme.bodyMedium.copyWith(
+                                          color: Colors.grey[200],
+                                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                            context,
+                                            mobile: 14,
+                                            tablet: 16,
+                                            desktop: 18,
+                                          ),
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
         actions: [
+          // Notifications Icon
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
                         icon: const Icon(Icons.person_outline),
             onPressed: () {
@@ -279,24 +320,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   // Main Content
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.all(AppTheme.spacingMd),
+                      padding: ResponsiveUtils.getResponsivePadding(context),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 20,
+                            tablet: 24,
+                            desktop: 28,
+                          )),
                           // Prominent Search Section
                           _buildSearchSection(),
                           
-                          const SizedBox(height: AppTheme.spacingXl),
+                          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 28,
+                            tablet: 32,
+                            desktop: 36,
+                          )),
                           
                           // Service Categories Grid
                           _buildCategoriesSection(),
                           
-                          const SizedBox(height: AppTheme.spacingXl),
+                          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 28,
+                            tablet: 32,
+                            desktop: 36,
+                          )),
                           
                           // Featured Providers
                           _buildProvidersSection(),
                           
-                          const SizedBox(height: AppTheme.spacingXxl + AppTheme.spacingXl), // Bottom padding for navigation
+                          SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 40,
+                            tablet: 48,
+                            desktop: 56,
+                          )), // Bottom padding for navigation
                         ],
                       ),
                     ),
@@ -389,114 +451,139 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   Widget _buildSearchSection() {
     return ResponsiveContainer(
-      padding: ResponsiveUtils.getResponsivePadding(context),
-      child: Container(
-        margin: EdgeInsets.symmetric(
-          vertical: ResponsiveUtils.getResponsiveSpacing(
+      padding: EdgeInsets.zero,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(ResponsiveUtils.getResponsiveSpacing(
             context,
-            mobile: AppTheme.spacingSm,
-            tablet: AppTheme.spacingMd,
-            desktop: AppTheme.spacingLg,
+            mobile: 16,
+            tablet: 18,
+            desktop: 20,
+          )),
+          border: Border.all(
+            color: AppTheme.primaryPurple.withValues(alpha: 0.3),
+            width: 1.5,
           ),
-        ),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.primaryPurple.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const AdvancedSearchScreen(),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryPurple.withValues(alpha: 0.15),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
             ),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: ResponsiveUtils.getResponsivePadding(context),
-          child: Row(
-            children: [
-                    Container(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                  gradient: AppTheme.accentGradient,
-                  borderRadius: BorderRadius.circular(12),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AdvancedSearchScreen(),
                 ),
-                child: Icon(
-                  Icons.search,
-                  color: Colors.white,
-                  size: ResponsiveUtils.getResponsiveIconSize(
-                    context,
-                    mobile: 24,
-                    tablet: 26,
-                    desktop: 28,
-                  ),
-                ),
-              ),
-              SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
-                context,
-                mobile: AppTheme.spacingMd,
-                tablet: AppTheme.spacingLg,
-                desktop: AppTheme.spacingXl,
-              )),
-              Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                      'Search Services',
-                      style: AppTheme.bodyLarge.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 16,
-                          tablet: 18,
-                          desktop: 20,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              );
+            },
+            borderRadius: BorderRadius.circular(ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 16,
+              tablet: 18,
+              desktop: 20,
+            )),
+            splashColor: AppTheme.primaryPurple.withValues(alpha: 0.1),
+            highlightColor: AppTheme.primaryPurple.withValues(alpha: 0.05),
+            child: Padding(
+              padding: ResponsiveUtils.getResponsivePadding(context),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(ResponsiveUtils.getResponsiveSpacing(
                       context,
-                      mobile: AppTheme.spacingXs,
-                      tablet: AppTheme.spacingSm,
-                      desktop: AppTheme.spacingMd,
+                      mobile: 12,
+                      tablet: 14,
+                      desktop: 16,
                     )),
-                          Text(
-                      'Find providers near you',
-                      style: AppTheme.bodyMedium.copyWith(
-                        color: AppTheme.textSecondary,
-                        fontSize: ResponsiveUtils.getResponsiveFontSize(
-                          context,
-                          mobile: 14,
-                          tablet: 16,
-                          desktop: 18,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.accentGradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.search,
+                      color: Colors.white,
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        mobile: 24,
+                        tablet: 26,
+                        desktop: 28,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  )),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Search Services',
+                          style: AppTheme.bodyLarge.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 16,
+                              tablet: 18,
+                              desktop: 20,
+                            ),
+                          ),
                         ),
-                      ),
+                        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 4,
+                          tablet: 5,
+                          desktop: 6,
+                        )),
+                        Text(
+                          "Try 'Electrician', 'Plumber'...",
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: Colors.grey[500],
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 13,
+                              tablet: 15,
+                              desktop: 17,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                        ],
-                      ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: AppTheme.textTertiary,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 16,
+                      tablet: 18,
+                      desktop: 20,
                     ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: AppTheme.textTertiary,
-                size: 16,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -506,19 +593,31 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
+          padding: EdgeInsets.symmetric(
+            vertical: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 10,
+              desktop: 12,
+            ),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-                    Text(
+              Text(
                 'Service Categories',
-                      style: AppTheme.heading2.copyWith(
-                        color: AppTheme.textPrimary,
+                style: AppTheme.heading2.copyWith(
+                  color: AppTheme.textPrimary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 20,
+                    tablet: 22,
+                    desktop: 24,
+                  ),
                 ),
               ),
-              TextButton(
+              TextButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -527,31 +626,62 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   );
                 },
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingMd,
-                    vertical: AppTheme.spacingSm,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 12,
+                      tablet: 14,
+                      desktop: 16,
+                    ),
+                    vertical: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
+                    ),
                   ),
                 ),
-                child: Text(
+                icon: Icon(
+                  Icons.arrow_forward,
+                  size: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+                label: Text(
                   'View All',
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppTheme.accentBlue,
                     fontWeight: FontWeight.w600,
-                    fontSize: 14,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 15,
+                      desktop: 16,
+                    ),
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppTheme.accentBlue.withValues(alpha: 0.5),
                   ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
+        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          mobile: 12,
+          tablet: 14,
+          desktop: 16,
+        )),
         _featuredCategories.isEmpty
             ? _buildEmptyCategoriesState()
             : ResponsiveGridView(
                 crossAxisSpacing: ResponsiveUtils.getResponsiveGridSpacing(context),
                 mainAxisSpacing: ResponsiveUtils.getResponsiveGridSpacing(context),
                 childAspectRatio: ResponsiveUtils.getResponsiveGridChildAspectRatio(context),
-                padding: ResponsiveUtils.getResponsivePadding(context),
+                padding: EdgeInsets.zero,
                 children: _featuredCategories.map((category) => _buildCategoryCard(category)).toList(),
               ),
       ],
@@ -576,12 +706,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         ],
       ),
       child: InkWell(
+        // Issue 7: Navigate to category-filtered providers
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const CategoriesScreen(),
-            ),
-          );
+          try {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => CategoryProvidersScreen(category: category),
+              ),
+            );
+          } catch (e) {
+            AppLogger.error('Error navigating to category providers: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Unable to open category providers'),
+                backgroundColor: AppTheme.error,
+              ),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -651,45 +792,88 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
+          padding: EdgeInsets.symmetric(
+            vertical: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 10,
+              desktop: 12,
+            ),
+          ),
           child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
                 'Featured Providers',
-                          style: AppTheme.heading2.copyWith(
-                            color: AppTheme.textPrimary,
+                style: AppTheme.heading2.copyWith(
+                  color: AppTheme.textPrimary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AdvancedSearchScreen(),
-                              ),
-                            );
-                          },
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.spacingMd,
-                    vertical: AppTheme.spacingSm,
+                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                    context,
+                    mobile: 20,
+                    tablet: 22,
+                    desktop: 24,
                   ),
                 ),
-                          child: Text(
-                            'View All',
-                            style: AppTheme.bodyMedium.copyWith(
-                              color: AppTheme.accentBlue,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AdvancedSearchScreen(),
                     ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 12,
+                      tablet: 14,
+                      desktop: 16,
+                    ),
+                    vertical: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
+                    ),
+                  ),
+                ),
+                icon: Icon(
+                  Icons.arrow_forward,
+                  size: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
+                ),
+                label: Text(
+                  'View All',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.accentBlue,
+                    fontWeight: FontWeight.w600,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 15,
+                      desktop: 16,
+                    ),
+                    decoration: TextDecoration.underline,
+                    decorationColor: AppTheme.accentBlue.withValues(alpha: 0.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
+        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          mobile: 12,
+          tablet: 14,
+          desktop: 16,
+        )),
         _nearbyProviders.isEmpty
             ? _buildEmptyProvidersState()
             : ListView.builder(

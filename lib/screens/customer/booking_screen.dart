@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import 'package:shared/shared.dart' as shared;
 import '../../services/enhanced_booking_service.dart';
+import '../../services/atomic_booking_service.dart';
 import '../../utils/app_logger.dart';
 import '../../widgets/contact_info_section.dart';
 import 'service_selection_dialog.dart';
@@ -28,6 +29,7 @@ class _BookingScreenState extends State<BookingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
+  final _priceController = TextEditingController();  // Add price controller
   
   // Customer contact information controllers
   final _fullNameController = TextEditingController();
@@ -104,6 +106,51 @@ class _BookingScreenState extends State<BookingScreen> {
     }
   }
 
+  /// Check if selected date is valid for the service based on day-of-week availability
+  bool _isDateValidForService(DateTime date) {
+    if (_selectedService == null) return false;
+    // If no availability specified, assume all days available (backwards compatibility)
+    if (_selectedService!.availability.isEmpty) return true;
+    
+    const daysOfWeek = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday'
+    ];
+    final dayName = daysOfWeek[date.weekday - 1]; // weekday: 1 = Monday, 7 = Sunday
+    
+    return _selectedService!.availability.contains(dayName);
+  }
+
+  /// Get human-readable day name from DateTime
+  String _getDayName(DateTime date) {
+    const daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return daysOfWeek[date.weekday - 1];
+  }
+
+  /// Get formatted text of available days for the selected service
+  String _getAvailableDaysText() {
+    if (_selectedService == null || _selectedService!.availability.isEmpty) {
+      return 'All days';
+    }
+    
+    return _selectedService!.availability
+        .map((day) => day[0].toUpperCase() + day.substring(1))
+        .join(', ');
+  }
+
   Future<void> _checkAvailability() async {
     if (_selectedService == null || _selectedDate == null) return;
 
@@ -112,10 +159,33 @@ class _BookingScreenState extends State<BookingScreen> {
     });
 
     try {
+      // Check if selected date is valid for service
+      if (!_isDateValidForService(_selectedDate!)) {
+        setState(() {
+          _isCheckingAvailability = false;
+          _availableTimeSlots.clear();
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Service not available on ${_getDayName(_selectedDate!)}. '
+                'Available days: ${_getAvailableDaysText()}'
+              ),
+              backgroundColor: AppTheme.warning,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
       final timeSlots = await EnhancedBookingService.getAvailableTimeSlots(
         providerId: widget.provider.providerId,
         date: _selectedDate!,
         durationMinutes: _getDurationInMinutes(_selectedService!.duration),
+        service: _selectedService!, // Pass service for availability validation
       );
 
       setState(() {
@@ -134,6 +204,7 @@ class _BookingScreenState extends State<BookingScreen> {
         }
       }
     } catch (e) {
+      AppLogger.error('Error checking availability: $e');
       setState(() {
         _isCheckingAvailability = false;
       });
@@ -155,6 +226,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
+    _priceController.dispose();  // Dispose price controller
     _fullNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
@@ -407,16 +479,24 @@ class _BookingScreenState extends State<BookingScreen> {
         AppLogger.warning('No location data available, using text address with default coordinates');
       }
 
-      // Create booking using enhanced service
-      final bookingId = await EnhancedBookingService.createBooking(
+      // Determine estimated price (use customer-specified price if provided)
+      double estimatedPrice;
+      if (_selectedService!.type == 'priced' && _priceController.text.trim().isNotEmpty) {
+        estimatedPrice = double.parse(_priceController.text.trim());
+      } else {
+        estimatedPrice = _selectedService!.priceFrom ?? 0.0;
+      }
+
+      // Create booking using atomic service (prevents double-booking)
+      final bookingId = await AtomicBookingService.createBookingAtomic(
         customerId: user.uid,
         providerId: widget.provider.providerId,
         serviceId: _selectedService!.serviceId,
         serviceTitle: _selectedService!.title,
         serviceCategory: _selectedService!.category,
-        estimatedPrice: _selectedService!.priceFrom ?? 0.0,
-        durationMinutes: _getDurationInMinutes(_selectedService!.duration),
         scheduledAt: scheduledAt,
+        durationMinutes: _getDurationInMinutes(_selectedService!.duration),
+        estimatedPrice: estimatedPrice,
         address: address,
         customerNotes: _notesController.text.trim().isNotEmpty ? _notesController.text.trim() : null,
         timeSlot: _selectedTimeSlot,
@@ -424,6 +504,7 @@ class _BookingScreenState extends State<BookingScreen> {
         customerPhoneNumber: _phoneController.text.trim(),
         customerEmailAddress: _emailController.text.trim().isNotEmpty ? _emailController.text.trim() : null,
         additionalNotes: _additionalNotesController.text.trim().isNotEmpty ? _additionalNotesController.text.trim() : null,
+        timezone: DateTime.now().timeZoneName,
       );
 
       if (mounted) {
@@ -438,6 +519,35 @@ class _BookingScreenState extends State<BookingScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => BookingStatusScreen(bookingId: bookingId!),
+          ),
+        );
+      }
+    } on BookingConflictException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Time slot is no longer available. Please select another time.'),
+            backgroundColor: AppTheme.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } on BookingLimitException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppTheme.warning,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } on BookingValidationException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -1021,29 +1131,110 @@ class _BookingScreenState extends State<BookingScreen> {
               
               const SizedBox(height: 24),
               
-              // Notes
+              // Price Specification (for priced services)
+              if (_selectedService != null && _selectedService!.type == 'priced' && 
+                  _selectedService!.priceFrom != null && _selectedService!.priceTo != null) ...[
+                Text(
+                  'Service Price *',
+                  style: AppTheme.heading3.copyWith(
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Specify the price you are willing to pay (within K${_selectedService!.priceFrom!.toStringAsFixed(0)} - K${_selectedService!.priceTo!.toStringAsFixed(0)})',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Your Offered Price (K) *',
+                    hintText: 'Enter amount between ${_selectedService!.priceFrom!.toStringAsFixed(0)} and ${_selectedService!.priceTo!.toStringAsFixed(0)}',
+                    hintStyle: TextStyle(color: AppTheme.textTertiary),
+                    prefixIcon: Icon(Icons.attach_money, color: AppTheme.textSecondary),
+                    filled: true,
+                    fillColor: AppTheme.cardDark,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    helperText: 'Price Range: K${_selectedService!.priceFrom!.toStringAsFixed(0)} - K${_selectedService!.priceTo!.toStringAsFixed(0)}',
+                    helperStyle: TextStyle(color: AppTheme.textTertiary),
+                  ),
+                  style: TextStyle(color: AppTheme.textPrimary),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Price is required for this service';
+                    }
+                    final price = double.tryParse(value.trim());
+                    if (price == null) {
+                      return 'Please enter a valid number';
+                    }
+                    if (price < _selectedService!.priceFrom!) {
+                      return 'Price must be at least K${_selectedService!.priceFrom!.toStringAsFixed(0)}';
+                    }
+                    if (price > _selectedService!.priceTo!) {
+                      return 'Price must not exceed K${_selectedService!.priceTo!.toStringAsFixed(0)}';
+                    }
+                    return null;
+                  },
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 24),
+              ],
+              
+              // Service Requirements/Notes
               Text(
-                'Additional Notes (Optional)',
+                'Service Requirements *',
                 style: AppTheme.heading3.copyWith(
                   color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Please describe the scope of work and any specific requirements for this service',
+                style: AppTheme.bodyMedium.copyWith(
+                  color: AppTheme.textSecondary,
                 ),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _notesController,
-                maxLines: 3,
+                maxLines: 4,
+                maxLength: 500,
                 decoration: InputDecoration(
-                  hintText: 'Any special requirements or notes...',
+                  hintText: 'Describe what needs to be done, any special requirements, materials needed, etc...',
                   hintStyle: TextStyle(color: AppTheme.textTertiary),
-                  prefixIcon: Icon(Icons.note, color: AppTheme.textSecondary),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(bottom: 60),
+                    child: Icon(Icons.note, color: AppTheme.textSecondary),
+                  ),
                   filled: true,
                   fillColor: AppTheme.cardDark,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
+                  counterStyle: TextStyle(color: AppTheme.textTertiary),
                 ),
                 style: TextStyle(color: AppTheme.textPrimary),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Service requirements are required. Please describe what you need.';
+                  }
+                  if (value.trim().length < 10) {
+                    return 'Please provide at least 10 characters describing the service requirements';
+                  }
+                  if (value.trim().length > 500) {
+                    return 'Requirements must be 500 characters or less';
+                  }
+                  return null;
+                },
+                textInputAction: TextInputAction.done,
               ),
               
               const SizedBox(height: 32),

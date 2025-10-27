@@ -19,6 +19,7 @@ import '../../widgets/google_maps_location_picker.dart';
 import 'provider_dashboard_screen.dart';
 import '../auth/login_screen.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/responsive_utils.dart';
 
 class ProviderRegistrationScreen extends StatefulWidget {
   const ProviderRegistrationScreen({super.key});
@@ -267,6 +268,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
           headingAccuracy: 0.0,
           speed: 0.0,
           speedAccuracy: 0.0,
+          isMocked: false,
         );
         _selectedAddress = address;
       });
@@ -328,15 +330,19 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
     }
   }
 
+  bool _hasAllDocuments() {
+    return _requiredDocuments.keys.every((key) => 
+      _uploadedDocuments[key]?.isNotEmpty ?? false
+    );
+  }
+
   bool _canProceedToNextPage() {
     switch (_currentPage) {
       case 0: // Basic Info
         final canProceed = _businessNameController.text.trim().isNotEmpty &&
                _descriptionController.text.trim().isNotEmpty &&
                _descriptionController.text.trim().length >= 50 &&
-               _selectedCategoryId != null &&
-               (!_isOtherCategory || _customCategoryController.text.trim().isNotEmpty);
-        
+               _selectedCategoryId != null;
         
         return canProceed;
       case 1: // Location
@@ -352,12 +358,6 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
     }
   }
 
-  bool _hasAllDocuments() {
-    return _requiredDocuments.keys.every((key) => 
-      _uploadedDocuments[key]?.isNotEmpty ?? false
-    );
-  }
-
   // Get completion status for current page
   String _getPageCompletionStatus() {
     switch (_currentPage) {
@@ -366,9 +366,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         int total = 3; // Business name, description, category
         if (_businessNameController.text.trim().isNotEmpty) completed++;
         if (_descriptionController.text.trim().length >= 50) completed++;
-        if (_selectedCategoryId != null && (!_isOtherCategory || _customCategoryController.text.trim().isNotEmpty)) completed++;
-        
-        
+        if (_selectedCategoryId != null) completed++;
         return '$completed/$total fields completed';
       case 1: // Location
         int completed = 0;
@@ -565,6 +563,27 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         throw Exception('User not authenticated');
       }
       
+      // Get the provider document to extract document URLs
+      final providerDoc = await FirebaseFirestore.instance
+          .collection('providers')
+          .doc(providerId)
+          .get();
+      
+      Map<String, String> docs = {};
+      if (providerDoc.exists) {
+        final providerData = providerDoc.data()!;
+        // Extract document URLs from provider data
+        if (providerData['nrcUrl'] != null && providerData['nrcUrl'].toString().isNotEmpty) {
+          docs['nrcUrl'] = providerData['nrcUrl'].toString();
+        }
+        if (providerData['businessLicenseUrl'] != null && providerData['businessLicenseUrl'].toString().isNotEmpty) {
+          docs['businessLicenseUrl'] = providerData['businessLicenseUrl'].toString();
+        }
+        if (providerData['certificatesUrl'] != null && providerData['certificatesUrl'].toString().isNotEmpty) {
+          docs['certificatesUrl'] = providerData['certificatesUrl'].toString();
+        }
+      }
+      
       AppLogger.info('Creating verification queue entry for provider: $providerId with ownerUid: ${currentUser.uid}');
       final docRef = await FirebaseFirestore.instance.collection('verification_queue').add({
         'providerId': providerId,
@@ -574,7 +593,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         'reviewedAt': null,
         'reviewedBy': null,
         'adminRemarks': '', // Add adminRemarks field
-        'docs': {}, // Initialize empty docs map to match the model
+        'docs': docs, // Populate with actual document URLs
       });
       AppLogger.info('Verification queue entry created with ID: ${docRef.id}');
     } catch (e) {
@@ -655,7 +674,14 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
         children: [
           // Progress indicator
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: ResponsiveUtils.getResponsivePadding(context).copyWith(
+              bottom: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: AppTheme.spacingSm,
+                tablet: AppTheme.spacingMd,
+                desktop: AppTheme.spacingLg,
+              ),
+            ),
             child: Column(
               children: [
                 LinearProgressIndicator(
@@ -664,7 +690,12 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryPurple),
                   minHeight: 6,
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: AppTheme.spacingSm,
+                  tablet: AppTheme.spacingMd,
+                  desktop: AppTheme.spacingLg,
+                )),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -741,7 +772,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                           ? [
                               BoxShadow(
                                 color: (_currentPage == 3 ? AppTheme.success : AppTheme.primaryPurple)
-                                    .withValues(alpha: 0.4),
+                                    .withOpacity(0.4),
                                 blurRadius: 12,
                                 offset: const Offset(0, 4),
                               ),
@@ -755,7 +786,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                       style: AppTheme.primaryButtonStyle.copyWith(
                         backgroundColor: MaterialStateProperty.resolveWith<Color>((states) {
                           if (states.contains(MaterialState.disabled)) {
-                            return AppTheme.textTertiary.withValues(alpha: 0.3);
+                            return AppTheme.textTertiary.withOpacity(0.3);
                           }
                           return _currentPage == 3 ? AppTheme.success : AppTheme.primaryPurple;
                         }),
@@ -766,30 +797,28 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                           return 4;
                         }),
                       ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_currentPage == 3) ...[
-                                const Icon(Icons.send, size: 18),
-                                const SizedBox(width: 8),
-                              ],
-                              Flexible(
-                                child: Text(
-                                  _currentPage == 3 ? 'Submit Registration' : 'Next',
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                      child: _isSubmitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
-                            ],
-                          ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_currentPage == 3) const Icon(Icons.send, size: 18),
+                                if (_currentPage == 3) const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    _currentPage == 3 ? 'Submit Registration' : 'Next',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
                 ),
@@ -835,39 +864,38 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
             ),
             const SizedBox(height: 16),
             
-            // Category
+            // Category Selection
+            Text(
+              'Service Category *',
+              style: AppTheme.bodyLarge.copyWith(
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Select the category that best describes your service',
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            
+            // Category Dropdown
             DropdownButtonFormField<String>(
               value: _selectedCategoryId,
               decoration: AppTheme.inputDecoration.copyWith(
-                labelText: 'Service Category *',
+                labelText: 'Category *',
                 prefixIcon: const Icon(Icons.category),
-                suffixIcon: _categories.isEmpty 
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : null,
               ),
-              items: [
-                ..._categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category.categoryId,
-                    child: Text(category.name),
-                  );
-                }).toList(),
-                const DropdownMenuItem(
-                  value: 'other',
-                  child: Text('Other (Specify)'),
-                ),
-              ],
-              onChanged: _categories.isEmpty ? null : (value) {
+              items: _categories.map((category) {
+                return DropdownMenuItem(
+                  value: category.categoryId,
+                  child: Text(category.name),
+                );
+              }).toList(),
+              onChanged: (value) {
                 setState(() {
                   _selectedCategoryId = value;
-                  _isOtherCategory = (value == 'other');
-                  if (!_isOtherCategory) {
-                    _customCategoryController.clear();
-                  }
+                  _isOtherCategory = value == 'other';
                 });
               },
               validator: (value) {
@@ -878,19 +906,17 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
               },
             ),
             
-            // Custom category input (shown when "Other" is selected)
+            // Custom category input (if "Other" is selected)
             if (_isOtherCategory) ...[
               const SizedBox(height: 16),
               TextFormField(
                 controller: _customCategoryController,
                 decoration: AppTheme.inputDecoration.copyWith(
-                  labelText: 'Specify Your Category *',
-                  prefixIcon: const Icon(Icons.edit),
-                  hintText: 'e.g., Pet Grooming, Event Planning, etc.',
+                  labelText: 'Specify Category *',
+                  prefixIcon: const Icon(Icons.add),
                 ),
-                onChanged: (value) => setState(() {}),
                 validator: (value) {
-                  if (_isOtherCategory && (value == null || value.trim().isEmpty)) {
+                  if (_isOtherCategory && (value == null || value.isEmpty)) {
                     return 'Please specify your category';
                   }
                   return null;
@@ -1007,10 +1033,10 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppTheme.success.withValues(alpha: 0.1),
+                        color: AppTheme.success.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: AppTheme.success.withValues(alpha: 0.3),
+                          color: AppTheme.success.withOpacity(0.3),
                         ),
                       ),
                       child: Column(
@@ -1144,7 +1170,7 @@ class _ProviderRegistrationScreenState extends State<ProviderRegistrationScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.success.withValues(alpha: 0.2),
+                      color: AppTheme.success.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(

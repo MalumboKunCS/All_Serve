@@ -46,3 +46,4 @@ class AppLogger {
   /// Close the logger (useful for cleanup)
   static void close() => _logger.close();
 }
+

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import '../models/booking.dart';
 import '../models/time_slot.dart';
 import '../models/provider.dart' as app_provider;
+import '../utils/app_logger.dart';
 import 'notification_service.dart';
 
 class EnhancedBookingService {
@@ -104,7 +104,7 @@ class EnhancedBookingService {
 
       return bookingId;
     } catch (e) {
-      debugPrint('Error creating booking: $e');
+      AppLogger.error('Error creating booking: $e');
       rethrow;
     }
   }
@@ -142,7 +142,7 @@ class EnhancedBookingService {
 
       return overlappingBookings.isEmpty && dailyBookings < maxDailyBookings;
     } catch (e) {
-      debugPrint('Error checking provider availability: $e');
+      AppLogger.error('Error checking provider availability: $e');
       return false;
     }
   }
@@ -152,10 +152,24 @@ class EnhancedBookingService {
     required String providerId,
     required DateTime date,
     required int durationMinutes,
+    required app_provider.Service service,
   }) async {
     try {
       final provider = await _getProviderById(providerId);
-      if (provider == null) return [];
+      if (provider == null) {
+        AppLogger.warning('Provider not found: $providerId');
+        return [];
+      }
+
+      // Validate day of week against service availability
+      if (!_isDateAvailableForService(date, service)) {
+        AppLogger.info(
+          'Date ${date.toString().split(' ')[0]} (${_getDayName(date)}) '
+          'not available for service "${service.title}". '
+          'Available days: ${service.availability.join(", ")}'
+        );
+        return [];
+      }
 
       // Generate time slots based on provider's working hours
       final timeSlots = _generateTimeSlots(provider, date, durationMinutes);
@@ -174,9 +188,14 @@ class EnhancedBookingService {
         }
       }
 
+      AppLogger.debug(
+        'Generated ${availableSlots.length} available slots for ${service.title} '
+        'on ${date.toString().split(' ')[0]}'
+      );
+
       return availableSlots;
     } catch (e) {
-      debugPrint('Error getting available time slots: $e');
+      AppLogger.error('Error getting available time slots: $e');
       return [];
     }
   }
@@ -224,7 +243,7 @@ class EnhancedBookingService {
 
       return true;
     } catch (e) {
-      debugPrint('Error updating booking status: $e');
+      AppLogger.error('Error updating booking status: $e');
       return false;
     }
   }
@@ -280,7 +299,7 @@ class EnhancedBookingService {
 
       return true;
     } catch (e) {
-      debugPrint('Error cancelling booking: $e');
+      AppLogger.error('Error cancelling booking: $e');
       return false;
     }
   }
@@ -354,7 +373,7 @@ class EnhancedBookingService {
 
       return true;
     } catch (e) {
-      debugPrint('Error rescheduling booking: $e');
+      AppLogger.error('Error rescheduling booking: $e');
       rethrow;
     }
   }
@@ -366,7 +385,7 @@ class EnhancedBookingService {
       if (!doc.exists) return null;
       return Booking.fromFirestore(doc);
     } catch (e) {
-      debugPrint('Error getting booking: $e');
+      AppLogger.error('Error getting booking: $e');
       return null;
     }
   }
@@ -401,7 +420,7 @@ class EnhancedBookingService {
       final snapshot = await query.get();
       return snapshot.docs.map((doc) => Booking.fromFirestore(doc)).toList();
     } catch (e) {
-      debugPrint('Error getting user bookings: $e');
+      AppLogger.error('Error getting user bookings: $e');
       return [];
     }
   }
@@ -444,7 +463,7 @@ class EnhancedBookingService {
         'completionRate': total > 0 ? (completed / total) * 100 : 0.0,
       };
     } catch (e) {
-      debugPrint('Error getting booking stats: $e');
+      AppLogger.error('Error getting booking stats: $e');
       return {
         'total': 0,
         'pending': 0,
@@ -501,7 +520,7 @@ class EnhancedBookingService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting provider data: $e');
+      AppLogger.error('Error getting provider data: $e');
       return null;
     }
   }
@@ -516,7 +535,7 @@ class EnhancedBookingService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting customer data: $e');
+      AppLogger.error('Error getting customer data: $e');
       return null;
     }
   }
@@ -544,7 +563,7 @@ class EnhancedBookingService {
         'availability': service.availability,
       };
     } catch (e) {
-      debugPrint('Error getting service data: $e');
+      AppLogger.error('Error getting service data: $e');
       return null;
     }
   }
@@ -557,7 +576,7 @@ class EnhancedBookingService {
       }
       return null;
     } catch (e) {
-      debugPrint('Error getting provider: $e');
+      AppLogger.error('Error getting provider: $e');
       return null;
     }
   }
@@ -598,7 +617,7 @@ class EnhancedBookingService {
         return startTime.isBefore(bookingEnd) && endTime.isAfter(bookingStart);
       }).toList();
     } catch (e) {
-      debugPrint('Error getting overlapping bookings: $e');
+      AppLogger.error('Error getting overlapping bookings: $e');
       return [];
     }
   }
@@ -622,7 +641,7 @@ class EnhancedBookingService {
 
       return snapshot.docs.length;
     } catch (e) {
-      debugPrint('Error getting daily booking count: $e');
+      AppLogger.error('Error getting daily booking count: $e');
       return 0;
     }
   }
@@ -678,7 +697,7 @@ class EnhancedBookingService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('Error updating time slot availability: $e');
+      AppLogger.error('Error updating time slot availability: $e');
     }
   }
 
@@ -703,7 +722,7 @@ class EnhancedBookingService {
         });
       }
     } catch (e) {
-      debugPrint('Error freeing time slot: $e');
+      AppLogger.error('Error freeing time slot: $e');
     }
   }
 
@@ -736,7 +755,7 @@ class EnhancedBookingService {
         },
       );
     } catch (e) {
-      debugPrint('Error sending booking notifications: $e');
+      AppLogger.error('Error sending booking notifications: $e');
     }
   }
 
@@ -762,7 +781,7 @@ class EnhancedBookingService {
         },
       );
     } catch (e) {
-      debugPrint('Error sending status update notification: $e');
+      AppLogger.error('Error sending status update notification: $e');
     }
   }
 
@@ -776,8 +795,53 @@ class EnhancedBookingService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      debugPrint('Error updating provider booking stats: $e');
+      AppLogger.error('Error updating provider booking stats: $e');
     }
+  }
+
+  /// Check if a date is available for a specific service based on day-of-week availability
+  static bool _isDateAvailableForService(DateTime date, app_provider.Service service) {
+    // If no availability specified, assume all days available (backwards compatibility)
+    if (service.availability.isEmpty) {
+      AppLogger.debug('Service "${service.title}" has no availability restrictions');
+      return true;
+    }
+    
+    // Get day of week name (lowercase)
+    const daysOfWeek = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday'
+    ];
+    final dayName = daysOfWeek[date.weekday - 1]; // weekday: 1 = Monday, 7 = Sunday
+    
+    // Check if day is in service's availability list
+    final isAvailable = service.availability.contains(dayName);
+    
+    AppLogger.debug(
+      'Service "${service.title}" availability check: '
+      '${_getDayName(date)} ($dayName) - ${isAvailable ? "AVAILABLE" : "NOT AVAILABLE"}'
+    );
+    
+    return isAvailable;
+  }
+
+  /// Get human-readable day name from DateTime
+  static String _getDayName(DateTime date) {
+    const daysOfWeek = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    return daysOfWeek[date.weekday - 1];
   }
 
   static String _formatDateTime(DateTime dateTime) {

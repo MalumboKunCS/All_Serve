@@ -38,6 +38,16 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
           .doc(widget.providerId)
           .get();
       
+      // Load application data (verification queue entry) first
+      final applicationDoc = await _firestore
+          .collection('verification_queue')
+          .doc(widget.applicationId)
+          .get();
+      
+      if (applicationDoc.exists) {
+        _application = applicationDoc.data();
+      }
+      
       if (providerDoc.exists) {
         final providerData = providerDoc.data()!;
         
@@ -54,16 +64,20 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
         // Create a normalized provider data structure
         final normalizedProviderData = Map<String, dynamic>.from(providerData);
         
-        // Handle both document storage formats:
-        // 1. Individual fields (nrcUrl, businessLicenseUrl, certificatesUrl)
-        // 2. Documents map (documents: {nrcUrl: "...", businessLicenseUrl: "..."})
+        // Handle documents - prioritize documents from verification queue entry
         Map<String, dynamic> documents = {};
         
-        // Check if documents are stored as a map
-        if (providerData['documents'] != null && providerData['documents'] is Map) {
+        // First, try to get documents from the verification queue entry
+        if (_application != null && _application!['docs'] != null && _application!['docs'] is Map) {
+          documents = Map<String, dynamic>.from(_application!['docs']);
+          AppLogger.debug('Using documents from verification queue entry: $documents');
+        } 
+        // Fall back to provider data if not found in verification queue
+        else if (providerData['documents'] != null && providerData['documents'] is Map) {
           documents = Map<String, dynamic>.from(providerData['documents']);
+          AppLogger.debug('Using documents from provider data (map): $documents');
         } else {
-          // Check for individual document fields
+          // Check for individual document fields in provider data
           if (providerData['nrcUrl'] != null && providerData['nrcUrl'].toString().isNotEmpty) {
             documents['nrcUrl'] = providerData['nrcUrl'];
           }
@@ -73,6 +87,7 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
           if (providerData['certificatesUrl'] != null && providerData['certificatesUrl'].toString().isNotEmpty) {
             documents['certificatesUrl'] = providerData['certificatesUrl'];
           }
+          AppLogger.debug('Using documents from provider data (individual fields): $documents');
         }
         
         // Ensure the documents field is properly set
@@ -84,16 +99,6 @@ class _ApplicationViewerDialogState extends State<ApplicationViewerDialog> {
           normalizedProviderData,
           id: widget.providerId,
         );
-      }
-
-      // Load application data
-      final applicationDoc = await _firestore
-          .collection('verification_queue')
-          .doc(widget.applicationId)
-          .get();
-      
-      if (applicationDoc.exists) {
-        _application = applicationDoc.data();
       }
 
       setState(() => _isLoading = false);

@@ -13,6 +13,9 @@ enum ProviderStatus { active, suspended, inactive, verified, rejected }
 
 class AdminService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Constants
+  static const Duration _monthDuration = Duration(days: 30);
 
   // Get all providers pending verification
   static Stream<List<app_provider.Provider>> getPendingVerifications() {
@@ -87,7 +90,6 @@ class AdminService {
 
       return true;
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error approving provider: $e');
       return false;
     }
@@ -140,7 +142,6 @@ class AdminService {
 
       return true;
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error rejecting provider: $e');
       return false;
     }
@@ -169,7 +170,6 @@ class AdminService {
 
       return true;
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error suspending provider: $e');
       return false;
     }
@@ -196,7 +196,6 @@ class AdminService {
 
       return true;
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error reactivating provider: $e');
       return false;
     }
@@ -208,40 +207,37 @@ class AdminService {
       try {
         final usersSnapshot = await _firestore.collection('users').get();
         final verificationQueueSnapshot = await _firestore.collection('verification_queue').get();
-
-        int totalUsers = usersSnapshot.docs.length;
         
         // Count approved and verified providers from providers collection
-        int totalProviders = providersSnapshot.docs
+        final totalProviders = providersSnapshot.docs
             .where((doc) => 
                 doc.data()['verified'] == true && 
                 doc.data()['verificationStatus'] == 'approved')
             .length;
 
         // Count pending verifications from verification queue
-        int pendingVerifications = verificationQueueSnapshot.docs
+        final pendingVerifications = verificationQueueSnapshot.docs
             .where((doc) => doc.data()['status'] == 'pending')
             .length;
 
-        // Count users with role 'customer' (this will be displayed as "Total Customers")
-        int totalCustomers = usersSnapshot.docs
+        // Count users with role 'customer'
+        final totalCustomers = usersSnapshot.docs
             .where((doc) => doc.data()['role'] == 'customer')
             .length;
 
         // Count users with role 'admin'
-        int totalAdmins = usersSnapshot.docs
+        final totalAdmins = usersSnapshot.docs
             .where((doc) => doc.data()['role'] == 'admin')
             .length;
 
         return {
-          'totalUsers': totalCustomers, // Changed to show customer count
+          'totalUsers': totalCustomers, // Display customer count as total users
           'totalProviders': totalProviders,
           'totalCustomers': totalCustomers,
           'totalAdmins': totalAdmins,
           'pendingVerifications': pendingVerifications,
         };
       } catch (e) {
-        // ignore: avoid_print
         debugPrint('Error getting dashboard stats stream: $e');
         return {};
       }
@@ -254,40 +250,37 @@ class AdminService {
       final usersSnapshot = await _firestore.collection('users').get();
       final providersSnapshot = await _firestore.collection('providers').get();
       final verificationQueueSnapshot = await _firestore.collection('verification_queue').get();
-
-        int totalUsers = usersSnapshot.docs.length;
         
         // Count approved and verified providers from providers collection
-        int totalProviders = providersSnapshot.docs
+        final totalProviders = providersSnapshot.docs
             .where((doc) => 
                 doc.data()['verified'] == true && 
                 doc.data()['verificationStatus'] == 'approved')
             .length;
 
         // Count pending verifications from verification queue
-        int pendingVerifications = verificationQueueSnapshot.docs
+        final pendingVerifications = verificationQueueSnapshot.docs
             .where((doc) => doc.data()['status'] == 'pending')
             .length;
 
-        // Count users with role 'customer' (this will be displayed as "Total Customers")
-        int totalCustomers = usersSnapshot.docs
+        // Count users with role 'customer'
+        final totalCustomers = usersSnapshot.docs
             .where((doc) => doc.data()['role'] == 'customer')
             .length;
 
         // Count users with role 'admin'
-        int totalAdmins = usersSnapshot.docs
+        final totalAdmins = usersSnapshot.docs
             .where((doc) => doc.data()['role'] == 'admin')
             .length;
 
         return {
-          'totalUsers': totalCustomers, // Changed to show customer count
+          'totalUsers': totalCustomers, // Display customer count as total users
           'totalProviders': totalProviders,
           'totalCustomers': totalCustomers,
           'totalAdmins': totalAdmins,
           'pendingVerifications': pendingVerifications,
         };
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error getting dashboard stats: $e');
       return {};
     }
@@ -297,7 +290,7 @@ class AdminService {
   static Future<Map<String, dynamic>> getSystemAnalytics() async {
     try {
       final now = DateTime.now();
-      final lastMonth = now.subtract(Duration(days: 30));
+      final lastMonth = now.subtract(_monthDuration);
 
       // Get monthly provider registrations
       final monthlyProviders = await _firestore
@@ -321,7 +314,6 @@ class AdminService {
         'period': 'Last 30 days',
       };
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error getting system analytics: $e');
       return {};
     }
@@ -353,7 +345,6 @@ class AdminService {
 
       return true;
     } catch (e) {
-      // ignore: avoid_print
       debugPrint('Error sending system notification: $e');
       return false;
     }

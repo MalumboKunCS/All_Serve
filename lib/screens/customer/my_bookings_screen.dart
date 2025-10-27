@@ -4,7 +4,9 @@ import '../../theme/app_theme.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../models/booking.dart';
 import '../../services/enhanced_booking_service.dart';
+import '../../utils/responsive_utils.dart';
 import 'booking_status_screen.dart';
+import 'customer_home_screen.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -49,13 +51,57 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('My Bookings'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            // Safely navigate back to home, handle case where there's no previous route
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              // If can't pop (no previous route), navigate to customer home screen
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const CustomerHomeScreen(),
+                ),
+              );
+            }
+          },
+          color: AppTheme.textPrimary,
+        ),
+        title: Text(
+          'My Bookings',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 18,
+              tablet: 20,
+              desktop: 22,
+            ),
+          ),
+        ),
         backgroundColor: AppTheme.surfaceDark,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.accent,
           labelColor: AppTheme.textPrimary,
           unselectedLabelColor: AppTheme.textSecondary,
+          labelStyle: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            ),
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            ),
+          ),
           tabs: const [
             Tab(text: 'Pending'),
             Tab(text: 'Accepted'),
@@ -150,7 +196,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           itemCount: bookings.length,
           itemBuilder: (context, index) {
             final booking = bookings[index];
@@ -164,7 +210,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
   Widget _buildBookingCard(Booking booking) {
     return Card(
       color: AppTheme.cardDark,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          mobile: 12,
+          tablet: 16,
+          desktop: 20,
+        ),
+      ),
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
@@ -175,7 +228,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -190,20 +243,50 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                           style: AppTheme.bodyLarge.copyWith(
                                   color: AppTheme.textPrimary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                    context,
+                                    mobile: 16,
+                                    tablet: 18,
+                                    desktop: 20,
+                                  ),
                                 ),
                               ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 4,
+                          tablet: 6,
+                          desktop: 8,
+                        )),
                                     Text(
                           booking.serviceCategory,
                           style: AppTheme.bodyMedium.copyWith(
                             color: AppTheme.textSecondary,
+                                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                        context,
+                                        mobile: 14,
+                                        tablet: 15,
+                                        desktop: 16,
+                                      ),
                                       ),
                                     ),
                                   ],
                                 ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 8,
+                        tablet: 10,
+                        desktop: 12,
+                      ),
+                      vertical: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 4,
+                        tablet: 5,
+                        desktop: 6,
+                      ),
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusColor(booking.status).withValues(alpha:0.2),
                       borderRadius: BorderRadius.circular(12),
@@ -213,61 +296,135 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
                       style: AppTheme.caption.copyWith(
                         color: _getStatusColor(booking.status),
                         fontWeight: FontWeight.w600,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 13,
+                        ),
                       ),
                         ),
                       ),
                     ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: 12,
+                tablet: 14,
+                desktop: 16,
+              )),
               Row(
                 children: [
                   Icon(
                     Icons.calendar_today,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 16,
+                      tablet: 18,
+                      desktop: 20,
+                    ),
                     color: AppTheme.textSecondary,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: 8,
+                    tablet: 10,
+                    desktop: 12,
+                  )),
                   Text(
                     booking.formattedScheduledDate,
                     style: AppTheme.bodyMedium.copyWith(
                       color: AppTheme.textSecondary,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 13,
+                        tablet: 14,
+                        desktop: 15,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  )),
                   Icon(
                     Icons.access_time,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 16,
+                      tablet: 18,
+                      desktop: 20,
+                    ),
                     color: AppTheme.textSecondary,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: 8,
+                    tablet: 10,
+                    desktop: 12,
+                  )),
                   Text(
                     booking.formattedScheduledTime,
                     style: AppTheme.bodyMedium.copyWith(
                         color: AppTheme.textSecondary,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
                     ),
                   ),
                 ],
               ),
-                const SizedBox(height: 8),
+                SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 8,
+                  tablet: 10,
+                  desktop: 12,
+                )),
               Row(
                     children: [
                       Icon(
                     Icons.attach_money,
-                        size: 16,
+                        size: ResponsiveUtils.getResponsiveIconSize(
+                          context,
+                          mobile: 16,
+                          tablet: 18,
+                          desktop: 20,
+                        ),
                     color: AppTheme.success,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 8,
+                        tablet: 10,
+                        desktop: 12,
+                      )),
                   Text(
                     'K${booking.totalPrice.toStringAsFixed(0)}',
                     style: AppTheme.bodyMedium.copyWith(
                       color: AppTheme.success,
                       fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 14,
+                        tablet: 15,
+                        desktop: 16,
+                      ),
                     ),
                   ),
                   const Spacer(),
                   Icon(
                     Icons.arrow_forward_ios,
-                    size: 16,
+                    size: ResponsiveUtils.getResponsiveIconSize(
+                      context,
+                      mobile: 16,
+                      tablet: 18,
+                      desktop: 20,
+                    ),
                     color: AppTheme.textTertiary,
                   ),
                 ],
@@ -287,6 +444,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen>
         return AppTheme.success;
       case BookingStatus.inProgress:
         return AppTheme.primaryPurple;
+      case BookingStatus.pendingCustomerConfirmation:
+        return AppTheme.info;
       case BookingStatus.completed:
         return AppTheme.success;
       case BookingStatus.cancelled:

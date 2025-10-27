@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../theme/app_theme.dart';
 import '../auth/login_screen.dart';
+import 'edit_profile_screen.dart';
 
 class MyProfileScreen extends StatefulWidget {
   const MyProfileScreen({super.key});
@@ -290,19 +291,19 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   }
 
   void _showEditProfileDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
-        content: const Text('Profile editing feature coming soon!'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+    final auth = context.read<shared.AuthService>();
+    final user = auth.currentUser;
+    
+    if (user != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EditProfileScreen(user: user),
+        ),
+      ).then((_) {
+        // The auth state will automatically update through the userStream
+        // No need to manually refresh as the stream handles this
+      });
+    }
   }
 
   void _showSecurityDialog() {

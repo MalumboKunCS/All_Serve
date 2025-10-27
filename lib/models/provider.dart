@@ -141,7 +141,8 @@ class Provider {
   final String ownerUid;
   final String businessName;
   final String description;
-  final String categoryId;
+  final String categoryId; // Kept for backward compatibility
+  final List<String> categoryIds; // NEW: Support for multiple categories
   final String? customCategoryName; // NEW: Name of custom category if isCustomCategory is true
   final bool isCustomCategory; // NEW: Whether this provider uses a custom category
   final List<Service> services;
@@ -154,6 +155,8 @@ class Provider {
   final double serviceAreaKm;
   final double ratingAvg;
   final int ratingCount;
+  final int cancellationCount;  // NEW: Track provider cancellations
+  final int acceptedCount;       // NEW: Track accepted bookings
   final bool verified;
   final String verificationStatus; // "pending" | "approved" | "rejected"
   final Map<String, String> documents; // {nrcUrl, businessLicenseUrl, otherDocs...}
@@ -168,7 +171,8 @@ class Provider {
     required this.ownerUid,
     required this.businessName,
     required this.description,
-    required this.categoryId,
+    required this.categoryId, // Kept for backward compatibility
+    this.categoryIds = const [], // NEW: Default to empty list
     this.customCategoryName,
     this.isCustomCategory = false, // Default to false for existing providers
     required this.services,
@@ -181,6 +185,8 @@ class Provider {
     required this.serviceAreaKm,
     this.ratingAvg = 0.0,
     this.ratingCount = 0,
+    this.cancellationCount = 0,  // NEW: Default to 0
+    this.acceptedCount = 0,      // NEW: Default to 0
     this.verified = false,
     this.verificationStatus = 'pending',
     required this.documents,
@@ -198,7 +204,8 @@ class Provider {
       ownerUid: data['ownerUid'] ?? '',
       businessName: data['businessName'] ?? '',
       description: data['description'] ?? '',
-      categoryId: data['categoryId'] ?? '',
+      categoryId: data['categoryId'] ?? data['categoryIds']?.first ?? '', // Backward compatibility
+      categoryIds: List<String>.from(data['categoryIds'] ?? [data['categoryId'] ?? '']), // NEW: Support multiple categories
       customCategoryName: data['customCategoryName'],
       isCustomCategory: data['isCustomCategory'] ?? false,
       services: (data['services'] as List<dynamic>?)
@@ -214,6 +221,8 @@ class Provider {
       serviceAreaKm: (data['serviceAreaKm'] ?? 0.0).toDouble(),
       ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
       ratingCount: data['ratingCount'] ?? 0,
+      cancellationCount: data['cancellationCount'] ?? 0,  // NEW: Default to 0 for existing providers
+      acceptedCount: data['acceptedCount'] ?? 0,          // NEW: Default to 0 for existing providers
       verified: data['verified'] ?? false,
       verificationStatus: data['verificationStatus'] ?? 'pending',
       documents: Map<String, String>.from(data['documents'] ?? {}),
@@ -231,7 +240,8 @@ class Provider {
       ownerUid: data['ownerUid'] ?? '',
       businessName: data['businessName'] ?? '',
       description: data['description'] ?? '',
-      categoryId: data['categoryId'] ?? '',
+      categoryId: data['categoryId'] ?? data['categoryIds']?.first ?? '', // Backward compatibility
+      categoryIds: List<String>.from(data['categoryIds'] ?? [data['categoryId'] ?? '']), // NEW: Support multiple categories
       customCategoryName: data['customCategoryName'],
       isCustomCategory: data['isCustomCategory'] ?? false,
       services: (data['services'] as List<dynamic>?)
@@ -247,6 +257,8 @@ class Provider {
       serviceAreaKm: (data['serviceAreaKm'] ?? 0.0).toDouble(),
       ratingAvg: (data['ratingAvg'] ?? 0.0).toDouble(),
       ratingCount: data['ratingCount'] ?? 0,
+      cancellationCount: data['cancellationCount'] ?? 0,  // NEW: Default to 0 for existing providers
+      acceptedCount: data['acceptedCount'] ?? 0,          // NEW: Default to 0 for existing providers
       verified: data['verified'] ?? false,
       verificationStatus: data['verificationStatus'] ?? 'pending',
       documents: Map<String, String>.from(data['documents'] ?? {}),
@@ -265,7 +277,8 @@ class Provider {
       'ownerUid': ownerUid,
       'businessName': businessName,
       'description': description,
-      'categoryId': categoryId,
+      'categoryId': categoryId, // Kept for backward compatibility
+      'categoryIds': categoryIds, // NEW: Store multiple categories
       'customCategoryName': customCategoryName,
       'isCustomCategory': isCustomCategory,
       'services': services.map((e) => e.toMap()).toList(),
@@ -278,6 +291,8 @@ class Provider {
       'serviceAreaKm': serviceAreaKm,
       'ratingAvg': ratingAvg,
       'ratingCount': ratingCount,
+      'cancellationCount': cancellationCount,  // NEW
+      'acceptedCount': acceptedCount,          // NEW
       'verified': verified,
       'verificationStatus': verificationStatus,
       'documents': documents,
@@ -295,7 +310,8 @@ class Provider {
       'ownerUid': ownerUid,
       'businessName': businessName,
       'description': description,
-      'categoryId': categoryId,
+      'categoryId': categoryId, // Kept for backward compatibility
+      'categoryIds': categoryIds, // NEW: Store multiple categories
       'services': services.map((e) => e.toMap()).toList(),
       'logoUrl': logoUrl,
       'images': images,
@@ -306,6 +322,8 @@ class Provider {
       'serviceAreaKm': serviceAreaKm,
       'ratingAvg': ratingAvg,
       'ratingCount': ratingCount,
+      'cancellationCount': cancellationCount,  // NEW
+      'acceptedCount': acceptedCount,          // NEW
       'verified': verified,
       'verificationStatus': verificationStatus,
       'documents': documents,
@@ -331,6 +349,8 @@ class Provider {
     double? serviceAreaKm,
     double? ratingAvg,
     int? ratingCount,
+    int? cancellationCount,  // NEW
+    int? acceptedCount,      // NEW
     bool? verified,
     String? verificationStatus,
     Map<String, String>? documents,
@@ -355,6 +375,8 @@ class Provider {
       serviceAreaKm: serviceAreaKm ?? this.serviceAreaKm,
       ratingAvg: ratingAvg ?? this.ratingAvg,
       ratingCount: ratingCount ?? this.ratingCount,
+      cancellationCount: cancellationCount ?? this.cancellationCount,  // NEW
+      acceptedCount: acceptedCount ?? this.acceptedCount,              // NEW
       verified: verified ?? this.verified,
       verificationStatus: verificationStatus ?? this.verificationStatus,
       documents: documents ?? this.documents,
@@ -370,5 +392,14 @@ class Provider {
   String? get nrcUrl => documents['nrcUrl'];
   String? get businessLicenseUrl => documents['businessLicenseUrl'];
   String? get certificatesUrl => documents['certificatesUrl'];
+  
+  // Cancellation rate calculation
+  double get cancellationRate {
+    if (acceptedCount == 0) return 0.0;
+    return (cancellationCount / acceptedCount) * 100;
+  }
+  
+  // Check if provider has high cancellation rate (>20%)
+  bool get hasHighCancellationRate => cancellationRate > 20.0;
 }
 

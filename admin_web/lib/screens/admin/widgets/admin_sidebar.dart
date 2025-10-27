@@ -93,14 +93,19 @@ class AdminSidebar extends StatelessWidget {
                   index: 5,
                 ),
                 _buildNavItem(
+                  icon: Icons.event_note_outlined,
+                  title: 'Bookings',
+                  index: 6,
+                ),
+                _buildNavItem(
                   icon: Icons.campaign_outlined,
                   title: 'Announcements',
-                  index: 6,
+                  index: 7,
                 ),
                 _buildNavItem(
                   icon: Icons.admin_panel_settings,
                   title: 'Admin Management',
-                  index: 7,
+                  index: 8,
                 ),
               ],
             ),

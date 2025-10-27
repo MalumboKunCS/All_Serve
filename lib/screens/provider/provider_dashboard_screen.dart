@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../theme/app_theme.dart';
 import 'package:shared/shared.dart' as shared;
 import '../../models/provider.dart' as app_provider;
@@ -20,6 +21,7 @@ import '../../widgets/registration_tracker_card.dart';
 import '../../utils/firestore_debug_utils.dart';
 import '../../services/provider_creation_service.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/responsive_utils.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -39,7 +41,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(() {
       setState(() {}); // Rebuild when tab changes
       // Reload data when switching to Overview tab (index 0) or Services tab (index 2)
@@ -48,6 +50,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
       }
     });
     _loadDashboardData();
+  }
+
+  Future<void> _updateNotificationToken() async {
+    try {
+      final authService = shared.AuthService();
+      final currentUser = authService.currentUser;
+      if (currentUser != null) {
+        final fcmToken = await FirebaseMessaging.instance.getToken();
+        if (fcmToken != null) {
+          await authService.addDeviceToken(currentUser.uid, fcmToken);
+          AppLogger.info('ProviderDashboardScreen: Updated FCM token for user ${currentUser.uid}');
+        }
+      }
+    } catch (e) {
+      AppLogger.error('ProviderDashboardScreen: Error updating notification token: $e');
+    }
   }
 
   @override
@@ -218,7 +236,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                 _buildStatusBanner(),
                 // Stats Cards - Enhanced Design with Progress
                 Container(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                  padding: ResponsiveUtils.getResponsivePadding(context),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
@@ -229,52 +247,146 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                       ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Total\nBookings',
-                          value: '${_allBookings.length}',
-                          icon: Icons.calendar_today_rounded,
-                          color: AppTheme.primaryPurple,
-                          tooltip: 'Total number of bookings received',
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Pending',
-                          value: '${_getBookingsByStatus(BookingStatus.pending).length}',
-                          icon: Icons.schedule_rounded,
-                          color: AppTheme.warning,
-                          tooltip: 'Bookings awaiting your response',
-                          progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.pending).length / _allBookings.length,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Completed',
-                          value: '${_getBookingsByStatus(BookingStatus.completed).length}',
-                          icon: Icons.check_circle_rounded,
-                          color: AppTheme.success,
-                          tooltip: 'Successfully completed bookings',
-                          progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.completed).length / _allBookings.length,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          title: 'Rating',
-                          value: _provider?.ratingAvg.toStringAsFixed(1) ?? '0.0',
-                          icon: Icons.star_rounded,
-                          color: const Color(0xFFFFB800),
-                          tooltip: 'Your average customer rating',
-                          subtitle: '${_provider?.ratingCount ?? 0} reviews',
-                          showProgress: false,
-                        ),
-                      ),
-                    ],
+                  child: ResponsiveLayoutBuilder(
+                    builder: (context, screenType) {
+                      // For mobile, show 2x2 grid; for tablet/desktop, show horizontal row
+                      if (screenType == ScreenType.mobile) {
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Total\nBookings',
+                                    value: '${_allBookings.length}',
+                                    icon: Icons.calendar_today_rounded,
+                                    color: AppTheme.primaryPurple,
+                                    tooltip: 'Total number of bookings received',
+                                  ),
+                                ),
+                                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  mobile: AppTheme.spacingSm,
+                                  tablet: AppTheme.spacingMd,
+                                  desktop: AppTheme.spacingLg,
+                                )),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Pending',
+                                    value: '${_getBookingsByStatus(BookingStatus.pending).length}',
+                                    icon: Icons.schedule_rounded,
+                                    color: AppTheme.warning,
+                                    tooltip: 'Bookings awaiting your response',
+                                    progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.pending).length / _allBookings.length,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                              context,
+                              mobile: AppTheme.spacingSm,
+                              tablet: AppTheme.spacingMd,
+                              desktop: AppTheme.spacingLg,
+                            )),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Completed',
+                                    value: '${_getBookingsByStatus(BookingStatus.completed).length}',
+                                    icon: Icons.check_circle_rounded,
+                                    color: AppTheme.success,
+                                    tooltip: 'Successfully completed bookings',
+                                    progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.completed).length / _allBookings.length,
+                                  ),
+                                ),
+                                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                                  context,
+                                  mobile: AppTheme.spacingSm,
+                                  tablet: AppTheme.spacingMd,
+                                  desktop: AppTheme.spacingLg,
+                                )),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    title: 'Rating',
+                                    value: _provider?.ratingAvg.toStringAsFixed(1) ?? '0.0',
+                                    icon: Icons.star_rounded,
+                                    color: const Color(0xFFFFB800),
+                                    tooltip: 'Your average customer rating',
+                                    subtitle: '${_provider?.ratingCount ?? 0} reviews',
+                                    showProgress: false,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      } else {
+                        // Tablet and desktop - horizontal layout
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard(
+                                title: 'Total\nBookings',
+                                value: '${_allBookings.length}',
+                                icon: Icons.calendar_today_rounded,
+                                color: AppTheme.primaryPurple,
+                                tooltip: 'Total number of bookings received',
+                              ),
+                            ),
+                            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                              context,
+                              mobile: AppTheme.spacingSm,
+                              tablet: AppTheme.spacingMd,
+                              desktop: AppTheme.spacingLg,
+                            )),
+                            Expanded(
+                              child: _buildStatCard(
+                                title: 'Pending',
+                                value: '${_getBookingsByStatus(BookingStatus.pending).length}',
+                                icon: Icons.schedule_rounded,
+                                color: AppTheme.warning,
+                                tooltip: 'Bookings awaiting your response',
+                                progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.pending).length / _allBookings.length,
+                              ),
+                            ),
+                            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                              context,
+                              mobile: AppTheme.spacingSm,
+                              tablet: AppTheme.spacingMd,
+                              desktop: AppTheme.spacingLg,
+                            )),
+                            Expanded(
+                              child: _buildStatCard(
+                                title: 'Completed',
+                                value: '${_getBookingsByStatus(BookingStatus.completed).length}',
+                                icon: Icons.check_circle_rounded,
+                                color: AppTheme.success,
+                                tooltip: 'Successfully completed bookings',
+                                progress: _allBookings.isEmpty ? 0 : _getBookingsByStatus(BookingStatus.completed).length / _allBookings.length,
+                              ),
+                            ),
+                            SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                              context,
+                              mobile: AppTheme.spacingSm,
+                              tablet: AppTheme.spacingMd,
+                              desktop: AppTheme.spacingLg,
+                            )),
+                            Expanded(
+                              child: _buildStatCard(
+                                title: 'Rating',
+                                value: _provider?.ratingAvg.toStringAsFixed(1) ?? '0.0',
+                                icon: Icons.star_rounded,
+                                color: const Color(0xFFFFB800),
+                                tooltip: 'Your average customer rating',
+                                subtitle: '${_provider?.ratingCount ?? 0} reviews',
+                                showProgress: false,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ),
                 
@@ -296,35 +408,122 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                     unselectedLabelColor: AppTheme.textTertiary,
                     labelStyle: AppTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 14,
+                        tablet: 16,
+                        desktop: 18,
+                      ),
                     ),
                     unselectedLabelStyle: AppTheme.bodyLarge.copyWith(
                       fontWeight: FontWeight.normal,
-                      fontSize: 16,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 14,
+                        tablet: 16,
+                        desktop: 18,
+                      ),
                     ),
                     indicatorColor: AppTheme.primaryPurple,
                     indicatorWeight: 3,
-                    indicatorPadding: const EdgeInsets.symmetric(horizontal: 16),
-                    tabs: const [
+                    indicatorPadding: EdgeInsets.symmetric(
+                      horizontal: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: AppTheme.spacingMd,
+                        tablet: AppTheme.spacingLg,
+                        desktop: AppTheme.spacingXl,
+                      ),
+                    ),
+                    tabs: [
                       Tab(
-                        icon: Icon(Icons.dashboard_rounded, size: 22),
+                        icon: Icon(
+                          Icons.dashboard_rounded,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 20,
+                            tablet: 22,
+                            desktop: 24,
+                          ),
+                        ),
                         text: 'Overview',
-                        iconMargin: EdgeInsets.only(bottom: 4),
+                        iconMargin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: AppTheme.spacingXs,
+                          tablet: AppTheme.spacingSm,
+                          desktop: AppTheme.spacingMd,
+                        )),
                       ),
                       Tab(
-                        icon: Icon(Icons.event_note_rounded, size: 22),
+                        icon: Icon(
+                          Icons.event_note_rounded,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 20,
+                            tablet: 22,
+                            desktop: 24,
+                          ),
+                        ),
                         text: 'Bookings',
-                        iconMargin: EdgeInsets.only(bottom: 4),
+                        iconMargin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: AppTheme.spacingXs,
+                          tablet: AppTheme.spacingSm,
+                          desktop: AppTheme.spacingMd,
+                        )),
                       ),
                       Tab(
-                        icon: Icon(Icons.work_rounded, size: 22),
+                        icon: Icon(
+                          Icons.work_rounded,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 20,
+                            tablet: 22,
+                            desktop: 24,
+                          ),
+                        ),
                         text: 'Services',
-                        iconMargin: EdgeInsets.only(bottom: 4),
+                        iconMargin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: AppTheme.spacingXs,
+                          tablet: AppTheme.spacingSm,
+                          desktop: AppTheme.spacingMd,
+                        )),
                       ),
                       Tab(
-                        icon: Icon(Icons.person_rounded, size: 22),
+                        icon: Icon(
+                          Icons.star_rounded,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 20,
+                            tablet: 22,
+                            desktop: 24,
+                          ),
+                        ),
+                        text: 'Reviews',
+                        iconMargin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: AppTheme.spacingXs,
+                          tablet: AppTheme.spacingSm,
+                          desktop: AppTheme.spacingMd,
+                        )),
+                      ),
+                      Tab(
+                        icon: Icon(
+                          Icons.person_rounded,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 20,
+                            tablet: 22,
+                            desktop: 24,
+                          ),
+                        ),
                         text: 'Profile',
-                        iconMargin: EdgeInsets.only(bottom: 4),
+                        iconMargin: EdgeInsets.only(bottom: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: AppTheme.spacingXs,
+                          tablet: AppTheme.spacingSm,
+                          desktop: AppTheme.spacingMd,
+                        )),
                       ),
                     ],
                   ),
@@ -345,10 +544,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                           _loadDashboardData();
                         },
                       ),
+                      if (_provider != null)
+                        ProviderReviewsScreen(provider: _provider!)
+                      else
+                        const Center(child: CircularProgressIndicator()),
                       ProviderProfileScreen(provider: _provider),
                     ],
                   ),
                 ),
+
               ],
             ),
       // Removed floating action button to avoid duplicate "Add Service" buttons
@@ -373,7 +577,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         curve: Curves.easeOutCubic,
         builder: (context, animValue, child) {
           return Container(
-            padding: const EdgeInsets.all(16),
+            padding: ResponsiveUtils.getResponsivePadding(context),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -405,8 +609,18 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                   children: [
                     if (showProgress && progress != null)
                       SizedBox(
-                        width: 48,
-                        height: 48,
+                        width: ResponsiveUtils.getResponsiveIconSize(
+                          context,
+                          mobile: 40,
+                          tablet: 44,
+                          desktop: 48,
+                        ),
+                        height: ResponsiveUtils.getResponsiveIconSize(
+                          context,
+                          mobile: 40,
+                          tablet: 44,
+                          desktop: 48,
+                        ),
                         child: TweenAnimationBuilder<double>(
                           tween: Tween(begin: 0.0, end: progress * animValue),
                           duration: const Duration(milliseconds: 1200),
@@ -422,16 +636,35 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                         ),
                       ),
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: EdgeInsets.all(ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: AppTheme.spacingSm,
+                        tablet: AppTheme.spacingMd,
+                        desktop: AppTheme.spacingLg,
+                      )),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(icon, color: color, size: 22),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: ResponsiveUtils.getResponsiveIconSize(
+                          context,
+                          mobile: 18,
+                          tablet: 20,
+                          desktop: 22,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: AppTheme.spacingSm,
+                  tablet: AppTheme.spacingMd,
+                  desktop: AppTheme.spacingLg,
+                )),
                 
                 // Animated value
                 TweenAnimationBuilder<double>(
@@ -449,12 +682,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                       style: AppTheme.heading2.copyWith(
                         color: AppTheme.textPrimary,
                         fontWeight: FontWeight.bold,
-                        fontSize: 26,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 20,
+                          tablet: 24,
+                          desktop: 26,
+                        ),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: AppTheme.spacingXs,
+                  tablet: AppTheme.spacingSm,
+                  desktop: AppTheme.spacingMd,
+                )),
                 
                 // Title
                 Text(
@@ -462,7 +705,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppTheme.textSecondary,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 10,
+                      tablet: 11,
+                      desktop: 12,
+                    ),
                     height: 1.2,
                   ),
                   textAlign: TextAlign.center,
@@ -472,12 +720,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                 
                 // Optional subtitle
                 if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+                  SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: AppTheme.spacingXs,
+                    tablet: AppTheme.spacingSm,
+                    desktop: AppTheme.spacingMd,
+                  )),
                   Text(
                     subtitle,
                     style: AppTheme.caption.copyWith(
                       color: AppTheme.textTertiary,
-                      fontSize: 10,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 9,
+                        tablet: 10,
+                        desktop: 11,
+                      ),
                       height: 1.1,
                     ),
                     textAlign: TextAlign.center,
@@ -986,11 +1244,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
                     'Check feedback and ratings',
                     Icons.star_rounded,
                     [const Color(0xFFFFB800), const Color(0xFFFF8C00)],
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ProviderReviewsScreen(provider: _provider),
-                  ),
-                ),
+                () {
+                  if (_provider != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProviderReviewsScreen(provider: _provider!),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please complete your provider profile first'),
+                        backgroundColor: AppTheme.warning,
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -1081,6 +1350,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         return AppTheme.success;
       case BookingStatus.inProgress:
         return AppTheme.primaryPurple;
+      case BookingStatus.pendingCustomerConfirmation:
+        return AppTheme.info;
       case BookingStatus.completed:
         return AppTheme.success;
       case BookingStatus.cancelled:
@@ -1100,6 +1371,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen>
         return Icons.check_circle;
       case BookingStatus.inProgress:
         return Icons.play_circle;
+      case BookingStatus.pendingCustomerConfirmation:
+        return Icons.pending_actions;
       case BookingStatus.completed:
         return Icons.done_all;
       case BookingStatus.cancelled:

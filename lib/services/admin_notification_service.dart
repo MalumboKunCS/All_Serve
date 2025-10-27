@@ -1,173 +1,78 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'notification_service.dart';
+import '../utils/app_logger.dart';
 
 class AdminNotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Notify admins about new provider registration
+  static Future<void> sendNotificationToUser({
+    required String userId,
+    required String title,
+    required String body,
+    required String type,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      await _createInAppNotification(
+        title: title,
+        body: body,
+        type: type,
+        data: data ?? {},
+        targetUserId: userId,
+      );
+      
+      // Also send push notification if needed
+      // PushNotificationService.sendToUser(userId, title, body, data);
+    } catch (e) {
+      AppLogger.error('Error sending admin notification to user: $e');
+    }
+  }
+
+  static Future<void> sendNotificationToRole({
+    required String role,
+    required String title,
+    required String body,
+    required String type,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      await _createInAppNotification(
+        title: title,
+        body: body,
+        type: type,
+        data: data ?? {},
+        targetRole: role,
+      );
+      
+      // Also send push notification if needed
+      // PushNotificationService.sendToTopic(role, title, body, data);
+    } catch (e) {
+      AppLogger.error('Error sending admin notification to role: $e');
+    }
+  }
+
+  /// Notify admins about new provider registration
   static Future<void> notifyNewProviderRegistration({
     required String providerId,
     required String providerName,
     required String businessName,
   }) async {
     try {
-      // Get all admin users
-      final adminQuery = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'admin')
-          .get();
-
-      for (final adminDoc in adminQuery.docs) {
-        final adminData = adminDoc.data();
-        final deviceTokens = List<String>.from(adminData['deviceTokens'] ?? []);
-        
-        if (deviceTokens.isNotEmpty) {
-          await NotificationService.sendNotificationToUser(
-            userId: adminDoc.id,
-            title: 'New Provider Registration',
-            body: '$providerName ($businessName) has submitted their registration for review',
-            data: {
-              'type': 'provider_verification',
-              'providerId': providerId,
-              'action': 'review_required',
-            },
-          );
-        }
-      }
-
-      // Also create an in-app notification
-      await _createInAppNotification(
+      // Send notification to all admins
+      await sendNotificationToRole(
+        role: 'admin',
         title: 'New Provider Registration',
         body: '$providerName ($businessName) has submitted their registration for review',
         type: 'provider_verification',
-        data: {'providerId': providerId},
-        targetRole: 'admin',
-      );
-    } catch (e) {
-      print('Error notifying admins about new provider registration: $e');
-    }
-  }
-
-  // Notify admins about document updates
-  static Future<void> notifyDocumentUpdate({
-    required String providerId,
-    required String providerName,
-    required String documentType,
-  }) async {
-    try {
-      final adminQuery = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'admin')
-          .get();
-
-      for (final adminDoc in adminQuery.docs) {
-        final adminData = adminDoc.data();
-        final deviceTokens = List<String>.from(adminData['deviceTokens'] ?? []);
-        
-        if (deviceTokens.isNotEmpty) {
-          await NotificationService.sendNotificationToUser(
-            userId: adminDoc.id,
-            title: 'Document Update',
-            body: '$providerName has updated their $documentType',
-            data: {
-              'type': 'document_update',
-              'providerId': providerId,
-              'documentType': documentType,
-            },
-          );
-        }
-      }
-    } catch (e) {
-      print('Error notifying admins about document update: $e');
-    }
-  }
-
-  // Notify provider about verification status change
-  static Future<void> notifyProviderVerificationStatus({
-    required String providerId,
-    required String status, // 'approved', 'rejected', 'pending'
-    required String? reason,
-    required String adminName,
-  }) async {
-    try {
-      // Get provider data
-      final providerDoc = await _firestore
-          .collection('providers')
-          .doc(providerId)
-          .get();
-
-      if (!providerDoc.exists) return;
-
-      final providerData = providerDoc.data()!;
-      final ownerUid = providerData['ownerUid'];
-
-      // Get provider user data
-      final userDoc = await _firestore
-          .collection('users')
-          .doc(ownerUid)
-          .get();
-
-      if (!userDoc.exists) return;
-
-      final userData = userDoc.data()!;
-      final deviceTokens = List<String>.from(userData['deviceTokens'] ?? []);
-      // final providerName = userData['name'] ?? 'Provider'; // Unused variable
-
-      String title;
-      String body;
-
-      switch (status) {
-        case 'approved':
-          title = 'Verification Approved!';
-          body = 'Congratulations! Your provider account has been verified and is now active.';
-          break;
-        case 'rejected':
-          title = 'Verification Rejected';
-          body = reason ?? 'Your provider account verification has been rejected. Please review and resubmit your documents.';
-          break;
-        case 'pending':
-          title = 'Verification Under Review';
-          body = 'Your provider account verification is currently under review by our admin team.';
-          break;
-        default:
-          title = 'Verification Status Update';
-          body = 'Your provider account verification status has been updated.';
-      }
-
-      if (deviceTokens.isNotEmpty) {
-        await NotificationService.sendNotificationToUser(
-          userId: ownerUid,
-          title: title,
-          body: body,
-          data: {
-            'type': 'verification_status',
-            'status': status,
-            'providerId': providerId,
-            'reason': reason,
-            'adminName': adminName,
-          },
-        );
-      }
-
-      // Create in-app notification
-      await _createInAppNotification(
-        title: title,
-        body: body,
-        type: 'verification_status',
         data: {
           'providerId': providerId,
-          'status': status,
-          'reason': reason,
-          'adminName': adminName,
+          'action': 'review_required',
         },
-        targetUserId: ownerUid,
       );
     } catch (e) {
-      print('Error notifying provider about verification status: $e');
+      AppLogger.error('Error notifying admins about new provider registration: $e');
     }
   }
 
-  // Create in-app notification
   static Future<void> _createInAppNotification({
     required String title,
     required String body,
@@ -190,7 +95,7 @@ class AdminNotificationService {
 
       await _firestore.collection('notifications').add(notificationData);
     } catch (e) {
-      print('Error creating in-app notification: $e');
+      AppLogger.error('Error creating in-app notification: $e');
     }
   }
 
@@ -238,7 +143,7 @@ class AdminNotificationService {
           .doc(notificationId)
           .update({'isRead': true});
     } catch (e) {
-      print('Error marking notification as read: $e');
+      AppLogger.error('Error marking notification as read: $e');
     }
   }
 

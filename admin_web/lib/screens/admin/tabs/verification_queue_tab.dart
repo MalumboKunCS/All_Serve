@@ -222,6 +222,13 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
                 }
 
                 final providerData = snapshot.data!.data() as Map<String, dynamic>;
+                final applicationData = {
+                  'providerId': providerId,
+                  'status': status,
+                  'submittedAt': submittedAt,
+                  'reviewedAt': reviewedAt,
+                  'notes': notes,
+                };
                 
                 // Debug logging to trace data flow
                 AppLogger.debug('=== VERIFICATION QUEUE DEBUG ===');
@@ -241,11 +248,16 @@ class _VerificationQueueTabState extends State<VerificationQueueTab> {
                 // 2. Documents map (documents: {nrcUrl: "...", businessLicenseUrl: "..."})
                 Map<String, dynamic> documents = {};
                 
-                // Check if documents are stored as a map
+                // First, try to get documents from the verification queue entry (which should have the most up-to-date documents)
+                // We need to fetch the actual verification queue document to get the docs field
+                // This requires an additional Firestore query to get the actual verification queue entry
+                // For now, we'll handle this in the ApplicationViewerDialog which has access to the full verification queue entry
+
+                // Fall back to provider data for documents
                 if (providerData['documents'] != null && providerData['documents'] is Map) {
                   documents = Map<String, dynamic>.from(providerData['documents']);
                 } else {
-                  // Check for individual document fields
+                  // Check for individual document fields in provider data
                   if (providerData['nrcUrl'] != null && providerData['nrcUrl'].toString().isNotEmpty) {
                     documents['nrcUrl'] = providerData['nrcUrl'];
                   }

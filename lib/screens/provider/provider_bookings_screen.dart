@@ -3,6 +3,9 @@ import '../../theme/app_theme.dart';
 import '../../models/provider.dart' as app_provider;
 import '../../models/booking.dart';
 import '../../services/enhanced_booking_service.dart';
+import '../../services/atomic_booking_service.dart';
+import '../../services/notification_service.dart';
+import '../../utils/responsive_utils.dart';
 
 class ProviderBookingsScreen extends StatefulWidget {
   final app_provider.Provider? provider;
@@ -53,13 +56,39 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('Manage Bookings'),
+        title: Text(
+          'Manage Bookings',
+          style: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 18,
+              tablet: 20,
+              desktop: 22,
+            ),
+          ),
+        ),
         backgroundColor: AppTheme.surfaceDark,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.accent,
           labelColor: AppTheme.textPrimary,
           unselectedLabelColor: AppTheme.textSecondary,
+          labelStyle: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            ),
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontSize: ResponsiveUtils.getResponsiveFontSize(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            ),
+          ),
           tabs: const [
             Tab(text: 'Requests'),
             Tab(text: 'Accepted'),
@@ -151,7 +180,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           itemCount: bookings.length,
           itemBuilder: (context, index) {
             final booking = bookings[index];
@@ -165,9 +194,16 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
   Widget _buildBookingCard(Booking booking) {
     return Card(
       color: AppTheme.cardDark,
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveUtils.getResponsiveSpacing(
+          context,
+          mobile: 12,
+          tablet: 16,
+          desktop: 20,
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: ResponsiveUtils.getResponsivePadding(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -182,20 +218,50 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                         style: AppTheme.bodyLarge.copyWith(
                                 color: AppTheme.textPrimary,
                                 fontWeight: FontWeight.w600,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 16,
+                                  tablet: 18,
+                                  desktop: 20,
+                                ),
                               ),
                             ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                        context,
+                        mobile: 4,
+                        tablet: 6,
+                        desktop: 8,
+                      )),
                             Text(
                         booking.serviceCategory,
                         style: AppTheme.bodyMedium.copyWith(
                                 color: AppTheme.textSecondary,
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(
+                                  context,
+                                  mobile: 14,
+                                  tablet: 15,
+                                  desktop: 16,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
+                    ),
+                    vertical: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 4,
+                      tablet: 5,
+                      desktop: 6,
+                    ),
+                  ),
                   decoration: BoxDecoration(
                     color: _getStatusColor(booking.status).withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(12),
@@ -205,76 +271,405 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                     style: AppTheme.caption.copyWith(
                       color: _getStatusColor(booking.status),
                       fontWeight: FontWeight.w600,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 11,
+                        tablet: 12,
+                        desktop: 13,
+                      ),
                     ),
                       ),
                     ),
                   ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            )),
             Row(
               children: [
                 Icon(
                   Icons.calendar_today,
-                  size: 16,
+                  size: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
                   color: AppTheme.textSecondary,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 8,
+                  tablet: 10,
+                  desktop: 12,
+                )),
                 Text(
                   booking.formattedScheduledDate,
                   style: AppTheme.bodyMedium.copyWith(
                       color: AppTheme.textSecondary,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(
+                        context,
+                        mobile: 13,
+                        tablet: 14,
+                        desktop: 15,
+                      ),
                     ),
                   ),
-                const SizedBox(width: 16),
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 16,
+                  tablet: 18,
+                  desktop: 20,
+                )),
                 Icon(
                   Icons.access_time,
-                  size: 16,
+                  size: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
                   color: AppTheme.textSecondary,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 8,
+                  tablet: 10,
+                  desktop: 12,
+                )),
                 Text(
                   booking.formattedScheduledTime,
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppTheme.textSecondary,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 13,
+                      tablet: 14,
+                      desktop: 15,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 8,
+              tablet: 10,
+              desktop: 12,
+            )),
             Row(
               children: [
                 Icon(
                   Icons.attach_money,
-                  size: 16,
+                  size: ResponsiveUtils.getResponsiveIconSize(
+                    context,
+                    mobile: 16,
+                    tablet: 18,
+                    desktop: 20,
+                  ),
                   color: AppTheme.success,
                 ),
-                const SizedBox(width: 8),
+                SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                  context,
+                  mobile: 8,
+                  tablet: 10,
+                  desktop: 12,
+                )),
                 Text(
                   'K${booking.totalPrice.toStringAsFixed(0)}',
                   style: AppTheme.bodyMedium.copyWith(
                     color: AppTheme.success,
                     fontWeight: FontWeight.w600,
+                    fontSize: ResponsiveUtils.getResponsiveFontSize(
+                      context,
+                      mobile: 14,
+                      tablet: 15,
+                      desktop: 16,
+                    ),
                   ),
                 ),
-                const Spacer(),
-                if (booking.canBeAccepted)
-                  ElevatedButton(
-                    onPressed: () => _acceptBooking(booking),
-                    style: AppTheme.primaryButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(const Size(80, 32)),
-                    ),
-                    child: const Text('Accept'),
+              ],
+            ),
+            SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+              context,
+              mobile: 12,
+              tablet: 14,
+              desktop: 16,
+            )),
+            // Customer Notes Section (Issue 3: Show customer notes)
+            if (booking.customerNotes != null && booking.customerNotes!.isNotEmpty ||
+                booking.additionalNotes != null && booking.additionalNotes!.isNotEmpty) ...[
+              Container(
+                padding: ResponsiveUtils.getResponsivePadding(context).copyWith(
+                  top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 10, desktop: 12),
+                  bottom: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 10, desktop: 12),
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.info.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.info.withValues(alpha: 0.3),
+                    width: 1,
                   ),
-                if (booking.canBeRejected)
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.note,
+                          size: ResponsiveUtils.getResponsiveIconSize(
+                            context,
+                            mobile: 16,
+                            tablet: 18,
+                            desktop: 20,
+                          ),
+                          color: AppTheme.info,
+                        ),
+                        SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 8,
+                          tablet: 10,
+                          desktop: 12,
+                        )),
+                        Text(
+                          'Customer Notes',
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.info,
+                            fontWeight: FontWeight.w600,
+                            fontSize: ResponsiveUtils.getResponsiveFontSize(
+                              context,
+                              mobile: 14,
+                              tablet: 15,
+                              desktop: 16,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                      context,
+                      mobile: 8,
+                      tablet: 10,
+                      desktop: 12,
+                    )),
+                    if (booking.customerNotes != null && booking.customerNotes!.isNotEmpty)
+                      Text(
+                        booking.customerNotes!,
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.textPrimary,
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 13,
+                            tablet: 14,
+                            desktop: 15,
+                          ),
+                        ),
+                      ),
+                    if (booking.additionalNotes != null && booking.additionalNotes!.isNotEmpty) ...[
+                      if (booking.customerNotes != null && booking.customerNotes!.isNotEmpty)
+                        SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 8,
+                          tablet: 10,
+                          desktop: 12,
+                        )),
+                      Text(
+                        booking.additionalNotes!,
+                        style: AppTheme.bodyMedium.copyWith(
+                          color: AppTheme.textSecondary,
+                          fontSize: ResponsiveUtils.getResponsiveFontSize(
+                            context,
+                            mobile: 13,
+                            tablet: 14,
+                            desktop: 15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              SizedBox(height: ResponsiveUtils.getResponsiveSpacing(
+                context,
+                mobile: 12,
+                tablet: 14,
+                desktop: 16,
+              )),
+            ],
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Accept/Reject for pending bookings
+                if (booking.canBeAccepted) ...[
                   OutlinedButton(
                     onPressed: () => _rejectBooking(booking),
                     style: AppTheme.outlineButtonStyle.copyWith(
-                      minimumSize: MaterialStateProperty.all(const Size(80, 32)),
+                      minimumSize: MaterialStateProperty.all(
+                        Size(
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 80,
+                            tablet: 90,
+                            desktop: 100,
+                          ),
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 32,
+                            tablet: 36,
+                            desktop: 40,
+                          ),
+                        ),
+                      ),
+                      side: MaterialStateProperty.all(BorderSide(color: AppTheme.error)),
                     ),
-                    child: const Text('Reject'),
+                    child: Text(
+                      'Reject',
+                      style: TextStyle(
+                        color: AppTheme.error,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  SizedBox(width: ResponsiveUtils.getResponsiveSpacing(
+                    context,
+                    mobile: 8,
+                    tablet: 10,
+                    desktop: 12,
+                  )),
+                  ElevatedButton(
+                    onPressed: () => _acceptBooking(booking),
+                    style: AppTheme.primaryButtonStyle.copyWith(
+                      minimumSize: MaterialStateProperty.all(
+                        Size(
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 80,
+                            tablet: 90,
+                            desktop: 100,
+                          ),
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 32,
+                            tablet: 36,
+                            desktop: 40,
+                          ),
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Accept',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                
+                // Start Service for accepted bookings
+                if (booking.canBeStarted)
+                  ElevatedButton.icon(
+                    onPressed: () => _startBooking(booking),
+                    style: AppTheme.primaryButtonStyle.copyWith(
+                      minimumSize: MaterialStateProperty.all(
+                        Size(
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 120,
+                            tablet: 135,
+                            desktop: 150,
+                          ),
+                          ResponsiveUtils.getResponsiveSpacing(
+                            context,
+                            mobile: 36,
+                            tablet: 40,
+                            desktop: 44,
+                          ),
+                        ),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.play_arrow,
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        mobile: 18,
+                        tablet: 20,
+                        desktop: 22,
+                      ),
+                    ),
+                    label: Text(
+                      'Start Service',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                // Mark Complete for in-progress bookings
+                if (booking.canBeCompleted)
+                  ElevatedButton.icon(
+                    onPressed: () => _completeBooking(booking),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.success,
+                      foregroundColor: Colors.white,
+                      minimumSize: Size(
+                        ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 120,
+                          tablet: 135,
+                          desktop: 150,
+                        ),
+                        ResponsiveUtils.getResponsiveSpacing(
+                          context,
+                          mobile: 36,
+                          tablet: 40,
+                          desktop: 44,
+                        ),
+                      ),
+                    ),
+                    icon: Icon(
+                      Icons.check_circle,
+                      size: ResponsiveUtils.getResponsiveIconSize(
+                        context,
+                        mobile: 18,
+                        tablet: 20,
+                        desktop: 22,
+                      ),
+                    ),
+                    label: Text(
+                      'Complete',
+                      style: TextStyle(
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(
+                          context,
+                          mobile: 13,
+                          tablet: 14,
+                          desktop: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -283,26 +678,32 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
 
   Future<void> _acceptBooking(Booking booking) async {
     try {
-      final success = await EnhancedBookingService.updateBookingStatus(
+      await AtomicBookingService.updateBookingStatusAtomic(
         bookingId: booking.bookingId,
         newStatus: BookingStatus.accepted,
+        userId: widget.provider!.providerId,
+        providerNotes: 'Booking accepted',
       );
 
-      if (success && mounted) {
+      // Send notification to customer
+      await NotificationService.sendNotificationToUser(
+        userId: booking.customerId,
+        title: 'Booking Accepted',
+        body: 'Your booking with ${widget.provider!.businessName} has been accepted! Scheduled for ${booking.formattedScheduledDate} at ${booking.formattedScheduledTime}',
+        data: {
+          'type': NotificationType.bookingAccepted,
+          'bookingId': booking.bookingId,
+        },
+      );
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Booking accepted successfully'),
             backgroundColor: AppTheme.success,
           ),
         );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to accept booking'),
-            backgroundColor: AppTheme.error,
-      ),
-    );
-  }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -320,23 +721,29 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
     if (reason == null) return;
 
     try {
-      final success = await EnhancedBookingService.updateBookingStatus(
+      await AtomicBookingService.updateBookingStatusAtomic(
         bookingId: booking.bookingId,
         newStatus: BookingStatus.rejected,
+        userId: widget.provider!.providerId,
+        providerNotes: reason,
       );
 
-      if (success && mounted) {
+      // Send notification to customer
+      await NotificationService.sendNotificationToUser(
+        userId: booking.customerId,
+        title: 'Booking Declined',
+        body: 'Your booking with ${widget.provider!.businessName} was declined. Reason: $reason',
+        data: {
+          'type': NotificationType.bookingRejected,
+          'bookingId': booking.bookingId,
+        },
+      );
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Booking rejected successfully'),
             backgroundColor: AppTheme.success,
-          ),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to reject booking'),
-            backgroundColor: AppTheme.error,
           ),
         );
       }
@@ -345,6 +752,178 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error rejecting booking: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _startBooking(Booking booking) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Start Service'),
+        content: const Text('Mark this booking as in progress?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: AppTheme.primaryButtonStyle,
+            child: const Text('Start'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await AtomicBookingService.updateBookingStatusAtomic(
+        bookingId: booking.bookingId,
+        newStatus: BookingStatus.inProgress,
+        userId: widget.provider!.providerId,
+        providerNotes: 'Service started',
+      );
+
+      // Send notification to customer
+      await NotificationService.sendNotificationToUser(
+        userId: booking.customerId,
+        title: 'Service Started',
+        body: '${widget.provider!.businessName} has started working on your booking',
+        data: {
+          'type': 'booking_in_progress',
+          'bookingId': booking.bookingId,
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking marked as in progress'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error starting booking: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _completeBooking(Booking booking) async {
+    final finalPriceController = TextEditingController(
+      text: booking.estimatedPrice.toStringAsFixed(0),
+    );
+    final notesController = TextEditingController();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text('Complete Booking'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: finalPriceController,
+              decoration: InputDecoration(
+                labelText: 'Final Price (K)',
+                hintText: 'Enter final amount',
+                hintStyle: TextStyle(color: AppTheme.textTertiary),
+                filled: true,
+                fillColor: AppTheme.cardDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              keyboardType: TextInputType.number,
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              decoration: InputDecoration(
+                labelText: 'Completion Notes (Optional)',
+                hintText: 'Any notes about the completed service...',
+                hintStyle: TextStyle(color: AppTheme.textTertiary),
+                filled: true,
+                fillColor: AppTheme.cardDark,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              maxLines: 3,
+              style: TextStyle(color: AppTheme.textPrimary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.success),
+            child: const Text('Mark Complete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final finalPrice = double.tryParse(finalPriceController.text) ?? booking.estimatedPrice;
+
+      // Provider marks as complete, but requires customer confirmation
+      await AtomicBookingService.updateBookingStatusAtomic(
+        bookingId: booking.bookingId,
+        newStatus: BookingStatus.pendingCustomerConfirmation,  // Changed from completed
+        userId: widget.provider!.providerId,
+        providerNotes: notesController.text.trim().isEmpty 
+            ? 'Service completed, awaiting customer confirmation' 
+            : notesController.text.trim(),
+        finalPrice: finalPrice,
+      );
+
+      // Send notification to customer for confirmation
+      await NotificationService.sendNotificationToUser(
+        userId: booking.customerId,
+        title: 'Service Completed - Confirmation Required',
+        body: '${widget.provider!.businessName} has marked your service as completed (K${finalPrice.toStringAsFixed(0)}). Please confirm completion.',
+        data: {
+          'type': 'booking_pending_confirmation',
+          'bookingId': booking.bookingId,
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Service marked as complete. Awaiting customer confirmation.'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error completing booking: $e'),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -409,6 +988,8 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
         return AppTheme.success;
       case BookingStatus.inProgress:
         return AppTheme.primaryPurple;
+      case BookingStatus.pendingCustomerConfirmation:
+        return AppTheme.info;  // NEW: Blue color for pending confirmation
       case BookingStatus.completed:
         return AppTheme.success;
       case BookingStatus.cancelled:

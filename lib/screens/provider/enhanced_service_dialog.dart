@@ -418,12 +418,20 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(16),
-        ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24), // Issue 5: Add padding to prevent overflow
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Issue 5: Calculate appropriate width based on screen size
+          final dialogWidth = constraints.maxWidth > 600 ? 600.0 : constraints.maxWidth;
+          final dialogHeight = constraints.maxHeight * 0.9; // Use 90% of available height
+          
+          return Container(
+            width: dialogWidth,
+            constraints: BoxConstraints(maxHeight: dialogHeight),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceDark,
+              borderRadius: BorderRadius.circular(16),
+            ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1080,8 +1088,10 @@ class _EnhancedServiceDialogState extends State<EnhancedServiceDialog> {
             ),
           ],
         ),
-      ),
-    );
+          ); // Close LayoutBuilder container
+        }, // Close LayoutBuilder builder
+      ), // Close LayoutBuilder
+    ); // Close Dialog
   }
 
   IconData _getCategoryIcon(String iconName) {

@@ -5,20 +5,21 @@ import '../../models/review.dart';
 import '../../services/comprehensive_review_service.dart';
 import '../../widgets/review_card.dart';
 import '../../utils/app_logger.dart';
+import '../../utils/responsive_utils.dart';
 
-class ProviderReviewsScreen extends StatefulWidget {
+class CustomerProviderReviewsScreen extends StatefulWidget {
   final app_provider.Provider provider;
 
-  const ProviderReviewsScreen({
+  const CustomerProviderReviewsScreen({
     super.key,
     required this.provider,
   });
 
   @override
-  State<ProviderReviewsScreen> createState() => _ProviderReviewsScreenState();
+  State<CustomerProviderReviewsScreen> createState() => _CustomerProviderReviewsScreenState();
 }
 
-class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
+class _CustomerProviderReviewsScreenState extends State<CustomerProviderReviewsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Map<String, dynamic> _stats = {};
@@ -52,7 +53,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('Customer Reviews'),
+        title: Text('${widget.provider.businessName} Reviews'),
         backgroundColor: AppTheme.surfaceDark,
         bottom: TabBar(
           controller: _tabController,
@@ -77,10 +78,70 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
 
   Widget _buildOverviewTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: ResponsiveUtils.getResponsivePadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Provider info card
+          Card(
+            color: AppTheme.surfaceDark,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: AppTheme.primaryPurple.withValues(alpha: 0.2),
+                    backgroundImage: widget.provider.logoUrl != null
+                        ? NetworkImage(widget.provider.logoUrl!)
+                        : null,
+                    child: widget.provider.logoUrl == null
+                        ? Icon(
+                            Icons.business,
+                            color: AppTheme.primaryPurple,
+                            size: 30,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.provider.businessName,
+                          style: AppTheme.heading3.copyWith(
+                            color: AppTheme.textPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (widget.provider.verified)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppTheme.success.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+                            ),
+                            child: Text(
+                              'VERIFIED',
+                              style: AppTheme.caption.copyWith(
+                                color: AppTheme.success,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
           // Stats card
           if (_stats.isNotEmpty) ...[
             ReviewStatsCard(
@@ -139,7 +200,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
             },
           ),
 
-          if (_stats['totalReviews'] > 3) ...[
+          if ((_stats['totalReviews'] ?? 0) > 3) ...[
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -217,7 +278,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveUtils.getResponsivePadding(context),
           itemCount: reviews.length,
           itemBuilder: (context, index) {
             final review = reviews[index];
@@ -248,7 +309,7 @@ class _ProviderReviewsScreenState extends State<ProviderReviewsScreen>
           ),
           const SizedBox(height: 8),
           Text(
-            'Reviews from your customers will appear here',
+            'Be the first to review ${widget.provider.businessName}',
             style: AppTheme.bodyMedium.copyWith(
               color: AppTheme.textSecondary,
             ),

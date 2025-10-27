@@ -388,11 +388,14 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                               color: AppTheme.success,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              'K${service.priceFrom!.toStringAsFixed(0)} - K${service.priceTo!.toStringAsFixed(0)}',
-                              style: AppTheme.bodyMedium.copyWith(
-                                color: AppTheme.success,
-                                fontWeight: FontWeight.w600,
+                            Flexible(
+                              child: Text(
+                                'K${service.priceFrom!.toStringAsFixed(0)} - K${service.priceTo!.toStringAsFixed(0)}',
+                                style: AppTheme.bodyMedium.copyWith(
+                                  color: AppTheme.success,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ] else if (service.type == 'negotiable') ...[
@@ -424,17 +427,20 @@ class _ServiceSelectionDialogState extends State<ServiceSelectionDialog> {
                               ),
                             ),
                           ],
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           Icon(
                             Icons.schedule,
                             size: 16,
                             color: AppTheme.textSecondary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            service.duration ?? 'Not specified',
-                            style: AppTheme.bodyMedium.copyWith(
-                              color: AppTheme.textSecondary,
+                          Flexible(
+                            child: Text(
+                              service.duration ?? 'Not specified',
+                              style: AppTheme.bodyMedium.copyWith(
+                                color: AppTheme.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],

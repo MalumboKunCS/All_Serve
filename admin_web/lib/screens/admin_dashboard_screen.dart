@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared/shared.dart' as shared;
+
 import 'admin/widgets/admin_sidebar.dart';
 import 'admin/widgets/admin_app_bar.dart';
 import 'admin/tabs/dashboard_overview_tab.dart';
@@ -7,6 +8,7 @@ import 'admin/tabs/verification_queue_tab.dart';
 import 'admin/tabs/providers_tab.dart';
 import 'admin/tabs/reviews_tab.dart';
 import 'admin/tabs/customers_tab.dart';
+import 'admin/tabs/bookings_tab.dart';
 import 'admin/tabs/announcements_tab.dart';
 import 'admin/tabs/admin_management_tab.dart';
 import 'admin/tabs/provider_reports_tab.dart';
@@ -257,8 +259,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 5:
         return CustomersTab();
       case 6:
-        return AnnouncementsTab();
+        return BookingsTab();
       case 7:
+        return AnnouncementsTab();
+      case 8:
         return AdminManagementTab();
       default:
         return DashboardOverviewTab(

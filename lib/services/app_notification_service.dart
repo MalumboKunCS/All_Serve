@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification.dart';
+import '../utils/app_logger.dart';
 
 class AppNotificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -43,13 +44,19 @@ class AppNotificationService {
   }
 
   /// Get unread notification count
+  /// Issue 4 Fix: Simplified query to avoid composite index requirement
   static Stream<int> getUnreadCountStream(String receiverId) {
     return _firestore
         .collection('notifications')
         .where('receiverId', isEqualTo: receiverId)
-        .where('isRead', isEqualTo: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs.length);
+        .map((snapshot) {
+      // Filter for unread in memory to avoid requiring composite index
+      return snapshot.docs.where((doc) {
+        final data = doc.data();
+        return data['isRead'] == false || data['isRead'] == null;
+      }).length;
+    });
   }
 
   /// Mark notification as read
@@ -59,7 +66,7 @@ class AppNotificationService {
         'isRead': true,
       });
     } catch (e) {
-      print('Error marking notification as read: $e');
+      AppLogger.error('Error marking notification as read: $e');
     }
   }
 
@@ -78,7 +85,7 @@ class AppNotificationService {
       }
       await batch.commit();
     } catch (e) {
-      print('Error marking all notifications as read: $e');
+      AppLogger.error('Error marking all notifications as read: $e');
     }
   }
 
@@ -99,7 +106,7 @@ class AppNotificationService {
         'isRead': false,
       });
     } catch (e) {
-      print('Error sending notification: $e');
+      AppLogger.error('Error sending notification: $e');
     }
   }
 
@@ -108,7 +115,7 @@ class AppNotificationService {
     try {
       await _firestore.collection('notifications').doc(notificationId).delete();
     } catch (e) {
-      print('Error deleting notification: $e');
+      AppLogger.error('Error deleting notification: $e');
     }
   }
 
@@ -126,12 +133,7 @@ class AppNotificationService {
       }
       await batch.commit();
     } catch (e) {
-      print('Error clearing all notifications: $e');
+      AppLogger.error('Error clearing all notifications: $e');
     }
   }
 }
-
-
-
-
-
